@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef HUBBARD_SRC_GQDOUBLE_H
-#define HUBBARD_SRC_GQDOUBLE_H
+#ifndef SPIN_GQDOUBLE_H
+#define SPIN_GQDOUBLE_H
 
 #include "gqten/gqten.h"
 
@@ -31,4 +31,7 @@ const IndexT pb_out = IndexT({
 #endif
 const IndexT pb_in = gqten::InverseIndex(pb_out);
 
-#endif //HUBBARD_SRC_GQDOUBLE_H
+
+std::string peps_path = "peps";
+
+#endif //SPIN_GQDOUBLE_H

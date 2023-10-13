@@ -1,18 +1,18 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+
 /*
 * Author: Hao-Xin Wang<wanghaoxin1996@gmail.com>
-* Creation Date: 2023-09-28
+* Creation Date: 2023-10-11
 *
-* Description: Simple Update for Heisenberg model.
+* Description: Simple Update for Heisenberg model in Kagome lattice.
 */
 
 
 //#define PLAIN_TRANSPOSE 1
 
-#include "gqpeps/algorithm/simple_update/triangle_nn_on_sqr_peps_simple_update.h"
+#include "./kagome_nn_on_sqr_peps_simple_update.h"
 #include "./gqdouble.h"
 #include "./params_parser.h"
-
-
 
 int main(int argc, char **argv) {
   SimpleUpdateParams params(argv[1]);
@@ -76,23 +76,31 @@ int main(int argc, char **argv) {
   gqpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
                                        params.Dmin, params.Dmax,
                                        params.TruncErr);
-
-  gqpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, params.Ly, params.Lx);
+  // params.Ly is linear size of system in unit cell
+  // peps size should be double of that.
+  size_t peps_lx = 2 * params.Lx;
+  size_t peps_ly = 2 * params.Ly;
+  gqpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, peps_ly, peps_lx);
   if (gqmps2::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
-    std::vector<std::vector<size_t>> activates(params.Ly, std::vector<size_t>(params.Lx));
-    for (size_t y = 0; y < params.Ly; y++) {
-      for (size_t x = 0; x < params.Lx; x++) {
-        size_t sz_int = x + y;
-        activates[y][x] = sz_int % 2;
+    std::vector<std::vector<size_t>> activates(peps_ly, std::vector<size_t>(peps_lx));
+    size_t sz_int = 0;
+    for (size_t y = 0; y < peps_ly; y++) {
+      for (size_t x = 0; x < peps_lx; x++) {
+        if ((x & 1) && (y & 1)) {
+          activates[y][x] = 0;
+        } else {
+          activates[y][x] = sz_int % 2;
+          sz_int += 1;
+        }
       }
     }
     peps0.Initial(activates);
   }
-  auto su_exe = new gqpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor(update_para, peps0,
-                                                                          ham_hei_nn,
-                                                                          ham_hei_tri);
+  auto su_exe = new gqpeps::KagomeNNModelSquarePEPSSimpleUpdateExecutor(update_para, peps0,
+                                                                        ham_hei_nn,
+                                                                        ham_hei_tri);
   su_exe->Execute();
   auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
   tps.Dump();

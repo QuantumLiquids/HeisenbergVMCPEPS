@@ -10,34 +10,9 @@
 //#define PLAIN_TRANSPOSE 1
 
 #include "gqpeps/algorithm/simple_update/square_lattice_nn_simple_update.h"
-#include "gqmps2/case_params_parser.h"
 #include "./gqdouble.h"
+#include "./params_parser.h"
 
-struct SimpleUpdateParams : public gqmps2::CaseParamsParserBasic {
-  SimpleUpdateParams(const char *f) : CaseParamsParserBasic(f) {
-    Lx = ParseInt("Lx");
-    Ly = ParseInt("Ly");
-    J2 = ParseDouble("J2");
-    TruncErr = ParseDouble("TruncErr");
-    Dmin = ParseInt("Dmin");
-    Dmax = ParseInt("Dmax");
-    Tau = ParseDouble("Tau");
-    Step = ParseInt("Step");
-    ThreadNum = ParseInt("ThreadNum");
-  }
-
-  size_t Ly;
-  size_t Lx;
-  double J2;
-  double TruncErr;
-  size_t Dmin;
-  size_t Dmax;
-  double Tau;
-  size_t Step;
-  size_t ThreadNum;
-};
-
-std::string peps_path = "peps";
 
 int main(int argc, char **argv) {
   SimpleUpdateParams params(argv[1]);
