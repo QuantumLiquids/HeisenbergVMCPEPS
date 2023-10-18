@@ -1,0 +1,27 @@
+{
+  "CaseParams": {
+    "Geometry" : "XC",
+    "Ly": 4,
+    "Lx": 4,
+    "J1": -1,
+    "J2": -0.5,
+    "J3": 10,
+    "Dzz": 0.1,
+    "Sweeps": 2,
+    "Dmin": 50,
+    "Dmax": 400,
+    "CutOff": 1e-8,
+    "LanczErr": 1e-9,
+    "MaxLanczIter": 5,
+    "tau": 0.001,
+    "M": 10,
+    "ConvergeTolerance": 1e-15,
+    "TaylorOrder": 30,
+    "TaylorErr": 1e-15,
+    "Threads": 4,
+    "Perturbation": 0.0,
+    "wavelength" : 4,
+    "noise" : [0.0,0.0],
+    "SymmetryMode" : 1
+  }
+}

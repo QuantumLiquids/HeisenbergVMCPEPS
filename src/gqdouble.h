@@ -25,7 +25,7 @@ const IndexT pb_out = IndexT({QNSctT(U1QN(1), 1), QNSctT(U1QN(-1), 1)},
 );
 #else
 const IndexT pb_out = IndexT({
-                                 QNSctT(U1QN({QNCard("Sz", U1QNVal(0))}), 2)},
+                                 QNSctT(U1QN(0), 2)},
                              gqten::GQTenIndexDirType::OUT
 );
 #endif

@@ -13,7 +13,6 @@
 #include "./params_parser.h"
 
 
-
 int main(int argc, char **argv) {
   SimpleUpdateParams params(argv[1]);
 
@@ -90,9 +89,9 @@ int main(int argc, char **argv) {
     }
     peps0.Initial(activates);
   }
-  auto su_exe = new gqpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor(update_para, peps0,
-                                                                          ham_hei_nn,
-                                                                          ham_hei_tri);
+  auto su_exe = new gqpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
+                                                                                          ham_hei_nn,
+                                                                                          ham_hei_tri);
   su_exe->Execute();
   auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
   tps.Dump();

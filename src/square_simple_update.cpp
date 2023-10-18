@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
     }
     peps0.Initial(activates);
   }
-  auto su_exe = new gqpeps::SquareLatticeNNSimpleUpdateExecutor(update_para, peps0,
+  auto su_exe = new gqpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
                                                                 ham_hei_nn);
   su_exe->Execute();
   auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
