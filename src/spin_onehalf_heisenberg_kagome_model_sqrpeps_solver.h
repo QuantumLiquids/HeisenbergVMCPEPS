@@ -96,8 +96,9 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
   TenElemT energy(0);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
+  const TruncatePara &trunc_para = TPSSample<TenElemT, QNT>::trun_para;
   TenElemT inv_psi = 1.0 / (tps_sample->amplitude);
-  tn.GenerateBMPSApproach(UP);
+  tn.GenerateBMPSApproach(UP, trunc_para);
   for (size_t row = 0; row < tn.rows(); row++) {
     tn.InitBTen(LEFT, row);
     tn.GrowFullBTen(RIGHT, row, 1, true);
@@ -166,12 +167,12 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
         }
         tn.BTen2MoveStep(RIGHT, row);
       }
-      tn.BMPSMoveStep(DOWN);
+      tn.BMPSMoveStep(DOWN, trunc_para);
     }
   }
 
   //Calculate vertical bond energy contribution
-  tn.GenerateBMPSApproach(LEFT);
+  tn.GenerateBMPSApproach(LEFT, trunc_para);
   for (size_t col = 0; col < tn.cols(); col++) {
     tn.InitBTen(UP, col);
     tn.GrowFullBTen(DOWN, col, 2, true);
@@ -195,7 +196,7 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
       }
     }
     if (col < tn.cols() - 1) {
-      tn.BMPSMoveStep(RIGHT);
+      tn.BMPSMoveStep(RIGHT, trunc_para);
     }
   }
   if (energy < -1.0e8) {

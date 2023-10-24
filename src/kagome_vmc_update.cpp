@@ -59,6 +59,9 @@ int main(int argc, char **argv) {
                                                               world);
   }
 
+  executor->cg_params.max_iter = params.CGMaxIter;
+  executor->cg_params.tolerance = params.CGTol;
+  executor->cg_params.residue_restart_step = params.CGResidueRestart;
   executor->Execute();
   delete executor;
 
