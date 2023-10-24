@@ -70,7 +70,7 @@ double KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>::SimpleUpdateS
     }
   }
 
-  for (size_t row = 0; row < this->ly_ - 2; row++) {
+  for (size_t row = 1; row < this->ly_ - 2; row += 2) {
     norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {row, 0}, VERTICAL, para);
     e0 += -std::log(norm) / this->update_para.tau;
   }
