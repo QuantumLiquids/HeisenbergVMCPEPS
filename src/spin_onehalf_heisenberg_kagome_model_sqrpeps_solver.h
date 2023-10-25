@@ -118,8 +118,8 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
         // 3->6->5->3
         size_t rotate_config1 = config1 / 4 + 2 * (config1 % 4);
         size_t rotate_config2 = rotate_config1 / 4 + 2 * (rotate_config1 % 4);
-        TenElemT psi_rotate1 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config1]);
-        TenElemT psi_rotate2 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config2]);
+        TenElemT psi_rotate1 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config1], HORIZONTAL);
+        TenElemT psi_rotate2 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config2], HORIZONTAL);
         energy += -0.25 + (psi_rotate1 + psi_rotate2) * inv_psi * 0.5;
       }
 
