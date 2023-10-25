@@ -46,6 +46,7 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
     CGMaxIter = ParseInt("CGMaxIter");
     CGTol = ParseDouble("CGTol");
     CGResidueRestart = ParseInt("CGResidueRestart");
+    CGDiagShift = ParseDouble("CGDiagShift");
     Continue_from_VMC = ParseBool("Continue_from_VMC");
     size_t update_times = ParseInt("UpdateNum");
     step_len = std::vector<double>(update_times);
@@ -69,8 +70,9 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
   size_t MC_samples;
   size_t WarmUp;
   size_t CGMaxIter;
-  size_t CGTol;
+  double CGTol;
   int CGResidueRestart;
+  double CGDiagShift;
   bool Continue_from_VMC;
   gqpeps::WAVEFUNCTION_UPDATE_SCHEME update_scheme;
   std::vector<double> step_len;

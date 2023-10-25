@@ -54,7 +54,9 @@ int main(int argc, char **argv) {
       exit(-2);
     };
     SplitIndexTPS<GQTEN_Double, U1QN> split_idx_tps = KagomeSquarePEPSToSplitIndexTPS(peps);
-
+    if (!split_idx_tps.IsBondDimensionEven()) {
+      std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
+    }
     executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, split_idx_tps,
                                                               world);
   }
@@ -62,6 +64,7 @@ int main(int argc, char **argv) {
   executor->cg_params.max_iter = params.CGMaxIter;
   executor->cg_params.tolerance = params.CGTol;
   executor->cg_params.residue_restart_step = params.CGResidueRestart;
+  executor->cg_params.diag_shift = params.CGDiagShift;
   executor->Execute();
   delete executor;
 
