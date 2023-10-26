@@ -43,6 +43,7 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
     TruncErr = ParseDouble("TruncErr");
     MC_samples = ParseInt("MC_samples");
     WarmUp = ParseInt("WarmUp");
+    MCLocalUpdateSweepsBetweenSample = ParseInt("MCLocalUpdateSweepsBetweenSample");
     CGMaxIter = ParseInt("CGMaxIter");
     CGTol = ParseDouble("CGTol");
     CGResidueRestart = ParseInt("CGResidueRestart");
@@ -69,6 +70,7 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
   size_t TruncErr;
   size_t MC_samples;
   size_t WarmUp;
+  size_t MCLocalUpdateSweepsBetweenSample;
   size_t CGMaxIter;
   double CGTol;
   int CGResidueRestart;

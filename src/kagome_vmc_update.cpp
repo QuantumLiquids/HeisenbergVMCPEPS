@@ -36,9 +36,10 @@ int main(int argc, char **argv) {
 
   gqpeps::VMCOptimizePara optimize_para(params.TruncErr, params.Db_min, params.Db_max,
                                         params.MC_samples, params.WarmUp,
+                                        params.MCLocalUpdateSweepsBetweenSample,
                                         occupation_num, params.step_len,
                                         params.update_scheme);
-  optimize_para.mc_sweep_sheme = CompressedLatticeKagomeLocalUpdate;
+  optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
 
   using Model = KagomeSpinOneHalfHeisenbergSquare<TenElemT, U1QN>;

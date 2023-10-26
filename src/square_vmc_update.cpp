@@ -26,6 +26,7 @@ int main(int argc, char **argv) {
   size_t N = params.Lx * params.Ly;
   gqpeps::VMCOptimizePara optimize_para(params.TruncErr, params.Db_min, params.Db_max,
                                         params.MC_samples, params.WarmUp,
+                                        params.MCLocalUpdateSweepsBetweenSample,
                                         {N / 2, N / 2}, params.step_len,
                                         params.update_scheme);
 
