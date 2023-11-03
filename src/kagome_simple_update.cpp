@@ -102,8 +102,8 @@ int main(int argc, char **argv) {
                                                                                         ham_hei_nn,
                                                                                         ham_hei_tri);
   su_exe->Execute();
-  auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
-  tps.Dump();
+//  auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+//  tps.Dump();
   su_exe->DumpResult(peps_path, true);
   return 0;
 }
