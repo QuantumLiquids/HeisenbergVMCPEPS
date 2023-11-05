@@ -75,7 +75,12 @@ class KagomeMeasurementExecutor : public Executor {
   std::vector<std::vector<bool>> local_sz_samples_; // outside is the sample index, inner side is the lattice index.
   // the lattice site number = Lx * Ly * 3,  first the unit cell, then column idx, then row index.
 
-
+  struct Result {
+    TenElemT energy;
+    TenElemT en_err;
+    std::vector<double> sz;
+  };
+  Result res;
 };//KagomeMeasurementExecutor
 
 
@@ -93,7 +98,7 @@ template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MeasureSample_() {
   TenElemT energy;
   std::vector<bool> local_sz;
-  energy = measurement_solver_(&split_index_tps_, &tps_sample_, local_sz);
+  energy = measurement_solver_.SampleMeasure(&split_index_tps_, &tps_sample_, local_sz);
   energy_samples_.push_back(energy);
   local_sz_samples_.push_back(local_sz);
   //add more measurement here and the definition of measurement solver
@@ -101,8 +106,36 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MeasureSample_
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatistic_() {
-
-
+  TenElemT en_thread = Mean(energy_samples_);
+  std::vector<TenElemT> en_list;
+  boost::mpi::gather(world_, en_thread, en_list, kMasterProc);
+  if (world_.rank() == 0) {
+    res.energy = Mean(en_list);
+    res.en_err = StandardError(en_list, res.energy);
+  }
+  size_t N = 3 * lx_ * ly_;
+  std::vector<size_t> sz_sum_thread(3 * lx_ * ly_, 0);
+  std::vector<std::vector<size_t>> sz_sum_list(3 * lx_ * ly_);
+  std::vector<size_t> sz_sum(3 * lx_ * ly_, 0);
+  for (auto &local_sz: local_sz_samples_) {
+    for (size_t i = 0; i < 3 * lx_ * ly_; i++) {
+      sz_sum_thread[i] += local_sz[i];
+    }
+  }
+  for (size_t i = 0; i < 3 * lx_ * ly_; i++) { // i is site index
+    boost::mpi::gather(world_, sz_sum_thread[i], sz_sum_list[i], kMasterProc);
+    if (world_.rank() == kMasterProc) {
+      for (size_t summation: sz_sum_list[i]) { //for every thread's summation resutl
+        sz_sum[i] += summation;
+      }
+    }
+  }
+  if (world_.rank() == kMasterProc) {
+    res.sz = std::vector<double>(3 * lx_ * ly_, 0.0);
+    for (size_t i = 0; i < N; i++) {
+      res.sz[i] = (double) sz_sum[i] / (double) (optimize_para.mc_samples * world_.size()) - 0.5;
+    }
+  }
 }
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
@@ -119,6 +152,14 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::DumpData(const std:
   world_.barrier();
   DumpVecData(energy_raw_path + "/energy" + std::to_string(world_.rank()), energy_samples_);
 
+  if (world_.rank() == kMasterProc) {
+    std::ofstream ofs("statistic_summary", std::ofstream::binary);
+    ofs.write((const char *) &res.energy, 1 * sizeof(TenElemT));
+    ofs.write((const char *) &res.en_err, 1 * sizeof(TenElemT));
+    ofs.write((const char *) res.sz.data(), res.sz.size() * sizeof(double));
+    ofs << std::endl;
+    ofs.close();
+  }
 }
 
 
@@ -131,7 +172,7 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
     world_(world), optimize_para(optimize_para), lx_(lx), ly_(ly),
     split_index_tps_(ly, lx), tps_sample_(ly, lx),
     u_double_(0, 1),
-    energy_solver_(solver), warm_up_(false) {
+    measurement_solver_(solver), warm_up_(false) {
   TPSSample<TenElemT, QNT>::trun_para = TruncatePara(optimize_para);
   random_engine.seed((size_t)
                          std::time(nullptr) + 10086 * world.rank());

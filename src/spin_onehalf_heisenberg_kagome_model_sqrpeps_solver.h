@@ -54,6 +54,7 @@ SplitIndexTPS<TenElemT, QNT> KagomeSquarePEPSToSplitIndexTPS(
        *    5: lower site
        *    6: right site
        */
+      combined_tps_ten.Normalize();
       std::vector<Index<QNT>> indexes = combined_tps_ten.GetIndexes();
       std::vector<Index<QNT>> phy_indexes_out(indexes.begin() + 4, indexes.end());
       std::vector<Index<QNT>> phy_indexes_in(3);

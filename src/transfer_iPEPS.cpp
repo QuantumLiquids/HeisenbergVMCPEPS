@@ -42,16 +42,18 @@ int main(int argc, char *argv[]) {
   );
   const IndexT trvb_in = gqten::InverseIndex(trvb_out);
 
-  Tensor Ba({pb_out, vb_out, vb_in});
-  Ba({0, 0, 0}) = 1.0;
-  Tensor Bb({pb_out, vb_in, vb_out});
-  Bb({0, 0, 0}) = 1.0;
-  Tensor Td({vb_out, vb_out, vb_in});
-  Td({0, 0, 0}) = 1.0;
-  Tensor Bc({pb_out, vb_in, vb_out});
-  Bc({0, 0, 0}) = 1.0;
-  Tensor Tu({vb_in, vb_in, vb_out});
-  Tu({0, 0, 0}) = 1.0;
+//  Tensor Ba({pb_out, vb_out, vb_in});
+//  Ba({0, 0, 0}) = 1.0;
+//  Tensor Bb({pb_out, vb_in, vb_out});
+//  Bb({0, 0, 0}) = 1.0;
+//  Tensor Td({vb_out, vb_out, vb_in});
+//  Td({0, 0, 0}) = 1.0;
+//  Tensor Bc({pb_out, vb_in, vb_out});
+//  Bc({0, 0, 0}) = 1.0;
+//  Tensor Tu({vb_in, vb_in, vb_out});
+//  Tu({0, 0, 0}) = 1.0;
+  Tensor A({pb_out, pb_out, pb_out, vb_in, vb_in, vb_out, vb_out});
+  A({{0, 0, 0, 0, 0, 0, 0}}) = 1.0;
   Tensor filter_in({trvb_in, vb_out});
   filter_in({0, 0}) = 1.0;
   Tensor filter_out({trvb_out, vb_in});
@@ -60,23 +62,28 @@ int main(int argc, char *argv[]) {
   std::string filename;
   std::string tensor_path = "../ipeps_tensors/D" + std::to_string(Db) + "/";
 
-  filename = tensor_path + "IPESS_Ba_D" + std::to_string(Db) + ".dat";
-  LoadTenData(filename, Ba.GetActualDataSize(), Ba.GetRawDataPtr());
-  filename = tensor_path + "IPESS_Bb_D" + std::to_string(Db) + ".dat";
-  LoadTenData(filename, Bb.GetActualDataSize(), Bb.GetRawDataPtr());
-  filename = tensor_path + "IPESS_Bc_D" + std::to_string(Db) + ".dat";
-  LoadTenData(filename, Bc.GetActualDataSize(), Bc.GetRawDataPtr());
-  filename = tensor_path + "IPESS_Td_D" + std::to_string(Db) + ".dat";
-  LoadTenData(filename, Td.GetActualDataSize(), Td.GetRawDataPtr());
-  filename = tensor_path + "IPESS_Tu_D" + std::to_string(Db) + ".dat";
-  LoadTenData(filename, Tu.GetActualDataSize(), Tu.GetRawDataPtr());
+//  filename = tensor_path + "IPESS_Ba_D" + std::to_string(Db) + ".dat";
+//  LoadTenData(filename, Ba.GetActualDataSize(), Ba.GetRawDataPtr());
+//  filename = tensor_path + "IPESS_Bb_D" + std::to_string(Db) + ".dat";
+//  LoadTenData(filename, Bb.GetActualDataSize(), Bb.GetRawDataPtr());
+//  filename = tensor_path + "IPESS_Bc_D" + std::to_string(Db) + ".dat";
+//  LoadTenData(filename, Bc.GetActualDataSize(), Bc.GetRawDataPtr());
+//  filename = tensor_path + "IPESS_Td_D" + std::to_string(Db) + ".dat";
+//  LoadTenData(filename, Td.GetActualDataSize(), Td.GetRawDataPtr());
+//  filename = tensor_path + "IPESS_Tu_D" + std::to_string(Db) + ".dat";
+//  LoadTenData(filename, Tu.GetActualDataSize(), Tu.GetRawDataPtr());
 
-  Tensor tmp0, tmp1, tmp2, square_ten;
-  Contract(&Tu, {0}, &Bc, {2}, &tmp0);
-  Contract(&tmp0, {3}, &Td, {0}, &tmp1);
-  Contract(&tmp1, {3}, &Bb, {1}, &tmp2);
-  Contract(&tmp2, {3}, &Ba, {1}, &square_ten);
-  square_ten.Transpose({0, 1, 4, 6, 2, 3, 5});
+  filename = tensor_path + "IPESS_A_D" + std::to_string(Db) + ".dat";
+  LoadTenData(filename, A.GetActualDataSize(), A.GetRawDataPtr());
+
+//  Tensor tmp0, tmp1, tmp2, square_ten;
+//  Contract(&Tu, {0}, &Bc, {2}, &tmp0);
+//  Contract(&tmp0, {3}, &Td, {0}, &tmp1);
+//  Contract(&tmp1, {3}, &Bb, {1}, &tmp2);
+//  Contract(&tmp2, {3}, &Ba, {1}, &square_ten);
+//  square_ten.Transpose({0, 1, 4, 6, 2, 3, 5});
+  Tensor square_ten = A;
+  square_ten.Transpose({4, 5, 6, 3, 0, 1, 2});
   /**
  * square_ten up to now
  *           3
@@ -96,30 +103,53 @@ int main(int argc, char *argv[]) {
   for (size_t row = 0; row < Ly; row++) {
     for (size_t col = 0; col < Lx; col++) {
       Tensor local_ten = square_ten;
+      Tensor u, v;
+      GQTensor<double, U1QN> s;
+      size_t D_act;
+      double trunc_err_act;
       if (row == 0) {
-        Tensor tmp;
-        Contract(&local_ten, {3}, &filter_in, {1}, &tmp);
-        local_ten = tmp;
-        local_ten.Transpose({0, 1, 2, 6, 3, 4, 5});
+
+//        Tensor tmp;
+        //        Contract(&local_ten, {3}, &filter_in, {1}, &tmp);
+//        tmp.Transpose({0, 1, 2, 6, 3, 4, 5});
+//local_ten = tmp;
+        local_ten.Transpose({3, 0, 1, 2, 4, 5, 6});
+        SVD(&local_ten, 1, qn0, 0, 1, 1, &u, &s, &v, &trunc_err_act, &D_act);
+        local_ten = v;
+        local_ten.Transpose({1, 2, 3, 0, 4, 5, 6});
       } else if (row == Ly - 1) {
-        Tensor tmp;
-        Contract(&local_ten, {1}, &filter_out, {1}, &tmp);
-        local_ten = tmp;
-        local_ten.Transpose({0, 6, 1, 2, 3, 4, 5});
+//        Tensor tmp;
+//        Contract(&local_ten, {1}, &filter_out, {1}, &tmp);
+//        local_ten = tmp;
+//        local_ten.Transpose({0, 6, 1, 2, 3, 4, 5});
+        local_ten.Transpose({1, 2, 3, 0, 4, 5, 6});
+        SVD(&local_ten, 1, qn0, 0, 1, 1, &u, &s, &v, &trunc_err_act, &D_act);
+        local_ten = v;
+        local_ten.Transpose({3, 0, 1, 2, 4, 5, 6});
       }
 
       if (col == 0) {
-        Tensor tmp;
-        Contract(&filter_in, {1}, &local_ten, {0}, &tmp);
-        local_ten = tmp;
+//        Tensor tmp;
+//        Contract(&filter_in, {1}, &local_ten, {0}, &tmp);
+//        local_ten = tmp;
+
+        SVD(&local_ten, 1, qn0, 0, 1, 1, &u, &s, &v, &trunc_err_act, &D_act);
+        local_ten = v;
+
       } else if (col == Lx - 1) {
-        Tensor tmp;
-        Contract(&local_ten, {2}, &filter_out, {1}, &tmp);
-        local_ten = tmp;
-        local_ten.Transpose({0, 1, 6, 2, 3, 4, 5});
+//        Tensor tmp;
+//        Contract(&local_ten, {2}, &filter_out, {1}, &tmp);
+//        local_ten = tmp;
+//        local_ten.Transpose({0, 1, 6, 2, 3, 4, 5});
+        local_ten.Transpose({2, 3, 0, 1, 4, 5, 6});
+        SVD(&local_ten, 1, qn0, 0, 1, 1, &u, &s, &v, &trunc_err_act, &D_act);
+        local_ten = v;
+        local_ten.Transpose({2, 3, 0, 1, 4, 5, 6});
       }
 
       Tensor combined_tps_ten = local_ten; //use consistent name with the solver file.
+      combined_tps_ten.Normalize();
+      //      combined_tps_ten.Show();
       using QNT = U1QN;
       std::vector<Index<QNT>> indexes = combined_tps_ten.GetIndexes();
       std::vector<Index<QNT>> phy_indexes_out(indexes.begin() + 4, indexes.end());
@@ -139,7 +169,8 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-
+//  double norm = split_idx_tps.Norm();
+//  split_idx_tps *= 1.0 / sqrt(norm);
   split_idx_tps.Dump();
   return 0;
 }
