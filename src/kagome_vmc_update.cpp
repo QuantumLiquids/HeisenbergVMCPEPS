@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
   using Model = KagomeSpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
   VMCPEPSExecutor<TenElemT, U1QN, Model> *executor(nullptr);
-  if (params.Continue_from_VMC) {
+  if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
     executor = new VMCPEPSExecutor<TenElemT, U1QN, Model>(optimize_para,
                                                           params.Ly, params.Lx,
                                                           world);
