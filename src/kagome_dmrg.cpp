@@ -43,7 +43,7 @@ std::vector<Link> GenerateOBCKagomeNNLink(const size_t Lx, const size_t Ly) {
 
 int main(int argc, char *argv[]) {
   namespace mpi = boost::mpi;
-  mpi::environment env(mpi::threading::multiple);
+  mpi::environment env();
   mpi::communicator world;
 
   DMRGCaseParams params(argv[1]);
