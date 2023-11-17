@@ -11,6 +11,67 @@
 namespace gqpeps {
 using namespace gqten;
 
+size_t SpinConfigurationOverlap(
+    const std::vector<bool> &sz1,
+    const std::vector<bool> &sz2
+) {
+  size_t overlap(0);
+  for (size_t i = 0; i < sz1.size(); i++) {
+    overlap += sz1[i] && sz2[i];
+  }
+  return overlap;
+}
+
+template<typename T>
+std::vector<T> CalAutoCorrelation(
+    const std::vector<T> &data,
+    const T mean
+) {
+  const size_t res_len = 20; // I think enough long
+  std::vector<T> res(res_len, T(0));
+  for (size_t t = 0; t < res_len; t++) {
+    T sum(0);
+    for (size_t j = 0; j < data.size() - t; j++) {
+      sum += data[j] * data[j + t];
+    }
+    res[t] = sum / (data.size() - t);
+  }
+  return res;
+}
+
+template<typename T>
+std::vector<T> AveListOfData(
+    const std::vector<std::vector<T> > &data //outside idx: sample index; inside idx: something like site/bond
+) {
+  const size_t N = data[0].size();
+  const size_t sample_size = data.size();
+  std::vector<T> sum(N, T(0)), ave(N);
+  for (size_t sample_idx = 0; sample_idx < sample_size; sample_idx++) {
+    for (size_t i = 0; i < N; i++) {
+      sum[i] += data[sample_idx][i];
+    }
+  }
+  for (size_t i = 0; i < N; i++) {
+    ave[i] = sum[i] / sample_size;
+  }
+  return ave;
+}
+
+std::vector<double> CalSpinAutoCorrelation(
+    const std::vector<std::vector<bool>> &local_sz_samples
+) {
+  const size_t res_len = 20;
+  const size_t N = local_sz_samples[0].size();// lattice size
+  std::vector<double> res(res_len, 0.0);
+  for (size_t t = 0; t < res_len; t++) {
+    size_t overlap_sum(0);
+    for (size_t j = 0; j < local_sz_samples.size() - t; j++) {
+      overlap_sum += SpinConfigurationOverlap(local_sz_samples[j], local_sz_samples[j + t]);
+    }
+    res[t] = (double) overlap_sum / (local_sz_samples.size() - t) / N - 0.25;
+  }
+  return res;
+}
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
 class KagomeMeasurementExecutor : public Executor {
@@ -71,6 +132,7 @@ class KagomeMeasurementExecutor : public Executor {
 
   // observable
   std::vector<TenElemT> energy_samples_;
+  std::vector<std::vector<TenElemT>> bond_energy_samples_;
   std::vector<size_t> center_configs_; //used to analyze the auto correlation.
   std::vector<std::vector<bool>> local_sz_samples_; // outside is the sample index, inner side is the lattice index.
   // the lattice site number = Lx * Ly * 3,  first the unit cell, then column idx, then row index.
@@ -78,7 +140,10 @@ class KagomeMeasurementExecutor : public Executor {
   struct Result {
     TenElemT energy;
     TenElemT en_err;
+    std::vector<TenElemT> bond_energys;
     std::vector<double> sz;
+    std::vector<TenElemT> energy_auto_corr;
+    std::vector<double> spin_auto_corr;
   };
   Result res;
 };//KagomeMeasurementExecutor
@@ -98,9 +163,11 @@ template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MeasureSample_() {
   TenElemT energy;
   std::vector<bool> local_sz;
-  energy = measurement_solver_.SampleMeasure(&split_index_tps_, &tps_sample_, local_sz);
+  std::vector<double> bond_energy;
+  energy = measurement_solver_.SampleMeasure(&split_index_tps_, &tps_sample_, local_sz, bond_energy);
   energy_samples_.push_back(energy);
   local_sz_samples_.push_back(local_sz);
+  bond_energy_samples_.push_back(bond_energy);
   //add more measurement here and the definition of measurement solver
 }
 
@@ -113,16 +180,17 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
     res.energy = Mean(en_list);
     res.en_err = StandardError(en_list, res.energy);
   }
-  size_t N = 3 * lx_ * ly_;
-  std::vector<size_t> sz_sum_thread(3 * lx_ * ly_, 0);
-  std::vector<std::vector<size_t>> sz_sum_list(3 * lx_ * ly_);
-  std::vector<size_t> sz_sum(3 * lx_ * ly_, 0);
+  res.energy_auto_corr = CalAutoCorrelation(energy_samples_, en_thread);
+  const size_t N = 3 * lx_ * ly_; //site number
+  std::vector<size_t> sz_sum_thread(N, 0);
+  std::vector<std::vector<size_t>> sz_sum_list(N);
+  std::vector<size_t> sz_sum(N, 0);
   for (auto &local_sz: local_sz_samples_) {
-    for (size_t i = 0; i < 3 * lx_ * ly_; i++) {
+    for (size_t i = 0; i < N; i++) {
       sz_sum_thread[i] += local_sz[i];
     }
   }
-  for (size_t i = 0; i < 3 * lx_ * ly_; i++) { // i is site index
+  for (size_t i = 0; i < N; i++) { // i is site index
     boost::mpi::gather(world_, sz_sum_thread[i], sz_sum_list[i], kMasterProc);
     if (world_.rank() == kMasterProc) {
       for (size_t summation: sz_sum_list[i]) { //for every thread's summation resutl
@@ -131,11 +199,24 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
     }
   }
   if (world_.rank() == kMasterProc) {
-    res.sz = std::vector<double>(3 * lx_ * ly_, 0.0);
+    res.sz = std::vector<double>(N, 0.0);
     for (size_t i = 0; i < N; i++) {
       res.sz[i] = (double) sz_sum[i] / (double) (optimize_para.mc_samples * world_.size()) - 0.5;
     }
   }
+  res.spin_auto_corr = CalSpinAutoCorrelation(local_sz_samples_);
+
+  const size_t bond_num = bond_energy_samples_[0].size();
+  res.bond_energys = std::vector<TenElemT>(bond_num);
+  std::vector<TenElemT> bond_energy_thread = AveListOfData(bond_energy_samples_);
+  for (size_t bond = 0; bond < bond_num; bond++) {
+    std::vector<TenElemT> bond_energy_proc_list; //idx is proc number
+    boost::mpi::gather(world_, bond_energy_thread[bond], bond_energy_proc_list, kMasterProc);
+    if (world_.rank() == kMasterProc) {
+      res.bond_energys[bond] = Mean(bond_energy_proc_list);
+    }
+  }
+  std::cout << "Statistic data finished." << std::endl;
 }
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
@@ -156,7 +237,10 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::DumpData(const std:
     std::ofstream ofs("statistic_summary", std::ofstream::binary);
     ofs.write((const char *) &res.energy, 1 * sizeof(TenElemT));
     ofs.write((const char *) &res.en_err, 1 * sizeof(TenElemT));
+    ofs.write((const char *) &res.energy_auto_corr, res.energy_auto_corr.size() * sizeof(TenElemT));
+    ofs.write((const char *) &res.bond_energys, res.bond_energys.size() * sizeof(TenElemT));
     ofs.write((const char *) res.sz.data(), res.sz.size() * sizeof(double));
+    ofs.write((const char *) &res.spin_auto_corr, res.spin_auto_corr.size() * sizeof(double));
     ofs << std::endl;
     ofs.close();
   }

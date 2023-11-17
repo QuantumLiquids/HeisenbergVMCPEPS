@@ -40,7 +40,8 @@ class KagomeSpinOneHalfHeisenbergMeasurementSolver {
   TenElemT SampleMeasure(
       const SITPS *sitps,
       TPSSample<TenElemT, QNT> *tps_sample,
-      std::vector<bool> &local_sz //return 1
+      std::vector<bool> &local_sz, //return 1
+      std::vector<double> &energy_bond //return 2
   );
 };
 
@@ -48,10 +49,13 @@ class KagomeSpinOneHalfHeisenbergMeasurementSolver {
 template<typename TenElemT, typename QNT>
 TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeasure(const SITPS *split_index_tps,
                                                                                     TPSSample<TenElemT, QNT> *tps_sample,
-                                                                                    std::vector<bool> &local_sz) {
+                                                                                    std::vector<bool> &local_sz,
+                                                                                    std::vector<double> &energy_bond) {
   TenElemT energy(0);
   size_t ly = split_index_tps->rows(), lx = split_index_tps->cols();
   local_sz = std::vector<bool>(ly * lx * 3);
+  energy_bond.clear();
+  energy_bond.reserve(ly * lx * 6);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
   const TruncatePara &trunc_para = TPSSample<TenElemT, QNT>::trun_para;
@@ -73,14 +77,30 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
       //Calculate the energy inner the three site of pseudo-site site1;
       if (config(site1) == 0 || config(site1) == 7) {
         energy += 0.75;
+        energy_bond.push_back(0.25);
+        energy_bond.push_back(0.25);
+        energy_bond.push_back(0.25);
       } else {
         // 1->2->4->1
         // 3->6->5->3
-        size_t rotate_config1 = config1 / 4 + 2 * (config1 % 4);
+        size_t rotate_config1 = config1 / 4 + 2 * (config1 % 4); //counter clockwise rotation
         size_t rotate_config2 = rotate_config1 / 4 + 2 * (rotate_config1 % 4);
         TenElemT psi_rotate1 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config1], HORIZONTAL);
         TenElemT psi_rotate2 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config2], HORIZONTAL);
         energy += -0.25 + (psi_rotate1 + psi_rotate2) * inv_psi * 0.5;
+        if (config1 == 1 || config1 == 6) {
+          energy_bond.push_back(-0.25 + psi_rotate1 * inv_psi * 0.5); //vertical bond in the triangular
+          energy_bond.push_back(+0.25); //skew bond in the triangular
+          energy_bond.push_back(-0.25 + psi_rotate2 * inv_psi * 0.5); //horizontal bond in the triangular
+        } else if (config1 == 2 || config1 == 5) {
+          energy_bond.push_back(-0.25 + psi_rotate2 * inv_psi * 0.5);
+          energy_bond.push_back(-0.25 + psi_rotate1 * inv_psi * 0.5);
+          energy_bond.push_back(+0.25);
+        } else if (config1 == 4 || config1 == 3) {
+          energy_bond.push_back(+0.25);
+          energy_bond.push_back(-0.25 + psi_rotate2 * inv_psi * 0.5);
+          energy_bond.push_back(-0.25 + psi_rotate1 * inv_psi * 0.5);
+        }
       }
 
       if (col < tn.cols() - 1) {
@@ -89,6 +109,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
         size_t config2 = config(site2);
         if ((config1 >> 2 & 1) == (config2 & 1)) {
           energy += 0.25;
+          energy_bond.push_back(0.25);
         } else {
           size_t ex_config1 = config1 ^ (1 << 2);
           size_t ex_config2 = config2 ^ 1;
@@ -96,6 +117,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
                                                   (*split_index_tps)(site1)[ex_config1],
                                                   (*split_index_tps)(site2)[ex_config2]);
           energy += (-0.25 + psi_ex * inv_psi * 0.5);
+          energy_bond.push_back(-0.25 + psi_ex * inv_psi * 0.5);
         }
         tn.BTenMoveStep(RIGHT);
       }
@@ -113,6 +135,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
         size_t config2 = config(site2);
         if ((config1 >> 2 & 1) == (config2 >> 1 & 1)) {
           energy += 0.25;
+          energy_bond.push_back(0.25);
         } else {
           size_t ex_config1 = config1 ^ (1 << 2);
           size_t ex_config2 = config2 ^ (1 << 1);
@@ -122,6 +145,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
                                                    (*split_index_tps)(site1)[ex_config1],  //the tensor at left
                                                    (*split_index_tps)(site2)[ex_config2]);
           energy += (-0.25 + psi_ex * inv_psi * 0.5);
+          energy_bond.push_back(-0.25 + psi_ex * inv_psi * 0.5);
         }
         tn.BTen2MoveStep(RIGHT, row);
       }
@@ -141,6 +165,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
       size_t config2 = config(site2);
       if ((config1 >> 1 & 1) == (config2 & 1)) {
         energy += 0.25;
+        energy_bond.push_back(0.25);
       } else {
         size_t ex_config1 = config1 ^ 1 << 1;
         size_t ex_config2 = config2 ^ 1;
@@ -148,6 +173,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
                                                 (*split_index_tps)(site1)[ex_config1],
                                                 (*split_index_tps)(site2)[ex_config2]);
         energy += (-0.25 + psi_ex * inv_psi * 0.5);
+        energy_bond.push_back(-0.25 + psi_ex * inv_psi * 0.5);
       }
       if (row < tn.rows() - 2) {
         tn.BTenMoveStep(DOWN);
