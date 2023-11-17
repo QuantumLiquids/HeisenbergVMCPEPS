@@ -11,6 +11,23 @@
 namespace gqpeps {
 using namespace gqten;
 
+std::vector<bool> KagomeConfig2Sz(
+    const Configuration &config
+) {
+  std::vector<bool> local_sz;
+  local_sz.reserve(config.size() * 3);
+  for (size_t row = 0; row < config.rows(); row++) {
+    for (size_t col = 0; col < config.cols(); col++) {
+      size_t local_config = config({row, col});
+      local_sz.push_back(local_config & 1); //left upper site
+      local_sz.push_back(local_config >> 1 & 1);//lower site
+      local_sz.push_back(local_config >> 2 & 1);//right site
+    }
+  }
+  return local_sz;
+}
+
+///< sum (config1 * config2) in kagome lattice
 size_t SpinConfigurationOverlap(
     const std::vector<bool> &sz1,
     const std::vector<bool> &sz2
@@ -20,6 +37,18 @@ size_t SpinConfigurationOverlap(
     overlap += sz1[i] && sz2[i];
   }
   return overlap;
+}
+
+///< 1/N * sum (sz1 * sz2)
+double SpinConfigurationOverlap2(
+    const std::vector<bool> &sz1,
+    const std::vector<bool> &sz2
+) {
+  int overlap_sum(0);
+  for (size_t i = 0; i < sz1.size(); i++) {
+    overlap_sum += (2 * (int) sz1[i] - 1) * (2 * (int) sz2[i] - 1);
+  }
+  return double(overlap_sum) / sz1.size();
 }
 
 template<typename T>
@@ -89,6 +118,8 @@ class KagomeMeasurementExecutor : public Executor {
 
   void Execute(void) override;
 
+  void ReplicaTest(void); // for check the ergodicity
+
   void LoadTenData(void);
 
   void LoadTenData(const std::string &tps_path);
@@ -114,6 +145,8 @@ class KagomeMeasurementExecutor : public Executor {
   void MeasureSample_(void);
 
   void GatherStatistic_(void);
+
+  void SynchronizeConfiguration_(const size_t root = 0); //for the replica test
 
   boost::mpi::communicator world_;
 
@@ -149,6 +182,32 @@ class KagomeMeasurementExecutor : public Executor {
 };//KagomeMeasurementExecutor
 
 
+template<typename TenElemT, typename QNT, typename MeasurementSolver>
+void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() {
+  SynchronizeConfiguration_();
+  std::vector<double> overlaps(optimize_para.mc_samples);
+  for (size_t sweep = 0; sweep < optimize_para.mc_samples; sweep++) {
+    // send-recv configuration
+    Configuration config2(ly_, lx_);
+    size_t dest = (world_.rank() + 1) % world_.size();
+    size_t source = (world_.rank() + world_.size() - 1) % world_.size();
+    MPI_Status status;
+    int err_msg = MPI_Sendrecv(tps_sample_.config, dest, dest, config2, source, world_.rank(), MPI_Comm(world_),
+                               &status);
+
+    // calculate overlap
+    double overlap = SpinConfigurationOverlap2(KagomeConfig2Sz(tps_sample_.config), KagomeConfig2Sz(config2));
+    overlaps.push_back(overlap);
+  }
+  //DumpData
+  std::string replica_overlap_path = "replica_overlap/";
+  if (world_.rank() == kMasterProc)
+    if (!IsPathExist(replica_overlap_path)) {
+      CreatPath(replica_overlap_path);
+    }
+  world_.barrier();
+  DumpVecData(replica_overlap_path + "/replica_overlap" + std::to_string(world_.rank()), overlaps);
+}
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReserveSamplesDataSpace_(void) {
@@ -193,7 +252,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
   for (size_t i = 0; i < N; i++) { // i is site index
     boost::mpi::gather(world_, sz_sum_thread[i], sz_sum_list[i], kMasterProc);
     if (world_.rank() == kMasterProc) {
-      for (size_t summation: sz_sum_list[i]) { //for every thread's summation resutl
+      for (size_t summation: sz_sum_list[i]) { //for every thread's summation result
         sz_sum[i] += summation;
       }
     }
@@ -309,6 +368,14 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::WarmUp_(void) 
   }
 }
 
+template<typename TenElemT, typename QNT, typename MeasurementSolver>
+void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::SynchronizeConfiguration_(const size_t root) {
+  Configuration config(tps_sample_.config);
+  MPI_BCast(config, root, MPI_Comm(world_));
+  if (world_.rank() != root) {
+    tps_sample_ = TPSSample<TenElemT, QNT>(split_index_tps_, config);
+  }
+}
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::LoadTenData(void) {

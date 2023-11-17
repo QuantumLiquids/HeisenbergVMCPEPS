@@ -44,30 +44,21 @@ int main(int argc, char **argv) {
 
   using Model = KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, U1QN>;
   KagomeMeasurementExecutor<TenElemT, U1QN, Model> *executor(nullptr);
-  if (params.Continue_from_VMC) {
-    executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
-                                                          params.Ly, params.Lx,
-                                                          world);
+  executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
+                                                                  params.Ly, params.Lx,
+                                                                  world);
+  bool replica_test = params.Continue_from_VMC;
+  if (replica_test) {
+    executor->ReplicaTest();
   } else {
-//    SquareLatticePEPS<GQTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
-//    if (!peps.Load(peps_path)) {
-//      std::cout << "Loading simple updated PEPS files is broken." << std::endl;
-//      exit(-2);
-//    };
-//    SplitIndexTPS<GQTEN_Double, U1QN> split_idx_tps = KagomeSquarePEPSToSplitIndexTPS(peps);
-//    if (!split_idx_tps.IsBondDimensionEven()) {
-//      std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
-//    }
-//    executor = new KagomeMeasurementExecutor<GQTEN_Double, U1QN, Model>(optimize_para, split_idx_tps,
-//                                                              world);
+    executor->Execute();
   }
 
 //  executor->cg_params.max_iter = params.CGMaxIter;
 //  executor->cg_params.tolerance = params.CGTol;
 //  executor->cg_params.residue_restart_step = params.CGResidueRestart;
 //  executor->cg_params.diag_shift = params.CGDiagShift;
-  executor->Execute();
-  delete executor;
 
+  delete executor;
   return 0;
 }
