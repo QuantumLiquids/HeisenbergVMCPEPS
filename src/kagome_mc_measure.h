@@ -102,6 +102,19 @@ std::vector<double> CalSpinAutoCorrelation(
   return res;
 }
 
+void PrintProgressBar(int progress, int total) {
+  int bar_width = 70; // width of the progress bar
+
+  std::cout << "[";
+  int pos = bar_width * progress / total;
+  for (int i = 0; i < bar_width; ++i) {
+    if (i < pos) std::cout << "=";
+    else if (i == pos) std::cout << ">";
+    else std::cout << " ";
+  }
+  std::cout << "] " << int(progress * 100.0 / total) << " %" << std::endl;
+}
+
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
 class KagomeMeasurementExecutor : public Executor {
  public:
@@ -138,7 +151,7 @@ class KagomeMeasurementExecutor : public Executor {
 
   void Measure_(void);
 
-  size_t MCSweep_(void);
+  void MCSweep_(size_t &tri_flip_times, size_t &bond_flip_times);
 
   void WarmUp_(void);
 
@@ -185,9 +198,15 @@ class KagomeMeasurementExecutor : public Executor {
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() {
   SynchronizeConfiguration_();
-  std::vector<double> overlaps(optimize_para.mc_samples);
+  std::vector<double> overlaps;
+  overlaps.reserve(optimize_para.mc_samples);
+  std::cout << "Random number from worker " << world_.rank() << " : " << u_double_(random_engine) << std::endl;
+  const size_t bond_flip_num = lx_ * (ly_ - 1) + (ly_ - 1) * lx_;
+  size_t bond_accept_times, tri_accept_times;
   for (size_t sweep = 0; sweep < optimize_para.mc_samples; sweep++) {
-    MCSweep_();
+    MCSweep_(tri_accept_times, bond_accept_times);
+    double bond_accept_ratio = (double) bond_accept_times / double(bond_flip_num);
+    double tri_accept_ratio = (double) tri_accept_times / double(bond_flip_num);
     // send-recv configuration
     Configuration config2(ly_, lx_);
     size_t dest = (world_.rank() + 1) % world_.size();
@@ -199,6 +218,10 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() 
     // calculate overlap
     double overlap = SpinConfigurationOverlap2(KagomeConfig2Sz(tps_sample_.config), KagomeConfig2Sz(config2));
     overlaps.push_back(overlap);
+    if (world_.rank() == kMasterProc && (sweep + 1) % (optimize_para.mc_samples / 10) == 0) {
+      PrintProgressBar((sweep + 1), optimize_para.mc_samples);
+      std::cout << "Accept Ratio : " << bond_accept_ratio << " , " << tri_accept_ratio << std::endl;
+    }
   }
   //DumpData
   std::string replica_overlap_path = "replica_overlap/";
@@ -318,8 +341,7 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
     u_double_(0, 1),
     measurement_solver_(solver), warm_up_(false) {
   TPSSample<TenElemT, QNT>::trun_para = TruncatePara(optimize_para);
-  random_engine.seed((size_t)
-                         std::time(nullptr) + 10086 * world.rank());
+  random_engine.seed(std::random_device{}() + world.rank() * 10086);
   LoadTenData();
   ReserveSamplesDataSpace_();
   PrintExecutorInfo_();
@@ -359,8 +381,9 @@ template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::WarmUp_(void) {
   if (!warm_up_) {
     Timer warm_up_timer("warm_up");
+    size_t tri_accept_times, bond_accept_times;
     for (size_t sweep = 0; sweep < optimize_para.mc_warm_up_sweeps; sweep++) {
-      MCSweep_();
+      MCSweep_(tri_accept_times, bond_accept_times);
     }
     double elasp_time = warm_up_timer.Elapsed();
     std::cout << "Proc " << std::setw(4) << world_.rank() << " warm-up completes T = " << elasp_time << "s."
@@ -412,23 +435,33 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::DumpData(void)
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
 void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::Measure_(void) {
-  size_t accept_num = 0;
+  size_t bond_accept_total_num = 0, tri_accept_total_num = 0;
   size_t bond_num = lx_ * (ly_ - 1) + ly_ * (lx_ - 1);
+  size_t tri_num = lx_ * ly_;
+  size_t tri_accept_times, bond_accept_times;
   for (size_t sweep = 0; sweep < optimize_para.mc_samples; sweep++) {
-    accept_num += MCSweep_();
+    MCSweep_(tri_accept_times, bond_accept_times);
+    bond_accept_total_num += bond_accept_times;
+    tri_accept_total_num += tri_accept_times;
     MeasureSample_();
+    if (world_.rank() == kMasterProc && (sweep + 1) % (optimize_para.mc_samples / 10) == 0) {
+      PrintProgressBar((sweep + 1), optimize_para.mc_samples);
+    }
   }
-  double accept_rate = double(accept_num) / double(bond_num * optimize_para.mc_samples);
+  double bond_accept_rate = double(bond_accept_total_num) / double(bond_num * optimize_para.mc_samples);
+  double tri_accept_rate = double(tri_accept_times) / double(2 * tri_num * optimize_para.mc_samples);
+  std::cout << "Accept Ratio : " << bond_accept_rate << " , " << tri_accept_rate << std::endl;
   GatherStatistic_();
 }
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
-size_t KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MCSweep_(void) {
-  size_t flip_times;
+void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MCSweep_(
+    size_t &tri_flip_times,
+    size_t &bond_flip_times
+) {
   for (size_t i = 0; i < optimize_para.mc_sweeps_between_sample; i++) {
-    flip_times = tps_sample_.MCCompressedKagomeLatticeLocalUpdateSweep(split_index_tps_, u_double_);
+    tps_sample_.MCCompressedKagomeLatticeLocalUpdateSweep(split_index_tps_, u_double_, tri_flip_times, bond_flip_times);
   }
-  return flip_times;
 }
 }//gqpeps
 
