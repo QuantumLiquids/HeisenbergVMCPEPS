@@ -60,9 +60,10 @@ int main(int argc, char *argv[]) {
   filter_out({0, 0}) = 1.0;
 
   std::string filename;
-  std::string tensor_path = "../ipeps_tensors/D" + std::to_string(Db) + "/";
 
-//  filename = tensor_path + "IPESS_Ba_D" + std::to_string(Db) + ".dat";
+  std::string tensor_path = "./D" + std::to_string(Db) + "/";
+  if (gqmps2::IsPathExist(tensor_path)) {
+    //  filename = tensor_path + "IPESS_Ba_D" + std::to_string(Db) + ".dat";
 //  LoadTenData(filename, Ba.GetActualDataSize(), Ba.GetRawDataPtr());
 //  filename = tensor_path + "IPESS_Bb_D" + std::to_string(Db) + ".dat";
 //  LoadTenData(filename, Bb.GetActualDataSize(), Bb.GetRawDataPtr());
@@ -73,7 +74,10 @@ int main(int argc, char *argv[]) {
 //  filename = tensor_path + "IPESS_Tu_D" + std::to_string(Db) + ".dat";
 //  LoadTenData(filename, Tu.GetActualDataSize(), Tu.GetRawDataPtr());
 
-  filename = tensor_path + "IPESS_A_D" + std::to_string(Db) + ".dat";
+    filename = tensor_path + "IPESS_A_D" + std::to_string(Db) + ".dat";
+  } else {
+    filename = "IPEPS_D" + std::to_string(Db) + ".dat";
+  }
   LoadTenData(filename, A.GetActualDataSize(), A.GetRawDataPtr());
 
 //  Tensor tmp0, tmp1, tmp2, square_ten;
