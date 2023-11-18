@@ -63,7 +63,7 @@ std::vector<T> CalAutoCorrelation(
     for (size_t j = 0; j < data.size() - t; j++) {
       sum += data[j] * data[j + t];
     }
-    res[t] = sum / (data.size() - t);
+    res[t] = sum / (data.size() - t) - mean * mean;
   }
   return res;
 }
@@ -187,6 +187,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() 
   SynchronizeConfiguration_();
   std::vector<double> overlaps(optimize_para.mc_samples);
   for (size_t sweep = 0; sweep < optimize_para.mc_samples; sweep++) {
+    MCSweep_();
     // send-recv configuration
     Configuration config2(ly_, lx_);
     size_t dest = (world_.rank() + 1) % world_.size();
@@ -296,10 +297,10 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::DumpData(const std:
     std::ofstream ofs("statistic_summary", std::ofstream::binary);
     ofs.write((const char *) &res.energy, 1 * sizeof(TenElemT));
     ofs.write((const char *) &res.en_err, 1 * sizeof(TenElemT));
-    ofs.write((const char *) &res.energy_auto_corr, res.energy_auto_corr.size() * sizeof(TenElemT));
-    ofs.write((const char *) &res.bond_energys, res.bond_energys.size() * sizeof(TenElemT));
+    ofs.write((const char *) res.energy_auto_corr.data(), res.energy_auto_corr.size() * sizeof(TenElemT));
+    ofs.write((const char *) res.bond_energys.data(), res.bond_energys.size() * sizeof(TenElemT));
     ofs.write((const char *) res.sz.data(), res.sz.size() * sizeof(double));
-    ofs.write((const char *) &res.spin_auto_corr, res.spin_auto_corr.size() * sizeof(double));
+    ofs.write((const char *) res.spin_auto_corr.data(), res.spin_auto_corr.size() * sizeof(double));
     ofs << std::endl;
     ofs.close();
   }
