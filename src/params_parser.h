@@ -48,7 +48,7 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
     CGTol = ParseDouble("CGTol");
     CGResidueRestart = ParseInt("CGResidueRestart");
     CGDiagShift = ParseDouble("CGDiagShift");
-    Continue_from_VMC = ParseBool("Continue_from_VMC");
+    ReplicaTest = ParseBool("ReplicaTest");
     size_t update_times = ParseInt("UpdateNum");
     step_len = std::vector<double>(update_times);
     if (update_times > 0) {
@@ -75,7 +75,7 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
   double CGTol;
   int CGResidueRestart;
   double CGDiagShift;
-  bool Continue_from_VMC;
+  bool ReplicaTest;
   gqpeps::WAVEFUNCTION_UPDATE_SCHEME update_scheme;
   std::vector<double> step_len;
   size_t ThreadNum;

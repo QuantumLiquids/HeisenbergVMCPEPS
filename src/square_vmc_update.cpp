@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     using Model = SpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
     VMCPEPSExecutor<TenElemT, U1QN, Model> *executor(nullptr);
 
-    if (params.Continue_from_VMC) {
+    if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {//actually almostly do the same thing
       executor = new VMCPEPSExecutor<TenElemT, U1QN, Model>(optimize_para,
                                                             params.Ly, params.Lx,
                                                             world);
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     VMCPEPSExecutor<GQTEN_Double, U1QN, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
-    if (params.Continue_from_VMC) {
+    if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) { //actually almostly do the same thing
       executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para,
                                                                 params.Ly, params.Lx,
                                                                 world, j1j2solver);

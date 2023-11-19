@@ -47,8 +47,7 @@ int main(int argc, char **argv) {
   executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
                                                                   params.Ly, params.Lx,
                                                                   world);
-  bool replica_test = params.Continue_from_VMC;
-  if (replica_test) {
+  if (params.ReplicaTest) {
     executor->ReplicaTest();
   } else {
     executor->Execute();

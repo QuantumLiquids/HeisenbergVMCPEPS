@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   using Model = SpinOneHalfTriHeisenbergSqrPEPS<GQTEN_Double, U1QN>;
   VMCPEPSExecutor<GQTEN_Double, U1QN, Model> *executor(nullptr);
   Model triangle_hei_solver;
-  if (params.Continue_from_VMC) {
+  if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
     executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para,
                                                               params.Ly, params.Lx,
                                                               world, triangle_hei_solver);

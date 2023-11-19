@@ -200,7 +200,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() 
   SynchronizeConfiguration_();
   std::vector<double> overlaps;
   overlaps.reserve(optimize_para.mc_samples);
-  std::cout << "Random number from worker " << world_.rank() << " : " << u_double_(random_engine) << std::endl;
+//  std::cout << "Random number from worker " << world_.rank() << " : " << u_double_(random_engine) << std::endl;
   const size_t bond_flip_num = lx_ * (ly_ - 1) + (ly_ - 1) * lx_;
   size_t bond_accept_times, tri_accept_times;
   for (size_t sweep = 0; sweep < optimize_para.mc_samples; sweep++) {
@@ -231,6 +231,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() 
     }
   world_.barrier();
   DumpVecData(replica_overlap_path + "/replica_overlap" + std::to_string(world_.rank()), overlaps);
+  tps_sample_.config.Dump(optimize_para.wavefunction_path, world_.rank());
 }
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
@@ -288,7 +289,6 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
     }
   }
   res.spin_auto_corr = CalSpinAutoCorrelation(local_sz_samples_);
-
   const size_t bond_num = bond_energy_samples_[0].size();
   res.bond_energys = std::vector<TenElemT>(bond_num);
   std::vector<TenElemT> bond_energy_thread = AveListOfData(bond_energy_samples_);
