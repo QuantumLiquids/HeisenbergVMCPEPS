@@ -49,6 +49,8 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
     CGResidueRestart = ParseInt("CGResidueRestart");
     CGDiagShift = ParseDouble("CGDiagShift");
     ReplicaTest = ParseBool("ReplicaTest");
+    MPSCompressScheme = static_cast<gqpeps::CompressMPSScheme>(ParseInt("MPSCompressScheme"));
+    RemoveCorner = ParseBool("RemoveCorner");
     size_t update_times = ParseInt("UpdateNum");
     step_len = std::vector<double>(update_times);
     if (update_times > 0) {
@@ -76,6 +78,8 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
   int CGResidueRestart;
   double CGDiagShift;
   bool ReplicaTest;
+  gqpeps::CompressMPSScheme MPSCompressScheme;
+  bool RemoveCorner;
   gqpeps::WAVEFUNCTION_UPDATE_SCHEME update_scheme;
   std::vector<double> step_len;
   size_t ThreadNum;

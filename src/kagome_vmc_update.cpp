@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
   }
 
   gqpeps::VMCOptimizePara optimize_para(params.TruncErr, params.Db_min, params.Db_max,
+                                        params.MPSCompressScheme,
                                         params.MC_samples, params.WarmUp,
                                         params.MCLocalUpdateSweepsBetweenSample,
                                         occupation_num, params.step_len,

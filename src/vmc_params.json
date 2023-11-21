@@ -14,6 +14,8 @@
     "CGResidueRestart": 20,
     "CGDiagShift": 0.01,
     "ReplicaTest": true,
+    "RemoveCorner": true,
+    "MPSCompressScheme": 1,
     "StepLengthFirst": 0.1,
     "StepLengthDecrease": 0.01,
     "UpdateNum": 2,

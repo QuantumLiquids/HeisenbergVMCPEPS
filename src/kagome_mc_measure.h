@@ -86,6 +86,17 @@ std::vector<T> AveListOfData(
   return ave;
 }
 
+/**
+ * Calculate the spin auto-correlation from the local_sz_samples
+ * The auto-correlation is defined as
+ *
+ * 1/N Sum_i <S_i(t)*S_i(t+delta t)> - 1/N Sum_i <S_i>^2
+ *
+ * Where S_i = 0 or 1; or equivalently \pm 0.5
+ * and correspondingly we assume <S_i> = 0.5; or 0. But this assumption may not correct.
+ * @param local_sz_samples
+ * @return
+ */
 std::vector<double> CalSpinAutoCorrelation(
     const std::vector<std::vector<bool>> &local_sz_samples
 ) {
@@ -299,7 +310,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
       res.bond_energys[bond] = Mean(bond_energy_proc_list);
     }
   }
-  std::cout << "Statistic data finished." << std::endl;
+  std::cout << "Rank " << world_.rank() << ": statistic data finished." << std::endl;
 }
 
 template<typename TenElemT, typename QNT, typename MeasurementSolver>
@@ -340,7 +351,7 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
     split_index_tps_(ly, lx), tps_sample_(ly, lx),
     u_double_(0, 1),
     measurement_solver_(solver), warm_up_(false) {
-  TPSSample<TenElemT, QNT>::trun_para = TruncatePara(optimize_para);
+  TPSSample<TenElemT, QNT>::trun_para = BMPSTruncatePara(optimize_para);
   random_engine.seed(std::random_device{}() + world.rank() * 10086);
   LoadTenData();
   ReserveSamplesDataSpace_();
