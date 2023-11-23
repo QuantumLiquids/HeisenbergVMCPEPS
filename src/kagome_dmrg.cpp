@@ -14,7 +14,7 @@ using namespace std;
 
 using Link = std::pair<size_t, size_t>;
 
-std::vector<Link> GenerateOBCKagomeNNLink(const size_t Lx, const size_t Ly) {
+std::vector<Link> GenerateOBCKagomeNNLinkWithCorner(const size_t Lx, const size_t Ly) {
   using std::make_pair;
   size_t N = 3 * Lx * Ly;
   std::vector<Link> res;
@@ -41,15 +41,65 @@ std::vector<Link> GenerateOBCKagomeNNLink(const size_t Lx, const size_t Ly) {
   return res;
 }
 
+std::vector<Link> GenerateOBCKagomeNNLinkSmoothBC(const size_t Lx, const size_t Ly) {
+  using std::make_pair;
+  size_t N = 3 * Lx * Ly - Lx - Ly;
+  std::vector<Link> res;
+  res.reserve(2 * N);
+  for (size_t x = 0; x < Lx - 1; x++) {
+    for (size_t y = 0; y < Ly - 1; y++) {
+      size_t site0 = x * (3 * Ly - 1) + 2 * y;
+      size_t site1 = site0 + 1;
+      size_t site2 = x * (3 * Ly - 1) + (2 * Ly - 1) + y;
+      res.push_back(make_pair(site0, site1));
+      res.push_back(make_pair(site0, site2));
+      res.push_back(make_pair(site1, site2));
+      res.push_back(make_pair(site1, site1 + 1));
+      res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y));
+      if (y > 0) {
+        res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y - 1));
+      }
+    }
+  }
+
+  //last row :
+  for (size_t x = 0; x < Lx - 1; x++) {
+    size_t y = Ly - 1;
+    size_t site0 = x * (3 * Ly - 1) + 2 * y;
+    size_t site2 = x * (3 * Ly - 1) + (2 * Ly - 1) + y;
+    res.push_back(make_pair(site0, site2));
+    res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y));
+    res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y - 1));
+  }
+  //last column:
+  for (size_t y = 0; y < Ly - 1; y++) {
+    size_t x = Lx - 1;
+    size_t site0 = x * (3 * Ly - 1) + 2 * y;
+    size_t site1 = site0 + 1;
+    res.push_back(make_pair(site0, site1));
+    res.push_back(make_pair(site1, site1 + 1));
+  }
+  for (Link &link: res) {
+    std::cout << "[ " << link.first << ", " << link.second << " ]" << std::endl;
+  }
+  return res;
+}
+
 int main(int argc, char *argv[]) {
   namespace mpi = boost::mpi;
-  mpi::environment env();
+  mpi::environment env;
   mpi::communicator world;
 
   DMRGCaseParams params(argv[1]);
   const size_t Lx = params.Lx;
   const size_t Ly = params.Ly;
-  const size_t N = 3 * Lx * params.Ly;
+  size_t N;
+  if (params.RemoveCorner) {
+    N = 3 * Lx * Ly - Lx - Ly;
+  } else {
+    N = 3 * Lx * Ly;
+  }
+
   cout << "The total number of sites: " << N << endl;
   clock_t startTime, endTime;
   startTime = clock();
@@ -89,7 +139,12 @@ int main(int argc, char *argv[]) {
   sz({1, 1}) = -0.5;
   sp({0, 1}) = 1.0;
   sm({1, 0}) = 1.0;
-  std::vector<Link> links = GenerateOBCKagomeNNLink(Lx, Ly);
+  std::vector<Link> links;
+  if (params.RemoveCorner) {
+    links = GenerateOBCKagomeNNLinkSmoothBC(Lx, Ly);
+  } else {
+    links = GenerateOBCKagomeNNLinkWithCorner(Lx, Ly);
+  }
   for (auto &link: links) {
     mpo_gen.AddTerm(1.0, sz, link.first, sz, link.second);
     mpo_gen.AddTerm(0.5, sp, link.first, sm, link.second);
@@ -102,7 +157,7 @@ int main(int argc, char *argv[]) {
 
   std::vector<long unsigned int> stat_labs(N);
 
-  for (size_t i = 0; i < N ; ++i) {
+  for (size_t i = 0; i < N; ++i) {
     stat_labs[i] = i % 2;
   }
 

@@ -12,6 +12,7 @@ struct SimpleUpdateParams : public gqmps2::CaseParamsParserBasic {
   SimpleUpdateParams(const char *f) : CaseParamsParserBasic(f) {
     Lx = ParseInt("Lx");
     Ly = ParseInt("Ly");
+    RemoveCorner = ParseBool("RemoveCorner");
     J2 = ParseDouble("J2");
     TruncErr = ParseDouble("TruncErr");
     Dmin = ParseInt("Dmin");
@@ -23,6 +24,7 @@ struct SimpleUpdateParams : public gqmps2::CaseParamsParserBasic {
 
   size_t Ly;
   size_t Lx;
+  bool RemoveCorner;
   double J2;
   double TruncErr;
   size_t Dmin;
@@ -91,6 +93,7 @@ struct DMRGCaseParams : public gqmps2::CaseParamsParserBasic {
 //    Geometry = ParseStr("Geometry");
     Ly = ParseInt("Ly");
     Lx = ParseInt("Lx");
+    RemoveCorner = ParseBool("RemoveCorner");
 //    J1 = ParseDouble("J1");
 //    J2 = ParseDouble("J2");
 //    J3 = ParseDouble("J3");
@@ -116,6 +119,7 @@ struct DMRGCaseParams : public gqmps2::CaseParamsParserBasic {
   std::string Geometry;
   size_t Ly;
   size_t Lx;
+  bool RemoveCorner;
   double J1;
   double J2;
   double J3;

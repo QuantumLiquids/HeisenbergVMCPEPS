@@ -9,6 +9,32 @@
 
 using namespace gqpeps;
 
+Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx) {
+  size_t sys_ly = 2 * ly, sys_lx = 2 * lx;
+  std::vector<std::vector<size_t>> activates(sys_ly, std::vector<size_t>(sys_lx, 0));
+  size_t sz_int = 0;
+  for (size_t y = 0; y < sys_ly - 1; y++) {
+    for (size_t x = 0; x < sys_lx - 1; x++) {
+      if ((x & 1) && (y & 1)) {
+        activates[y][x] = 0;
+      } else {
+        activates[y][x] = sz_int % 2;
+        sz_int += 1;
+      }
+    }
+  }
+  Configuration config(ly, lx);
+  for (size_t row = 0; row < ly; row++) {
+    for (size_t col = 0; col < lx; col++) {
+      config({row, col}) = activates[2 * row][2 * col]
+                           + 2 * activates[2 * row + 1][2 * col]
+                           + 4 * activates[2 * row][2 * col + 1];
+    }
+  }
+  return config;
+}
+
+
 int main(int argc, char **argv) {
   boost::mpi::environment env;
   boost::mpi::communicator world;
@@ -34,12 +60,26 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  gqpeps::VMCOptimizePara optimize_para(params.TruncErr, params.Db_min, params.Db_max,
-                                        params.MPSCompressScheme,
-                                        params.MC_samples, params.WarmUp,
-                                        params.MCLocalUpdateSweepsBetweenSample,
-                                        occupation_num, params.step_len,
-                                        params.update_scheme);
+  gqpeps::VMCOptimizePara optimize_para;
+  if (params.RemoveCorner) {
+    Configuration init_config = GenerateInitialConfigurationInSmoothBoundary(params.Ly, params.Lx);
+    optimize_para = gqpeps::VMCOptimizePara(params.TruncErr, params.Db_min, params.Db_max,
+                                            params.MPSCompressScheme,
+                                            params.MC_samples, params.WarmUp,
+                                            params.MCLocalUpdateSweepsBetweenSample,
+                                            init_config,
+                                            params.step_len,
+                                            params.update_scheme);
+  } else {
+    optimize_para = gqpeps::VMCOptimizePara(params.TruncErr, params.Db_min, params.Db_max,
+                                            params.MPSCompressScheme,
+                                            params.MC_samples, params.WarmUp,
+                                            params.MCLocalUpdateSweepsBetweenSample,
+                                            occupation_num,
+                                            params.Ly, params.Lx,
+                                            params.step_len,
+                                            params.update_scheme);
+  }
   optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
 

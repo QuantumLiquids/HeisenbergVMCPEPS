@@ -28,7 +28,9 @@ int main(int argc, char **argv) {
                                         params.MPSCompressScheme,
                                         params.MC_samples, params.WarmUp,
                                         params.MCLocalUpdateSweepsBetweenSample,
-                                        {N / 2, N / 2}, params.step_len,
+                                        std::vector<size_t>{N / 2, N / 2},
+                                        params.Ly, params.Lx,
+                                        params.step_len,
                                         params.update_scheme);
 
 

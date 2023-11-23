@@ -432,7 +432,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::LoadTenData(co
     std::cout << "Loading configuration in rank " << world_.rank()
               << " fails. Random generate it and warm up."
               << std::endl;
-    tps_sample_.RandomInit(split_index_tps_, optimize_para.occupancy_num, 10089 * world_.rank() + std::time(nullptr));
+    tps_sample_ = TPSSample<TenElemT, QNT>(split_index_tps_, optimize_para.init_config);
     WarmUp_();
   }
   warm_up_ = true;
@@ -471,7 +471,8 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MCSweep_(
     size_t &bond_flip_times
 ) {
   for (size_t i = 0; i < optimize_para.mc_sweeps_between_sample; i++) {
-    tps_sample_.MCCompressedKagomeLatticeLocalUpdateSweep(split_index_tps_, u_double_, tri_flip_times, bond_flip_times);
+    tps_sample_.MCCompressedKagomeLatticeSequentiallyLocalUpdateSweepSmoothBoundary(split_index_tps_, u_double_,
+                                                                                    tri_flip_times, bond_flip_times);
   }
 }
 }//gqpeps

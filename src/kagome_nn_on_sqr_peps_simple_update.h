@@ -32,9 +32,10 @@ class KagomeNNModelSquarePEPSSimpleUpdateExecutor : public SimpleUpdateExecutor<
   KagomeNNModelSquarePEPSSimpleUpdateExecutor(const SimpleUpdatePara &update_para,
                                               const PEPST &peps_initial,
                                               const Tensor &ham_nn,
-                                              const Tensor &ham_tri) :
+                                              const Tensor &ham_tri,
+                                              const bool remove_corner) :
       SimpleUpdateExecutor<TenElemT, QNT>(update_para, peps_initial), \
-          ham_nn_(ham_nn), ham_tri_(ham_tri) {}
+         remove_corner_(remove_corner), ham_nn_(ham_nn), ham_tri_(ham_tri) {}
 
  private:
   void SetEvolveGate_(void) override {
@@ -44,6 +45,7 @@ class KagomeNNModelSquarePEPSSimpleUpdateExecutor : public SimpleUpdateExecutor<
 
   double SimpleUpdateSweep_(void) override;
 
+  bool remove_corner_;  // geometry feature
   Tensor ham_nn_;
   Tensor ham_tri_;
   Tensor evolve_gate_nn_;
@@ -58,18 +60,28 @@ double KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>::SimpleUpdateS
   double norm = 1.0;
   double e0 = 0.0;
 
+  //first row, horizontal bond link
   for (size_t col = 1; col < this->lx_ - 2; col += 2) {
     norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {0, col}, HORIZONTAL, para);
     e0 += -std::log(norm) / this->update_para.tau;
   }
 
-  for (size_t row = 0; row < this->ly_ - 1; row += 2) {
-    for (size_t col = 0; col < this->lx_ - 1; col += 2) {
+  size_t upper_left_triangle_row_bound, upper_left_triangle_col_bound;
+  if (remove_corner_) {
+    upper_left_triangle_row_bound = this->ly_ - 3;
+    upper_left_triangle_col_bound = this->lx_ - 3;
+  } else {
+    upper_left_triangle_row_bound = this->ly_ - 1;
+    upper_left_triangle_col_bound = this->lx_ - 1;
+  }
+  for (size_t row = 0; row < upper_left_triangle_row_bound; row += 2) {
+    for (size_t col = 0; col < upper_left_triangle_col_bound; col += 2) {
       norm = this->peps_.UpperLeftTriangleProject(evolve_gate_tri_, {row, col}, para);
       e0 += -std::log(norm) / this->update_para.tau;
     }
   }
 
+  //first column, vertical bond link
   for (size_t row = 1; row < this->ly_ - 2; row += 2) {
     norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {row, 0}, VERTICAL, para);
     e0 += -std::log(norm) / this->update_para.tau;
@@ -78,6 +90,18 @@ double KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>::SimpleUpdateS
   for (size_t row = 1; row < this->ly_ - 2; row += 2) {
     for (size_t col = 2; col < this->lx_ - 1; col += 2) {
       norm = this->peps_.LowerRightTriangleProject(evolve_gate_tri_, {row, col}, para);
+      e0 += -std::log(norm) / this->update_para.tau;
+    }
+  }
+  if (remove_corner_) {
+    //last row, horizontal bond link
+    for (size_t col = 0; col < this->lx_ - 3; col += 2) {
+      norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {this->ly_ - 2, col}, HORIZONTAL, para);
+      e0 += -std::log(norm) / this->update_para.tau;
+    }
+    //last column,vertical bond link
+    for (size_t row = 0; row < this->ly_ - 3; row += 2) {
+      norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {row, this->lx_ - 2}, VERTICAL, para);
       e0 += -std::log(norm) / this->update_para.tau;
     }
   }

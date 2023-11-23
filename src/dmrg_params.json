@@ -3,6 +3,7 @@
     "Geometry" : "XC",
     "Ly": 4,
     "Lx": 4,
+    "RemoveCorner": true,
     "J1": -1,
     "J2": -0.5,
     "J3": 10,

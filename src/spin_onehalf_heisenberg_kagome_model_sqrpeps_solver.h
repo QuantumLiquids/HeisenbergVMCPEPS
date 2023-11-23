@@ -82,11 +82,16 @@ class KagomeSpinOneHalfHeisenbergSquare : public ModelEnergySolver<TenElemT, QNT
  public:
   using ModelEnergySolver<TenElemT, QNT>::ModelEnergySolver;
 
+  KagomeSpinOneHalfHeisenbergSquare(bool remove_corner) : remove_corner_(remove_corner) {}
+
   TenElemT CalEnergyAndHoles(
       const SITPS *sitps,
       TPSSample<TenElemT, QNT> *tps_sample,
       TensorNetwork2D<TenElemT, QNT> &hole_res
   ) override;
+
+ private:
+  bool remove_corner_ = true;
 };
 
 
@@ -98,7 +103,9 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
   const BMPSTruncatePara &trunc_para = TPSSample<TenElemT, QNT>::trun_para;
-  TenElemT inv_psi = 1.0 / (tps_sample->amplitude);
+  TenElemT inv_psi;
+  const size_t tri_right_bound = tn.cols() - (size_t) remove_corner_;
+  const size_t tri_lower_bound = tn.rows() - (size_t) remove_corner_;
   tn.GenerateBMPSApproach(UP, trunc_para);
   for (size_t row = 0; row < tn.rows(); row++) {
     tn.InitBTen(LEFT, row);
@@ -115,16 +122,30 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
 //      size_t config_lower = (config(site1) / 2) % 2;
 //      size_t config_right = (config(site1) / 4);
       //Calculate the energy inner the three site of pseudo-site site1;
-      if (config(site1) == 0 || config(site1) == 7) {
-        energy += 0.75;
-      } else {
-        // 1->2->4->1
-        // 3->6->5->3
-        size_t rotate_config1 = config1 / 4 + 2 * (config1 % 4);
-        size_t rotate_config2 = rotate_config1 / 4 + 2 * (rotate_config1 % 4);
-        TenElemT psi_rotate1 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config1], HORIZONTAL);
-        TenElemT psi_rotate2 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config2], HORIZONTAL);
-        energy += -0.25 + (psi_rotate1 + psi_rotate2) * inv_psi * 0.5;
+      if (col < tri_right_bound && row < tri_lower_bound) {
+        if (config(site1) == 0 || config(site1) == 7) {
+          energy += 0.75;
+        } else {
+          // 1->2->4->1
+          // 3->6->5->3
+          size_t rotate_config1 = config1 / 4 + 2 * (config1 % 4);
+          size_t rotate_config2 = rotate_config1 / 4 + 2 * (rotate_config1 % 4);
+          TenElemT psi_rotate1 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config1], HORIZONTAL);
+          TenElemT psi_rotate2 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config2], HORIZONTAL);
+          energy += -0.25 + (psi_rotate1 + psi_rotate2) * inv_psi * 0.5;
+        }
+      }
+
+      if (remove_corner_ && col == tri_right_bound && row < tri_lower_bound) {
+        bool site_upper = (config1 & 1);
+        bool site_lower = (config1 >> 1 & 1);
+        if (site_upper == site_lower) {
+          energy += 0.25;
+        } else {
+          size_t ex_config = 2 * site_upper + site_lower + (config1 & 4);
+          TenElemT psi_ex = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[ex_config], HORIZONTAL);
+          energy += (-0.25 + psi_ex * inv_psi * 0.5);
+        }
       }
 
       if (col < tn.cols() - 1) {
@@ -134,14 +155,24 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
         if ((config1 >> 2 & 1) == (config2 & 1)) {
           energy += 0.25;
         } else {
-//          size_t ex_config1 = config1 % 4 + (config2 % 2) * 4;
-//          size_t ex_config2 = config2 - config2 % 2 + config1 / 4;
           size_t ex_config1 = config1 ^ (1 << 2);
           size_t ex_config2 = config2 ^ 1;
           TenElemT psi_ex = tn.ReplaceNNSiteTrace(site1, site2, HORIZONTAL,
                                                   (*split_index_tps)(site1)[ex_config1],
                                                   (*split_index_tps)(site2)[ex_config2]);
           energy += (-0.25 + psi_ex * inv_psi * 0.5);
+        }
+
+        if (remove_corner_ && row == tri_lower_bound) {
+          bool site_left = (config1 & 1);
+          bool site_right = (config1 >> 2 & 1);
+          if (site_left == site_right) {
+            energy += 0.25;
+          } else {
+            size_t ex_config = 4 * site_left + (config1 & 2) + site_right;
+            TenElemT psi_ex = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[ex_config], HORIZONTAL);
+            energy += (-0.25 + psi_ex * inv_psi * 0.5);
+          }
         }
         tn.BTenMoveStep(RIGHT);
       }

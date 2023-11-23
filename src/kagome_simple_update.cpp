@@ -84,10 +84,10 @@ int main(int argc, char **argv) {
   if (gqmps2::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
-    std::vector<std::vector<size_t>> activates(peps_ly, std::vector<size_t>(peps_lx));
+    std::vector<std::vector<size_t>> activates(peps_ly, std::vector<size_t>(peps_lx, 0));
     size_t sz_int = 0;
-    for (size_t y = 0; y < peps_ly; y++) {
-      for (size_t x = 0; x < peps_lx; x++) {
+    for (size_t y = 0; y < peps_ly - params.RemoveCorner; y++) {
+      for (size_t x = 0; x < peps_lx - params.RemoveCorner; x++) {
         if ((x & 1) && (y & 1)) {
           activates[y][x] = 0;
         } else {
@@ -100,7 +100,8 @@ int main(int argc, char **argv) {
   }
   auto su_exe = new gqpeps::KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
                                                                                         ham_hei_nn,
-                                                                                        ham_hei_tri);
+                                                                                        ham_hei_tri,
+                                                                                        params.RemoveCorner);
   su_exe->Execute();
 //  auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
 //  tps.Dump();
