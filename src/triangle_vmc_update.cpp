@@ -11,7 +11,7 @@
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_triangle_heisenberg_sqrpeps.h"
 #include "params_parser.h"
-
+#include "myutil.h"
 
 using namespace gqpeps;
 
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
   using Model = SpinOneHalfTriHeisenbergSqrPEPS<GQTEN_Double, U1QN>;
   VMCPEPSExecutor<GQTEN_Double, U1QN, Model> *executor(nullptr);
   Model triangle_hei_solver;
-  if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
+  if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {
     executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para,
                                                               params.Ly, params.Lx,
                                                               world, triangle_hei_solver);

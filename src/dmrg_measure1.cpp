@@ -20,9 +20,13 @@ int main(int argc, char *argv[]) {
 //  mpi::communicator world;
 
   DMRGCaseParams params(argv[1]);
-  size_t Lx = params.Lx;
-  size_t N = 3 * Lx * params.Ly;
-
+  size_t Lx = params.Lx, Ly = params.Ly;
+  size_t N;
+  if (params.RemoveCorner) {
+    N = 3 * Lx * Ly - Lx - Ly;
+  } else {
+    N = 3 * Lx * Ly;
+  }
   clock_t startTime, endTime;
   startTime = clock();
 

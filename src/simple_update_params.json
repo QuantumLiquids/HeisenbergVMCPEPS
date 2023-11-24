@@ -2,6 +2,7 @@
   "CaseParams": {
     "Ly": 4,
     "Lx": 4,
+    "RemoveCorner": true,
     "J2": 0.0,
     "TruncErr": 1e-5,
     "Dmin": 4,

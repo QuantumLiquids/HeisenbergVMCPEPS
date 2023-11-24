@@ -34,6 +34,59 @@ Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx)
   return config;
 }
 
+std::vector<std::array<size_t, 4>> GenerateEnergyBondInfo(size_t ly, size_t lx) {
+  std::vector<std::array<size_t, 4>> bonds;
+  bonds.reserve(6 * lx * ly);
+  std::array<size_t, 4> bond;
+  for (size_t row = 0; row < ly - 1; row++) {
+    for (size_t col = 0; col < lx - 1; col++) {
+      //[x1, y1, x2, y2]
+      //shear to rectangular
+      bond = {2 * row, 2 * col, 2 * row + 1, 2 * col};
+      bonds.push_back(bond);
+      bond = {2 * row + 1, 2 * col, 2 * row, 2 * col + 1};
+      bonds.push_back(bond);
+      bond = {2 * row, 2 * col, 2 * row, 2 * col + 1};
+      bonds.push_back(bond);
+      bond = {2 * row, 2 * col + 1, 2 * row, 2 * col + 2};
+      bonds.push_back(bond);
+    }
+    bond = {2 * row, 2 * (ly - 1), 2 * row + 1, 2 * (ly - 1)};
+    bonds.push_back(bond);
+    for (size_t col = 0; col < lx - 1; col++) {
+      bond = {2 * row + 2, 2 * col + 1, 2 * row + 1, 2 * col + 2};
+      bonds.push_back(bond);
+    }
+  }
+  for (size_t col = 0; col < lx - 1; col++) {
+    bond = {2 * (ly - 1), 2 * col, 2 * (ly - 1), 2 * col + 1};
+    bonds.push_back(bond);
+    bond = {2 * (ly - 1), 2 * col + 1, 2 * (ly - 1), 2 * col + 2};
+    bonds.push_back(bond);
+  }
+
+  for (size_t col = 0; col < lx; col++) {
+    for (size_t row = 0; row < ly - 1; row++) {
+      bond = {2 * row + 1, 2 * col, 2 * row + 2, 2 * col};
+      bonds.push_back(bond);
+    }
+  }
+  return bonds;
+}
+
+void DumpBondInfo(size_t ly, size_t lx, std::string &basename) {
+  std::vector<std::array<size_t, 4>> bonds = GenerateEnergyBondInfo(ly, lx);
+  auto file = basename + ".json";
+  std::ofstream ofs(file);
+  ofs << "[\n";
+  for (size_t i = 0; i < bonds.size(); i++) {
+    std::array<size_t, 4> &bond = bonds[i];
+    ofs << "[" << bond[0] << ", " << bond[1] << ", " << bond[2] << "," << bond[3] << "],\n";
+  }
+  ofs << "]";
+  ofs.close();
+}
+
 
 int main(int argc, char **argv) {
   boost::mpi::environment env;
@@ -100,5 +153,7 @@ int main(int argc, char **argv) {
 //  executor->cg_params.diag_shift = params.CGDiagShift;
 
   delete executor;
+  std::string bondinfo_filename ="energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
+  DumpBondInfo(params.Ly, params.Lx, bondinfo_filename);
   return 0;
 }

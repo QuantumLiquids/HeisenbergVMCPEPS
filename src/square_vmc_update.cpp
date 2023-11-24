@@ -12,6 +12,7 @@
 #include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_heisenberg_square.h"    // SpinOneHalfHeisenbergSquare
 #include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_squareJ1J2.h"           // SpinOneHalfJ1J2HeisenbergSquare
 #include "params_parser.h"
+#include "myutil.h"
 
 using namespace gqpeps;
 
@@ -37,7 +38,7 @@ int main(int argc, char **argv) {
     using Model = SpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
     VMCPEPSExecutor<TenElemT, U1QN, Model> *executor(nullptr);
 
-    if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {//actually almostly do the same thing
+    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {// test if split index tps tensors exsit
       executor = new VMCPEPSExecutor<TenElemT, U1QN, Model>(optimize_para,
                                                             params.Ly, params.Lx,
                                                             world);
@@ -58,7 +59,7 @@ int main(int argc, char **argv) {
     VMCPEPSExecutor<GQTEN_Double, U1QN, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
-    if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) { //actually almostly do the same thing
+    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) { //actually almostly do the same thing
       executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para,
                                                                 params.Ly, params.Lx,
                                                                 world, j1j2solver);

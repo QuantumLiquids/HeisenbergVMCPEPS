@@ -91,7 +91,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
     for (size_t col = 0; col < tn.cols() - 1; col++) {
       const SiteIdx site1 = {row, col};
       size_t config1 = config(site1);
-      size_t site_1d_idx = (row * lx + col) * 3 - row;
+      size_t site_1d_idx = row * (3 * lx - 1) + col * 3;
       local_sz[site_1d_idx] = config1 & 1; //left upper site
       local_sz[site_1d_idx + 1] = config1 >> 1 & 1;//lower site
       local_sz[site_1d_idx + 2] = config1 >> 2 & 1;//right site

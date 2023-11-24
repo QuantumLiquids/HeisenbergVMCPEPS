@@ -15,13 +15,15 @@ std::vector<bool> KagomeConfig2Sz(
     const Configuration &config
 ) {
   std::vector<bool> local_sz;
-  local_sz.reserve(config.size() * 3);
+  local_sz.reserve(config.size() * 3 - config.rows() - config.cols());
   for (size_t row = 0; row < config.rows(); row++) {
     for (size_t col = 0; col < config.cols(); col++) {
       size_t local_config = config({row, col});
       local_sz.push_back(local_config & 1); //left upper site
-      local_sz.push_back(local_config >> 1 & 1);//lower site
-      local_sz.push_back(local_config >> 2 & 1);//right site
+      if (row < config.cols() - 1)    // remove corner
+        local_sz.push_back(local_config >> 1 & 1);//lower site
+      if (col < config.cols() - 1)  //remove corner
+        local_sz.push_back(local_config >> 2 & 1);//right site
     }
   }
   return local_sz;
@@ -276,7 +278,9 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
     res.en_err = StandardError(en_list, res.energy);
   }
   res.energy_auto_corr = CalAutoCorrelation(energy_samples_, en_thread);
-  const size_t N = 3 * lx_ * ly_; //site number
+  const size_t N = local_sz_samples_[0].size();
+  //physical site number.
+  //3 * lx * ly for complete unit cell lattice; 3 * lx * ly - lx - ly for smooth boundary lattice.
   std::vector<size_t> sz_sum_thread(N, 0);
   std::vector<std::vector<size_t>> sz_sum_list(N);
   std::vector<size_t> sz_sum(N, 0);
@@ -347,10 +351,10 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
     const size_t ly, const size_t lx,
     const boost::mpi::communicator &world,
     const MeasurementSolver &solver):
-    world_(world), optimize_para(optimize_para), lx_(lx), ly_(ly),
+    optimize_para(optimize_para), world_(world), lx_(lx), ly_(ly),
     split_index_tps_(ly, lx), tps_sample_(ly, lx),
-    u_double_(0, 1),
-    measurement_solver_(solver), warm_up_(false) {
+    u_double_(0, 1), warm_up_(false),
+    measurement_solver_(solver) {
   TPSSample<TenElemT, QNT>::trun_para = BMPSTruncatePara(optimize_para);
   random_engine.seed(std::random_device{}() + world.rank() * 10086);
   LoadTenData();
