@@ -464,7 +464,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::Measure_(void)
     }
   }
   double bond_accept_rate = double(bond_accept_total_num) / double(bond_num * optimize_para.mc_samples);
-  double tri_accept_rate = double(tri_accept_times) / double(2 * tri_num * optimize_para.mc_samples);
+  double tri_accept_rate = double(tri_accept_total_num) / double(2 * tri_num * optimize_para.mc_samples);
   std::cout << "Accept Ratio : " << bond_accept_rate << " , " << tri_accept_rate << std::endl;
   GatherStatistic_();
 }

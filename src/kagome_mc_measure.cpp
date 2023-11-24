@@ -81,7 +81,11 @@ void DumpBondInfo(size_t ly, size_t lx, std::string &basename) {
   ofs << "[\n";
   for (size_t i = 0; i < bonds.size(); i++) {
     std::array<size_t, 4> &bond = bonds[i];
-    ofs << "[" << bond[0] << ", " << bond[1] << ", " << bond[2] << "," << bond[3] << "],\n";
+    ofs << "[" << bond[0] << ", " << bond[1] << ", " << bond[2] << ", " << bond[3] << "]";
+    if (i < bonds.size() - 1)
+      ofs << ",\n";
+    else
+      ofs << "\n";
   }
   ofs << "]";
   ofs.close();
@@ -153,7 +157,7 @@ int main(int argc, char **argv) {
 //  executor->cg_params.diag_shift = params.CGDiagShift;
 
   delete executor;
-  std::string bondinfo_filename ="energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
+  std::string bondinfo_filename = "energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
   DumpBondInfo(params.Ly, params.Lx, bondinfo_filename);
   return 0;
 }
