@@ -40,7 +40,7 @@ std::vector<std::array<size_t, 4>> GenerateEnergyBondInfo(size_t ly, size_t lx) 
   std::array<size_t, 4> bond;
   for (size_t row = 0; row < ly - 1; row++) {
     for (size_t col = 0; col < lx - 1; col++) {
-      //[x1, y1, x2, y2]
+      //[y1,x1, y2, x2]
       //shear to rectangular
       bond = {2 * row, 2 * col, 2 * row + 1, 2 * col};
       bonds.push_back(bond);
