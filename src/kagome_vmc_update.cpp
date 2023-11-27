@@ -6,6 +6,7 @@
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
 #include "./params_parser.h"
+#include "myutil.h"
 
 using namespace gqpeps;
 using namespace std;
@@ -88,9 +89,19 @@ int main(int argc, char **argv) {
   VMCPEPSExecutor<TenElemT, U1QN, Model> *executor(nullptr);
   Model kagome_heisenberg_model = Model(params.RemoveCorner);
   if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
-    executor = new VMCPEPSExecutor<TenElemT, U1QN, Model>(optimize_para,
-                                                          params.Ly, params.Lx,
-                                                          world, kagome_heisenberg_model);
+    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {//has split_index_tps
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model>(optimize_para,
+                                                            params.Ly, params.Lx,
+                                                            world, kagome_heisenberg_model);
+    } else {
+      TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
+      if (!tps.Load()) {
+        std::cout << "Loading simple updated TPS files is broken." << std::endl;
+        exit(-1);
+      };
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, tps,
+                                                                world, kagome_heisenberg_model);
+    }
   } else {
     SquareLatticePEPS<GQTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
     if (!peps.Load(peps_path)) {
