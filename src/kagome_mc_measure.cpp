@@ -2,6 +2,8 @@
 // Created by haoxinwang on 04/11/2023.
 //
 
+#include "gqpeps/two_dim_tn/peps/square_lattice_peps.h"
+#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
 #include "./gqdouble.h"
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "./params_parser.h"
@@ -142,9 +144,25 @@ int main(int argc, char **argv) {
 
   using Model = KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, U1QN>;
   KagomeMeasurementExecutor<TenElemT, U1QN, Model> *executor(nullptr);
-  executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
-                                                                  params.Ly, params.Lx,
-                                                                  world);
+  if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
+    executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
+                                                                    params.Ly, params.Lx,
+                                                                    world);
+  } else {  //after simple update, load from PEPS tensors
+    SquareLatticePEPS<GQTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
+    if (!peps.Load(peps_path)) {
+      std::cout << "Loading simple updated PEPS files is broken." << std::endl;
+      exit(-2);
+    };
+    SplitIndexTPS<GQTEN_Double, U1QN> split_idx_tps = KagomeSquarePEPSToSplitIndexTPS(peps);
+    if (!split_idx_tps.IsBondDimensionEven()) {
+      std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
+    }
+    executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
+                                                                    split_idx_tps,
+                                                                    world);
+  }
+
   if (params.ReplicaTest) {
     executor->ReplicaTest();
   } else {

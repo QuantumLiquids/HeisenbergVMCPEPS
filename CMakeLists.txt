@@ -96,7 +96,7 @@ find_path(MPS2_HEADER_PATH "gqmps2")
 find_path(PEPS_HEADER_PATH "gqpeps")
 find_package(hptt)
 find_package(Boost
-        1.76.0
+        1.74.0
         REQUIRED
         COMPONENTS serialization mpi)
 find_package(MPI REQUIRED)
@@ -139,3 +139,4 @@ add_executable(kagome_mc_measure src/kagome_mc_measure.cpp)
 add_executable(kagome_dmrg src/kagome_dmrg.cpp src/myutil.cpp)
 add_executable(dmrg_measure1 src/dmrg_measure1.cpp src/myutil.cpp)
 add_executable(transfer_ipeps src/transfer_iPEPS.cpp)
+add_executable(increaseD src/tps_increase_D.cpp src/myutil.cpp)

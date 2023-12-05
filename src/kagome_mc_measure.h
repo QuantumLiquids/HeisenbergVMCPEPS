@@ -142,6 +142,11 @@ class KagomeMeasurementExecutor : public Executor {
                             const boost::mpi::communicator &world,
                             const MeasurementSolver &solver = MeasurementSolver());
 
+  KagomeMeasurementExecutor(const VMCOptimizePara &optimize_para,
+                            const SITPST &sitpst_init,
+                            const boost::mpi::communicator &world,
+                            const MeasurementSolver &solver = MeasurementSolver());
+
   void Execute(void) override;
 
   void ReplicaTest(void); // for check the ergodicity
@@ -358,6 +363,27 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
   TPSSample<TenElemT, QNT>::trun_para = BMPSTruncatePara(optimize_para);
   random_engine.seed(std::random_device{}() + world.rank() * 10086);
   LoadTenData();
+  ReserveSamplesDataSpace_();
+  PrintExecutorInfo_();
+  this->SetStatus(ExecutorStatus::INITED);
+}
+
+template<typename TenElemT, typename QNT, typename MeasurementSolver>
+KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementExecutor(
+    const VMCOptimizePara &optimize_para,
+    const SITPST &sitpst_init,
+    const boost::mpi::communicator &world,
+    const MeasurementSolver &solver):
+    optimize_para(optimize_para), world_(world),
+    lx_(sitpst_init.cols()),
+    ly_(sitpst_init.rows()),
+    split_index_tps_(sitpst_init),
+    tps_sample_(ly_, lx_),
+    u_double_(0, 1), warm_up_(false),
+    measurement_solver_(solver) {
+  TPSSample<TenElemT, QNT>::trun_para = BMPSTruncatePara(optimize_para);
+  random_engine.seed(std::random_device{}() + world.rank() * 10086);
+  tps_sample_ = TPSSample<TenElemT, QNT>(sitpst_init, optimize_para.init_config);
   ReserveSamplesDataSpace_();
   PrintExecutorInfo_();
   this->SetStatus(ExecutorStatus::INITED);
