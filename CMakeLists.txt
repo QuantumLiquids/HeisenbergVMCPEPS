@@ -52,6 +52,7 @@ add_definitions(-Wall -g)
 
 if (U1SYM)
     add_definitions(-DU1SYM)
+    message("USE U1 symmetry code.")
 endif ()
 
 if (APPLE)
