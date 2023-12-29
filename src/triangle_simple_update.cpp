@@ -12,7 +12,6 @@
 #include "./gqdouble.h"
 #include "./params_parser.h"
 
-
 int main(int argc, char **argv) {
   SimpleUpdateParams params(argv[1]);
 
@@ -80,6 +79,7 @@ int main(int argc, char **argv) {
   if (gqmps2::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
+    /*
     std::vector<std::vector<size_t>> activates(params.Ly, std::vector<size_t>(params.Lx));
     for (size_t y = 0; y < params.Ly; y++) {
       for (size_t x = 0; x < params.Lx; x++) {
@@ -88,6 +88,30 @@ int main(int argc, char **argv) {
       }
     }
     peps0.Initial(activates);
+     */
+
+    /**** Initialized as Three-Sublattice Order ****/
+    for (size_t y = 0; y < params.Ly; y++) {
+      for (size_t x = 0; x < params.Lx; x++) {
+        size_t sublattice_num;
+        if (y >= x) {
+          sublattice_num = (y - x) % 3;
+        } else {
+          sublattice_num = (3 - (x - y) % 3) % 3;
+        }
+        switch (sublattice_num) {
+          case 0:peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = 0;
+            peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = 1; // spin down;
+            break;
+          case 1:peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = std::sqrt(3.0) / 2.0;
+            peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = 1.0 / 2.0;
+            break;
+          case 2:peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = std::sqrt(3.0) / 2.0;
+            peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = -1.0 / 2.0;
+            break;
+        }
+      }
+    }
   }
   auto su_exe = new gqpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
                                                                                           ham_hei_nn,
