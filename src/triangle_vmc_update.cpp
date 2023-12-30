@@ -10,6 +10,7 @@
 #include "./gqdouble.h"
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_triangle_heisenberg_sqrpeps.h"
+#include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_triangle_heisenbergJ1J2_sqrpeps.h"
 #include "params_parser.h"
 #include "myutil.h"
 
@@ -33,26 +34,54 @@ int main(int argc, char **argv) {
                                         params.step_len,
                                         params.update_scheme);
 
-
-  using Model = SpinOneHalfTriHeisenbergSqrPEPS<GQTEN_Double, U1QN>;
-  VMCPEPSExecutor<GQTEN_Double, U1QN, Model> *executor(nullptr);
-  Model triangle_hei_solver;
-  if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {
-    executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para,
-                                                              params.Ly, params.Lx,
-                                                              world, triangle_hei_solver);
+  if (params.J2 == 0) {
+    using Model = SpinOneHalfTriHeisenbergSqrPEPS<GQTEN_Double, U1QN>;
+    VMCPEPSExecutor<GQTEN_Double, U1QN, Model> *executor(nullptr);
+    Model triangle_hei_solver;
+    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para,
+                                                                params.Ly, params.Lx,
+                                                                world, triangle_hei_solver);
+    } else {
+      TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
+      if (!tps.Load()) {
+        std::cout << "Loading simple updated TPS files is broken." << std::endl;
+        exit(-2);
+      };
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, tps,
+                                                                world, triangle_hei_solver);
+    }
+    executor->cg_params.max_iter = params.CGMaxIter;
+    executor->cg_params.tolerance = params.CGTol;
+    executor->cg_params.residue_restart_step = params.CGResidueRestart;
+    executor->cg_params.diag_shift = params.CGDiagShift;
+    executor->Execute();
+    delete executor;
   } else {
-    TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
-    if (!tps.Load()) {
-      std::cout << "Loading simple updated TPS files is broken." << std::endl;
-      exit(-2);
-    };
-    executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, tps,
-                                                              world, triangle_hei_solver);
+    using Model = SpinOneHalfTriJ1J2HeisenbergSqrPEPS<GQTEN_Double, U1QN>;
+    VMCPEPSExecutor<GQTEN_Double, U1QN, Model> *executor(nullptr);
+    double j2 = params.J2;
+    Model trij1j2solver(j2);
+    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) { //actually almostly do the same thing
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para,
+                                                                params.Ly, params.Lx,
+                                                                world, trij1j2solver);
+    } else {
+      TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
+      if (!tps.Load()) {
+        std::cout << "Loading simple updated TPS files is broken." << std::endl;
+        exit(-2);
+      };
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, tps,
+                                                                world, trij1j2solver);
+    }
+    executor->cg_params.max_iter = params.CGMaxIter;
+    executor->cg_params.tolerance = params.CGTol;
+    executor->cg_params.residue_restart_step = params.CGResidueRestart;
+    executor->cg_params.diag_shift = params.CGDiagShift;
+    executor->Execute();
+    delete executor;
   }
-
-  executor->Execute();
-  delete executor;
 
   return 0;
 }

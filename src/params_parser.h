@@ -34,7 +34,6 @@ struct SimpleUpdateParams : public gqmps2::CaseParamsParserBasic {
   size_t ThreadNum;
 };
 
-
 struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
   VMCUpdateParams(const char *f) : CaseParamsParserBasic(f) {
     Lx = ParseInt("Lx");
@@ -87,7 +86,6 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
   size_t ThreadNum;
 };
 
-
 struct DMRGCaseParams : public gqmps2::CaseParamsParserBasic {
   DMRGCaseParams(const char *pf) : CaseParamsParserBasic(pf) {
 //    Geometry = ParseStr("Geometry");
@@ -95,7 +93,7 @@ struct DMRGCaseParams : public gqmps2::CaseParamsParserBasic {
     Lx = ParseInt("Lx");
     RemoveCorner = ParseBool("RemoveCorner");
 //    J1 = ParseDouble("J1");
-//    J2 = ParseDouble("J2");
+    J2 = ParseDouble("J2");
 //    J3 = ParseDouble("J3");
 //    Dzz = ParseDouble("Dzz");
     Sweeps = ParseInt("Sweeps");

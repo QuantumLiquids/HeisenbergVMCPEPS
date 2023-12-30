@@ -42,7 +42,36 @@ std::vector<Link> GenerateOBCTriangularNNLink(const size_t Lx, const size_t Ly) 
       }
     }
   }
+  return res;
+}
 
+std::vector<Link> GenerateOBCTriangularJ2Link(const size_t Lx, const size_t Ly) {
+  using std::make_pair;
+  size_t N = Lx * Ly;
+  std::vector<Link> res;
+  res.reserve(3 * N);
+
+  for (size_t x = 0; x < Lx - 1; x++) {
+    for (size_t y = 0; y < Ly - 1; y++) {
+      size_t site0 = Ly * x + y;
+      size_t site1 = Ly * (x + 1) + (y + 1);
+      res.push_back(make_pair(site0, site1));
+    }
+  }
+  for (size_t x = 0; x < Lx - 2; x++) {
+    for (size_t y = 0; y < Ly - 1; y++) {
+      size_t site0 = Ly * x + (y + 1);
+      size_t site1 = Ly * (x + 2) + y;
+      res.push_back(make_pair(site0, site1));
+    }
+  }
+  for (size_t x = 0; x < Lx - 1; x++) {
+    for (size_t y = 0; y < Ly - 2; y++) {
+      size_t site0 = Ly * (x + 1) + y;
+      size_t site1 = Ly * x + (y + 2);
+      res.push_back(make_pair(site0, site1));
+    }
+  }
   return res;
 }
 
@@ -88,11 +117,17 @@ int main(int argc, char *argv[]) {
   sp({0, 1}) = 1.0;
   sm({1, 0}) = 1.0;
   std::vector<Link> links = GenerateOBCTriangularNNLink(Lx, Ly);
+  std::vector<Link> links_j2 = GenerateOBCTriangularJ2Link(Lx, Ly);
 
   for (auto &link : links) {
     mpo_gen.AddTerm(1.0, sz, link.first, sz, link.second);
     mpo_gen.AddTerm(0.5, sp, link.first, sm, link.second);
     mpo_gen.AddTerm(0.5, sm, link.first, sp, link.second);
+  }
+  for (auto &link : links_j2) {
+    mpo_gen.AddTerm(1.0 * params.J2, sz, link.first, sz, link.second);
+    mpo_gen.AddTerm(0.5 * params.J2, sp, link.first, sm, link.second);
+    mpo_gen.AddTerm(0.5 * params.J2, sm, link.first, sp, link.second);
   }
   auto mpo = mpo_gen.Gen();
 

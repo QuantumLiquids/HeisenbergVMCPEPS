@@ -51,7 +51,10 @@ int main(int argc, char **argv) {
       executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, tps,
                                                                 world);
     }
-
+    executor->cg_params.max_iter = params.CGMaxIter;
+    executor->cg_params.tolerance = params.CGTol;
+    executor->cg_params.residue_restart_step = params.CGResidueRestart;
+    executor->cg_params.diag_shift = params.CGDiagShift;
     executor->Execute();
     delete executor;
   } else {
@@ -72,7 +75,10 @@ int main(int argc, char **argv) {
       executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, tps,
                                                                 world, j1j2solver);
     }
-
+    executor->cg_params.max_iter = params.CGMaxIter;
+    executor->cg_params.tolerance = params.CGTol;
+    executor->cg_params.residue_restart_step = params.CGResidueRestart;
+    executor->cg_params.diag_shift = params.CGDiagShift;
     executor->Execute();
     delete executor;
   }
