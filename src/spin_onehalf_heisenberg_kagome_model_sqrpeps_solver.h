@@ -83,28 +83,26 @@ class KagomeSpinOneHalfHeisenbergSquare : public ModelEnergySolver<TenElemT, QNT
 
   KagomeSpinOneHalfHeisenbergSquare(bool remove_corner) : remove_corner_(remove_corner) {}
 
+  template<typename WaveFunctionComponentType, bool calchole = true>
   TenElemT CalEnergyAndHoles(
       const SITPS *sitps,
-      TPSSample<TenElemT, QNT> *tps_sample,
+      WaveFunctionComponentType *tps_sample,
       TensorNetwork2D<TenElemT, QNT> &hole_res
-  ) override;
+  );
 
-  TenElemT CalEnergy(
-      const SITPS *sitps,
-      TPSSample<TenElemT, QNT> *tps_sample
-  ) override;
  private:
   bool remove_corner_ = true;
 };
 
 template<typename TenElemT, typename QNT>
+template<typename WaveFunctionComponentType, bool calchole>
 TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(const SITPS *split_index_tps,
-                                                                             TPSSample<TenElemT, QNT> *tps_sample,
+                                                                             WaveFunctionComponentType *tps_sample,
                                                                              TensorNetwork2D<TenElemT, QNT> &hole_res) {
   TenElemT energy(0);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = TPSSample<TenElemT, QNT>::trun_para;
+  const BMPSTruncatePara &trunc_para = tps_sample->trun_para;
   TenElemT inv_psi;
   const size_t tri_right_bound = tn.cols() - (size_t) remove_corner_;
   const size_t tri_lower_bound = tn.rows() - (size_t) remove_corner_;
@@ -118,153 +116,13 @@ TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergyAndHoles(con
     for (size_t col = 0; col < tn.cols(); col++) {
       const SiteIdx site1 = {row, col};
       //Calculate the holes
-      hole_res(site1) = Dag(tn.PunchHole(site1, HORIZONTAL));
+      if constexpr (calchole)
+        hole_res(site1) = Dag(tn.PunchHole(site1, HORIZONTAL));
       size_t config1 = config(site1);
       //      size_t config_left_upper = config(site1) % 2;
 //      size_t config_lower = (config(site1) / 2) % 2;
 //      size_t config_right = (config(site1) / 4);
       //Calculate the energy inner the three site of pseudo-site site1;
-      if (col < tri_right_bound && row < tri_lower_bound) {
-        if (config(site1) == 0 || config(site1) == 7) {
-          energy += 0.75;
-        } else {
-          // 1->2->4->1
-          // 3->6->5->3
-          size_t rotate_config1 = config1 / 4 + 2 * (config1 % 4);
-          size_t rotate_config2 = rotate_config1 / 4 + 2 * (rotate_config1 % 4);
-          TenElemT psi_rotate1 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config1], HORIZONTAL);
-          TenElemT psi_rotate2 = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[rotate_config2], HORIZONTAL);
-          energy += -0.25 + (psi_rotate1 + psi_rotate2) * inv_psi * 0.5;
-        }
-      }
-
-      if (remove_corner_ && col == tri_right_bound && row < tri_lower_bound) {
-        bool site_upper = (config1 & 1);
-        bool site_lower = (config1 >> 1 & 1);
-        if (site_upper == site_lower) {
-          energy += 0.25;
-        } else {
-          size_t ex_config = 2 * site_upper + site_lower + (config1 & 4);
-          TenElemT psi_ex = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[ex_config], HORIZONTAL);
-          energy += (-0.25 + psi_ex * inv_psi * 0.5);
-        }
-      }
-
-      if (col < tn.cols() - 1) {
-        //Calculate horizontal bond energy contribution
-        const SiteIdx site2 = {row, col + 1};
-        size_t config2 = config(site2);
-        if ((config1 >> 2 & 1) == (config2 & 1)) {
-          energy += 0.25;
-        } else {
-          size_t ex_config1 = config1 ^ (1 << 2);
-          size_t ex_config2 = config2 ^ 1;
-          TenElemT psi_ex = tn.ReplaceNNSiteTrace(site1, site2, HORIZONTAL,
-                                                  (*split_index_tps)(site1)[ex_config1],
-                                                  (*split_index_tps)(site2)[ex_config2]);
-          energy += (-0.25 + psi_ex * inv_psi * 0.5);
-        }
-
-        if (remove_corner_ && row == tri_lower_bound) {
-          bool site_left = (config1 & 1);
-          bool site_right = (config1 >> 2 & 1);
-          if (site_left == site_right) {
-            energy += 0.25;
-          } else {
-            size_t ex_config = 4 * site_left + (config1 & 2) + site_right;
-            TenElemT psi_ex = tn.ReplaceOneSiteTrace(site1, (*split_index_tps)(site1)[ex_config], HORIZONTAL);
-            energy += (-0.25 + psi_ex * inv_psi * 0.5);
-          }
-        }
-        tn.BTenMoveStep(RIGHT);
-      }
-    }
-    if (row < tn.rows() - 1) {
-      //Calculate diagonal energy contribution
-      tn.InitBTen2(LEFT, row);
-      tn.GrowFullBTen2(RIGHT, row, 2, true);
-
-      for (size_t col = 0; col < tn.cols() - 1; col++) {
-        //Calculate diagonal energy contribution
-        SiteIdx site1 = {row + 1, col}; //left-down
-        SiteIdx site2 = {row, col + 1}; //right-up
-        size_t config1 = config(site1);
-        size_t config2 = config(site2);
-        if ((config1 >> 2 & 1) == (config2 >> 1 & 1)) {
-          energy += 0.25;
-        } else {
-          size_t ex_config1 = config1 ^ (1 << 2);
-          size_t ex_config2 = config2 ^ (1 << 1);
-          TenElemT psi_ex = tn.ReplaceNNNSiteTrace({row, col},
-                                                   LEFTDOWN_TO_RIGHTUP,
-                                                   HORIZONTAL,
-                                                   (*split_index_tps)(site1)[ex_config1],  //the tensor at left
-                                                   (*split_index_tps)(site2)[ex_config2]);
-          energy += (-0.25 + psi_ex * inv_psi * 0.5);
-        }
-        tn.BTen2MoveStep(RIGHT, row);
-      }
-      tn.BMPSMoveStep(DOWN, trunc_para);
-    }
-  }
-
-  //Calculate vertical bond energy contribution
-  tn.GenerateBMPSApproach(LEFT, trunc_para);
-  for (size_t col = 0; col < tn.cols(); col++) {
-    tn.InitBTen(UP, col);
-    tn.GrowFullBTen(DOWN, col, 2, true);
-    tps_sample->amplitude = tn.Trace({0, col}, VERTICAL);
-    inv_psi = 1.0 / tps_sample->amplitude;
-    for (size_t row = 0; row < tn.rows() - 1; row++) {
-      const SiteIdx site1 = {row, col};
-      const SiteIdx site2 = {row + 1, col};
-      size_t config1 = config(site1);
-      size_t config2 = config(site2);
-      if ((config1 >> 1 & 1) == (config2 & 1)) {
-        energy += 0.25;
-      } else {
-        size_t ex_config1 = config1 ^ 1 << 1;
-        size_t ex_config2 = config2 ^ 1;
-        TenElemT psi_ex = tn.ReplaceNNSiteTrace(site1, site2, VERTICAL,
-                                                (*split_index_tps)(site1)[ex_config1],
-                                                (*split_index_tps)(site2)[ex_config2]);
-        energy += (-0.25 + psi_ex * inv_psi * 0.5);
-      }
-      if (row < tn.rows() - 2) {
-        tn.BTenMoveStep(DOWN);
-      }
-    }
-    if (col < tn.cols() - 1) {
-      tn.BMPSMoveStep(RIGHT, trunc_para);
-    }
-  }
-  if (energy < -1.0e8) {
-    std::cout << "Warning: sample's energy = " << energy << std::endl;
-  }
-  return energy;
-}
-
-template<typename TenElemT, typename QNT>
-TenElemT KagomeSpinOneHalfHeisenbergSquare<TenElemT, QNT>::CalEnergy(const SITPS *split_index_tps,
-                                                                     TPSSample<TenElemT, QNT> *tps_sample) {
-  TenElemT energy(0);
-  TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
-  const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = TPSSample<TenElemT, QNT>::trun_para;
-  TenElemT inv_psi;
-  const size_t tri_right_bound = tn.cols() - (size_t) remove_corner_;
-  const size_t tri_lower_bound = tn.rows() - (size_t) remove_corner_;
-  tn.GenerateBMPSApproach(UP, trunc_para);
-  for (size_t row = 0; row < tn.rows(); row++) {
-    tn.InitBTen(LEFT, row);
-    tn.GrowFullBTen(RIGHT, row, 1, true);
-    // update the amplitude so that the error of ratio of amplitude can reduce by cancellation.
-    tps_sample->amplitude = tn.Trace({row, 0}, HORIZONTAL);
-    inv_psi = 1.0 / tps_sample->amplitude;
-    for (size_t col = 0; col < tn.cols(); col++) {
-      const SiteIdx site1 = {row, col};
-      //Calculate the holes
-      size_t config1 = config(site1);
       if (col < tri_right_bound && row < tri_lower_bound) {
         if (config(site1) == 0 || config(site1) == 7) {
           energy += 0.75;

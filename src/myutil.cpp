@@ -21,7 +21,6 @@ size_t GetNumofMps() {
   return NumberOfMpsFile;
 }
 
-
 bool IsFileExist(const std::string &filename) {
   struct stat buffer;
   return (stat(filename.c_str(), &buffer) == 0);
@@ -33,7 +32,6 @@ void Show(std::vector<size_t> v) {
   }
   std::cout << '\b' << std::endl;
 }
-
 
 bool ParserBondDimension(int argc, char *argv[],
                          std::vector<size_t> &D_set) {
@@ -68,3 +66,41 @@ bool ParserBondDimension(int argc, char *argv[],
 
   return has_D_parameter;
 }
+
+/*
+void ParserSITPSExtensionParams(int argc, char *argv[],
+                                ExtensionDir &dir,
+                                std::vector<size_t> &srcs,
+                                std::vector<size_t> &dests) {
+  int nOptionIndex = 3;
+  std::string D_string;
+  std::string arguement1 = "--D=";
+  bool has_D_parameter(false);
+  while (nOptionIndex < argc) {
+    if (strncmp(argv[nOptionIndex], arguement1.c_str(), arguement1.size()) == 0) {
+      D_string = &argv[nOptionIndex][arguement1.size()];
+      has_D_parameter = true;
+    }
+    nOptionIndex++;
+  }
+
+  //split thread num list
+  const char *split = ",";
+  char *p;
+  const size_t MAX_CHAR_LENTH = 1000;
+  char D_char[MAX_CHAR_LENTH];
+  for (size_t i = 0; i < MAX_CHAR_LENTH; i++) {
+    D_char[i] = 0;
+  }
+
+  strcpy(D_char, D_string.c_str());
+
+  p = strtok(D_char, split);
+  while (p != nullptr) {
+    D_set.push_back(atoi(p));
+    p = strtok(nullptr, split);
+  }
+
+  return;
+}
+ */

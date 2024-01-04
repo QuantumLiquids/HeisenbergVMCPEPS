@@ -7,6 +7,11 @@
 size_t GetNumofMps();
 void Show(std::vector<size_t> v);
 bool ParserBondDimension(int argc, char *argv[],
-                         std::vector<size_t>& D_set);
-bool IsFileExist(const std::string&);
+                         std::vector<size_t> &D_set);
+bool IsFileExist(const std::string &);
+
+enum ExtensionDir {
+  ROW,
+  COL
+};
 #endif

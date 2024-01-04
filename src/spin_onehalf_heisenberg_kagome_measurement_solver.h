@@ -9,6 +9,7 @@
 #include "gqten/gqten.h"
 #include "gqpeps/two_dim_tn/tps/split_index_tps.h"      //SplitIndexTPS
 #include "gqpeps/algorithm/vmc_update/tps_sample.h"     //TPSSample
+#include "kagome_hei_model_combined_tps_sample.h"
 
 namespace gqpeps {
 

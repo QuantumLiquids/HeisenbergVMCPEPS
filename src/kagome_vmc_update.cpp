@@ -4,12 +4,15 @@
 
 #include "./gqdouble.h"
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
+#include "kagome_hei_model_combined_tps_sample.h"
 #include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
 #include "./params_parser.h"
 #include "myutil.h"
 
 using namespace gqpeps;
 using namespace std;
+
+using TPSSampleT = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
 
 Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx) {
   size_t sys_ly = 2 * ly, sys_lx = 2 * lx;
@@ -29,8 +32,8 @@ Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx)
   for (size_t row = 0; row < ly; row++) {
     for (size_t col = 0; col < lx; col++) {
       config({row, col}) = activates[2 * row][2 * col]
-                           + 2 * activates[2 * row + 1][2 * col]
-                           + 4 * activates[2 * row][2 * col + 1];
+          + 2 * activates[2 * row + 1][2 * col]
+          + 4 * activates[2 * row][2 * col + 1];
     }
   }
   return config;
@@ -84,23 +87,22 @@ int main(int argc, char **argv) {
 
   optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
-
   using Model = KagomeSpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
-  VMCPEPSExecutor<TenElemT, U1QN, Model> *executor(nullptr);
+  VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleT> *executor(nullptr);
   Model kagome_heisenberg_model = Model(params.RemoveCorner);
   if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {//has split_index_tps
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model>(optimize_para,
-                                                            params.Ly, params.Lx,
-                                                            world, kagome_heisenberg_model);
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleT>(optimize_para,
+                                                                        params.Ly, params.Lx,
+                                                                        world, kagome_heisenberg_model);
     } else {
       TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-1);
       };
-      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, tps,
-                                                                world, kagome_heisenberg_model);
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model, TPSSampleT>(optimize_para, tps,
+                                                                            world, kagome_heisenberg_model);
     }
   } else {
     SquareLatticePEPS<GQTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
@@ -112,8 +114,8 @@ int main(int argc, char **argv) {
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }
-    executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model>(optimize_para, split_idx_tps,
-                                                              world, kagome_heisenberg_model);
+    executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model, TPSSampleT>(optimize_para, split_idx_tps,
+                                                                          world, kagome_heisenberg_model);
   }
 
   executor->cg_params.max_iter = params.CGMaxIter;
