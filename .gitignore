@@ -41,6 +41,7 @@ release/
 
 # Project
 data/
+tensors/
 run/
 
 # Dir

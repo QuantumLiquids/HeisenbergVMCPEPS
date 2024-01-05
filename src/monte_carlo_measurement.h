@@ -6,7 +6,6 @@
 #define HEISENBERGVMCPEPS_KAGOME_MC_MEASURE_H
 
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
-#include "spin_onehalf_heisenberg_kagome_measurement_solver.h"
 
 namespace gqpeps {
 using namespace gqten;
@@ -128,8 +127,8 @@ void PrintProgressBar(int progress, int total) {
   std::cout << "] " << int(progress * 100.0 / total) << " %" << std::endl;
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-class KagomeMeasurementExecutor : public Executor {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+class MonteCarloMeasurementExecutor : public Executor {
  public:
   using Tensor = GQTensor<TenElemT, QNT>;
   using TPST = TPS<TenElemT, QNT>;
@@ -137,15 +136,15 @@ class KagomeMeasurementExecutor : public Executor {
   using IndexT = Index<QNT>;
 
   //Load Data from path
-  KagomeMeasurementExecutor(const VMCOptimizePara &optimize_para,
-                            const size_t ly, const size_t lx,
-                            const boost::mpi::communicator &world,
-                            const MeasurementSolver &solver = MeasurementSolver());
+  MonteCarloMeasurementExecutor(const VMCOptimizePara &optimize_para,
+                                const size_t ly, const size_t lx,
+                                const boost::mpi::communicator &world,
+                                const MeasurementSolver &solver = MeasurementSolver());
 
-  KagomeMeasurementExecutor(const VMCOptimizePara &optimize_para,
-                            const SITPST &sitpst_init,
-                            const boost::mpi::communicator &world,
-                            const MeasurementSolver &solver = MeasurementSolver());
+  MonteCarloMeasurementExecutor(const VMCOptimizePara &optimize_para,
+                                const SITPST &sitpst_init,
+                                const boost::mpi::communicator &world,
+                                const MeasurementSolver &solver = MeasurementSolver());
 
   void Execute(void) override;
 
@@ -159,7 +158,6 @@ class KagomeMeasurementExecutor : public Executor {
 
   void DumpData(const std::string &tps_path);
 
-
   VMCOptimizePara optimize_para;
 
  private:
@@ -169,7 +167,7 @@ class KagomeMeasurementExecutor : public Executor {
 
   void Measure_(void);
 
-  void MCSweep_(size_t &tri_flip_times, size_t &bond_flip_times);
+  std::vector<double> MCSweep_(void);
 
   void WarmUp_(void);
 
@@ -186,7 +184,7 @@ class KagomeMeasurementExecutor : public Executor {
 
   SITPST split_index_tps_;
 
-  TPSSample<TenElemT, QNT> tps_sample_;
+  WaveFunctionComponentType tps_sample_;
 
   std::uniform_real_distribution<double> u_double_;
 
@@ -210,21 +208,25 @@ class KagomeMeasurementExecutor : public Executor {
     std::vector<double> spin_auto_corr;
   };
   Result res;
-};//KagomeMeasurementExecutor
+};//MonteCarloMeasurementExecutor
 
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::ReplicaTest() {
   SynchronizeConfiguration_();
   std::vector<double> overlaps;
   overlaps.reserve(optimize_para.mc_samples);
 //  std::cout << "Random number from worker " << world_.rank() << " : " << u_double_(random_engine) << std::endl;
-  const size_t bond_flip_num = lx_ * (ly_ - 1) + (ly_ - 1) * lx_;
-  size_t bond_accept_times, tri_accept_times;
+  std::vector<double> accept_rates_accum;
   for (size_t sweep = 0; sweep < optimize_para.mc_samples; sweep++) {
-    MCSweep_(tri_accept_times, bond_accept_times);
-    double bond_accept_ratio = (double) bond_accept_times / double(bond_flip_num);
-    double tri_accept_ratio = (double) tri_accept_times / double(bond_flip_num);
+    std::vector<double> accept_rates = MCSweep_();
+    if (sweep == 0) {
+      accept_rates_accum = accept_rates;
+    } else {
+      for (size_t i = 0; i < accept_rates_accum.size(); i++) {
+        accept_rates_accum[i] += accept_rates[i];
+      }
+    }
     // send-recv configuration
     Configuration config2(ly_, lx_);
     size_t dest = (world_.rank() + 1) % world_.size();
@@ -238,7 +240,16 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() 
     overlaps.push_back(overlap);
     if (world_.rank() == kMasterProc && (sweep + 1) % (optimize_para.mc_samples / 10) == 0) {
       PrintProgressBar((sweep + 1), optimize_para.mc_samples);
-      std::cout << "Accept Ratio : " << bond_accept_ratio << " , " << tri_accept_ratio << std::endl;
+
+      auto accept_rates_avg = accept_rates_accum;
+      for (double &rates : accept_rates_avg) {
+        rates /= double(sweep + 1);
+      }
+      std::cout << "Accept rate = [";
+      for (double &rate : accept_rates_avg) {
+        std::cout << std::setw(5) << std::fixed << std::setprecision(2) << rate;
+      }
+      std::cout << "]";
     }
   }
   //DumpData
@@ -252,17 +263,20 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReplicaTest() 
   tps_sample_.config.Dump(optimize_para.wavefunction_path, world_.rank());
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::ReserveSamplesDataSpace_(void) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT,
+                                   QNT,
+                                   WaveFunctionComponentType,
+                                   MeasurementSolver>::ReserveSamplesDataSpace_(
+    void) {
   energy_samples_.reserve(optimize_para.mc_samples);
   center_configs_.reserve(optimize_para.mc_samples);
   local_sz_samples_.reserve(optimize_para.mc_samples);
   // add reserve if more measurements
 }
 
-
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MeasureSample_() {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::MeasureSample_() {
   TenElemT energy;
   std::vector<bool> local_sz;
   std::vector<double> bond_energy;
@@ -273,8 +287,8 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MeasureSample_
   //add more measurement here and the definition of measurement solver
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatistic_() {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::GatherStatistic_() {
   TenElemT en_thread = Mean(energy_samples_);
   std::vector<TenElemT> en_list;
   boost::mpi::gather(world_, en_thread, en_list, kMasterProc);
@@ -289,7 +303,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
   std::vector<size_t> sz_sum_thread(N, 0);
   std::vector<std::vector<size_t>> sz_sum_list(N);
   std::vector<size_t> sz_sum(N, 0);
-  for (auto &local_sz: local_sz_samples_) {
+  for (auto &local_sz : local_sz_samples_) {
     for (size_t i = 0; i < N; i++) {
       sz_sum_thread[i] += local_sz[i];
     }
@@ -297,7 +311,7 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
   for (size_t i = 0; i < N; i++) { // i is site index
     boost::mpi::gather(world_, sz_sum_thread[i], sz_sum_list[i], kMasterProc);
     if (world_.rank() == kMasterProc) {
-      for (size_t summation: sz_sum_list[i]) { //for every thread's summation result
+      for (size_t summation : sz_sum_list[i]) { //for every thread's summation result
         sz_sum[i] += summation;
       }
     }
@@ -322,9 +336,12 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::GatherStatisti
   std::cout << "Rank " << world_.rank() << ": statistic data finished." << std::endl;
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
 void
-KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::DumpData(const std::string &tps_path) {
+MonteCarloMeasurementExecutor<TenElemT,
+                              QNT,
+                              WaveFunctionComponentType,
+                              MeasurementSolver>::DumpData(const std::string &tps_path) {
   using gqmps2::IsPathExist;
   using gqmps2::CreatPath;
   tps_sample_.config.Dump(tps_path, world_.rank());
@@ -349,9 +366,11 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::DumpData(const std:
   }
 }
 
-
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementExecutor(
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+MonteCarloMeasurementExecutor<TenElemT,
+                              QNT,
+                              WaveFunctionComponentType,
+                              MeasurementSolver>::MonteCarloMeasurementExecutor(
     const VMCOptimizePara &optimize_para,
     const size_t ly, const size_t lx,
     const boost::mpi::communicator &world,
@@ -360,7 +379,7 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
     split_index_tps_(ly, lx), tps_sample_(ly, lx),
     u_double_(0, 1), warm_up_(false),
     measurement_solver_(solver) {
-  TPSSample<TenElemT, QNT>::trun_para = BMPSTruncatePara(optimize_para);
+  WaveFunctionComponentType::trun_para = BMPSTruncatePara(optimize_para);
   random_engine.seed(std::random_device{}() + world.rank() * 10086);
   LoadTenData();
   ReserveSamplesDataSpace_();
@@ -368,8 +387,11 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
   this->SetStatus(ExecutorStatus::INITED);
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementExecutor(
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+MonteCarloMeasurementExecutor<TenElemT,
+                              QNT,
+                              WaveFunctionComponentType,
+                              MeasurementSolver>::MonteCarloMeasurementExecutor(
     const VMCOptimizePara &optimize_para,
     const SITPST &sitpst_init,
     const boost::mpi::communicator &world,
@@ -381,21 +403,23 @@ KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::KagomeMeasurementEx
     tps_sample_(ly_, lx_),
     u_double_(0, 1), warm_up_(false),
     measurement_solver_(solver) {
-  TPSSample<TenElemT, QNT>::trun_para = BMPSTruncatePara(optimize_para);
+  WaveFunctionComponentType::trun_para = BMPSTruncatePara(optimize_para);
   random_engine.seed(std::random_device{}() + world.rank() * 10086);
-  tps_sample_ = TPSSample<TenElemT, QNT>(sitpst_init, optimize_para.init_config);
+  tps_sample_ = WaveFunctionComponentType(sitpst_init, optimize_para.init_config);
   ReserveSamplesDataSpace_();
   PrintExecutorInfo_();
   this->SetStatus(ExecutorStatus::INITED);
 }
 
-
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::PrintExecutorInfo_(void) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT,
+                                   QNT,
+                                   WaveFunctionComponentType,
+                                   MeasurementSolver>::PrintExecutorInfo_(void) {
   if (world_.rank() == kMasterProc) {
     std::cout << std::left;  // Set left alignment for the output
     std::cout << "\n";
-    std::cout << "=====> VARIATIONAL MONTE-CARLO PROGRAM FOR PEPS <=====" << "\n";
+    std::cout << "=====> MONTE-CARLO MEASUREMENT PROGRAM FOR PEPS <=====" << "\n";
     std::cout << std::setw(30) << "System size (lx, ly):" << "(" << lx_ << ", " << ly_ << ")\n";
     std::cout << std::setw(30) << "PEPS bond dimension:" << split_index_tps_.GetMaxBondDimension() << "\n";
     std::cout << std::setw(30) << "BMPS bond dimension:" << optimize_para.bmps_trunc_para.D_min << "/"
@@ -409,22 +433,20 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::PrintExecutorI
   }
 }
 
-
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::Execute(void) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::Execute(void) {
   SetStatus(ExecutorStatus::EXEING);
   Measure_();
   DumpData();
   SetStatus(ExecutorStatus::FINISH);
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::WarmUp_(void) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::WarmUp_(void) {
   if (!warm_up_) {
     Timer warm_up_timer("warm_up");
-    size_t tri_accept_times, bond_accept_times;
     for (size_t sweep = 0; sweep < optimize_para.mc_warm_up_sweeps; sweep++) {
-      MCSweep_(tri_accept_times, bond_accept_times);
+      auto accept_rates = MCSweep_();
     }
     double elasp_time = warm_up_timer.Elapsed();
     std::cout << "Proc " << std::setw(4) << world_.rank() << " warm-up completes T = " << elasp_time << "s."
@@ -433,23 +455,29 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::WarmUp_(void) 
   }
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::SynchronizeConfiguration_(const size_t root) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT,
+                                   QNT,
+                                   WaveFunctionComponentType,
+                                   MeasurementSolver>::SynchronizeConfiguration_(
+    const size_t root) {
   Configuration config(tps_sample_.config);
   MPI_BCast(config, root, MPI_Comm(world_));
   if (world_.rank() != root) {
-    tps_sample_ = TPSSample<TenElemT, QNT>(split_index_tps_, config);
+    tps_sample_ = WaveFunctionComponentType(split_index_tps_, config);
   }
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::LoadTenData(void) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::LoadTenData(void) {
   LoadTenData(optimize_para.wavefunction_path);
 }
 
-
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::LoadTenData(const std::string &tps_path) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT,
+                                   QNT,
+                                   WaveFunctionComponentType,
+                                   MeasurementSolver>::LoadTenData(const std::string &tps_path) {
   if (!split_index_tps_.Load(tps_path)) {
     std::cout << "Loading TPS files fails." << std::endl;
     exit(-1);
@@ -457,53 +485,62 @@ void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::LoadTenData(co
   Configuration config(ly_, lx_);
   bool load_config = config.Load(tps_path, world_.rank());
   if (load_config) {
-    tps_sample_ = TPSSample<TenElemT, QNT>(split_index_tps_, config);
+    tps_sample_ = WaveFunctionComponentType(split_index_tps_, config);
   } else {
     std::cout << "Loading configuration in rank " << world_.rank()
               << " fails. Random generate it and warm up."
               << std::endl;
-    tps_sample_ = TPSSample<TenElemT, QNT>(split_index_tps_, optimize_para.init_config);
+    tps_sample_ = WaveFunctionComponentType(split_index_tps_, optimize_para.init_config);
     WarmUp_();
   }
   warm_up_ = true;
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::DumpData(void) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::DumpData(void) {
   DumpData(optimize_para.wavefunction_path);
 }
 
-
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::Measure_(void) {
-  size_t bond_accept_total_num = 0, tri_accept_total_num = 0;
-  size_t bond_num = lx_ * (ly_ - 1) + ly_ * (lx_ - 1);
-  size_t tri_num = lx_ * ly_;
-  size_t tri_accept_times, bond_accept_times;
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, MeasurementSolver>::Measure_(void) {
+  std::vector<double> accept_rates_accum;
   for (size_t sweep = 0; sweep < optimize_para.mc_samples; sweep++) {
-    MCSweep_(tri_accept_times, bond_accept_times);
-    bond_accept_total_num += bond_accept_times;
-    tri_accept_total_num += tri_accept_times;
+    std::vector<double> accept_rates = MCSweep_();
+    if (sweep == 0) {
+      accept_rates_accum = accept_rates;
+    } else {
+      for (size_t i = 0; i < accept_rates_accum.size(); i++) {
+        accept_rates_accum[i] += accept_rates[i];
+      }
+    }
     MeasureSample_();
     if (world_.rank() == kMasterProc && (sweep + 1) % (optimize_para.mc_samples / 10) == 0) {
       PrintProgressBar((sweep + 1), optimize_para.mc_samples);
     }
   }
-  double bond_accept_rate = double(bond_accept_total_num) / double(bond_num * optimize_para.mc_samples);
-  double tri_accept_rate = double(tri_accept_total_num) / double(2 * tri_num * optimize_para.mc_samples);
-  std::cout << "Accept Ratio : " << bond_accept_rate << " , " << tri_accept_rate << std::endl;
+  std::vector<double> accept_rates_avg = accept_rates_accum;
+  for (double &rates : accept_rates_avg) {
+    rates /= double(optimize_para.mc_samples);
+  }
+  std::cout << "Accept rate = [";
+  for (double &rate : accept_rates_avg) {
+    std::cout << std::setw(5) << std::fixed << std::setprecision(2) << rate;
+  }
+  std::cout << "]";
   GatherStatistic_();
 }
 
-template<typename TenElemT, typename QNT, typename MeasurementSolver>
-void KagomeMeasurementExecutor<TenElemT, QNT, MeasurementSolver>::MCSweep_(
-    size_t &tri_flip_times,
-    size_t &bond_flip_times
-) {
+template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
+std::vector<double> MonteCarloMeasurementExecutor<TenElemT,
+                                                  QNT,
+                                                  WaveFunctionComponentType,
+                                                  MeasurementSolver>::MCSweep_(
+    void) {
+  std::vector<double> accept_rates;
   for (size_t i = 0; i < optimize_para.mc_sweeps_between_sample; i++) {
-    tps_sample_.MCCompressedKagomeLatticeSequentiallyLocalUpdateSweepSmoothBoundary(split_index_tps_, u_double_,
-                                                                                    tri_flip_times, bond_flip_times);
+    tps_sample_.MonteCarloSweepUpdate(split_index_tps_, unit_even_distribution, accept_rates);
   }
+  return accept_rates;
 }
 }//gqpeps
 

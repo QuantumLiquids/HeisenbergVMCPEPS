@@ -3,13 +3,17 @@
 //
 
 #include "gqpeps/two_dim_tn/peps/square_lattice_peps.h"
-#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
+#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_energy_solver.h"
+#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_measurement_solver.h"
 #include "./gqdouble.h"
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "./params_parser.h"
-#include "kagome_mc_measure.h"
+#include "monte_carlo_measurement.h"
+#include "kagome_hei_model_combined_tps_sample.h"
 
 using namespace gqpeps;
+
+using TPSSampleT = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
 
 Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx) {
   size_t sys_ly = 2 * ly, sys_lx = 2 * lx;
@@ -29,8 +33,8 @@ Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx)
   for (size_t row = 0; row < ly; row++) {
     for (size_t col = 0; col < lx; col++) {
       config({row, col}) = activates[2 * row][2 * col]
-                           + 2 * activates[2 * row + 1][2 * col]
-                           + 4 * activates[2 * row][2 * col + 1];
+          + 2 * activates[2 * row + 1][2 * col]
+          + 4 * activates[2 * row][2 * col + 1];
     }
   }
   return config;
@@ -93,7 +97,6 @@ void DumpBondInfo(size_t ly, size_t lx, std::string &basename) {
   ofs.close();
 }
 
-
 int main(int argc, char **argv) {
   boost::mpi::environment env;
   boost::mpi::communicator world;
@@ -141,13 +144,12 @@ int main(int argc, char **argv) {
   }
   optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
-
   using Model = KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, U1QN>;
-  KagomeMeasurementExecutor<TenElemT, U1QN, Model> *executor(nullptr);
+  MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
   if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
-    executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
-                                                                    params.Ly, params.Lx,
-                                                                    world);
+    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                                    params.Ly, params.Lx,
+                                                                                    world);
   } else {  //after simple update, load from PEPS tensors
     SquareLatticePEPS<GQTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
     if (!peps.Load(peps_path)) {
@@ -158,9 +160,9 @@ int main(int argc, char **argv) {
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }
-    executor = new KagomeMeasurementExecutor<TenElemT, U1QN, Model>(optimize_para,
-                                                                    split_idx_tps,
-                                                                    world);
+    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                                    split_idx_tps,
+                                                                                    world);
   }
 
   if (params.ReplicaTest) {
@@ -168,11 +170,6 @@ int main(int argc, char **argv) {
   } else {
     executor->Execute();
   }
-
-//  executor->cg_params.max_iter = params.CGMaxIter;
-//  executor->cg_params.tolerance = params.CGTol;
-//  executor->cg_params.residue_restart_step = params.CGResidueRestart;
-//  executor->cg_params.diag_shift = params.CGDiagShift;
 
   delete executor;
   std::string bondinfo_filename = "energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);

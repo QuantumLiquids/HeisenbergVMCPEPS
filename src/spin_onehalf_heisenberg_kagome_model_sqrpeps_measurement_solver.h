@@ -5,10 +5,8 @@
 #ifndef HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MEASUREMENT_SOLVER_H
 #define HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MEASUREMENT_SOLVER_H
 
-
 #include "gqten/gqten.h"
 #include "gqpeps/two_dim_tn/tps/split_index_tps.h"      //SplitIndexTPS
-#include "gqpeps/algorithm/vmc_update/tps_sample.h"     //TPSSample
 #include "kagome_hei_model_combined_tps_sample.h"
 
 namespace gqpeps {
@@ -40,16 +38,18 @@ class KagomeSpinOneHalfHeisenbergMeasurementSolver {
 
   KagomeSpinOneHalfHeisenbergMeasurementSolver(bool remove_corner) : remove_corner_(remove_corner) {}
 
+  template<typename WaveFunctionComponentType>
   TenElemT SampleMeasure(
       const SITPS *sitps,
-      TPSSample<TenElemT, QNT> *tps_sample,
+      WaveFunctionComponentType *tps_sample,
       std::vector<bool> &local_sz, //return 1
       std::vector<double> &energy_bond //return 2
   );
 
+  template<typename WaveFunctionComponentType>
   TenElemT SampleMeasure2(
       const SITPS *sitps,
-      TPSSample<TenElemT, QNT> *tps_sample,
+      WaveFunctionComponentType *tps_sample,
       std::vector<bool> &local_sz, //return 1
       std::vector<double> &energy_bond //return 2
   );
@@ -69,8 +69,9 @@ class KagomeSpinOneHalfHeisenbergMeasurementSolver {
  * @return
  */
 template<typename TenElemT, typename QNT>
+template<typename WaveFunctionComponentType>
 TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeasure(const SITPS *split_index_tps,
-                                                                                    TPSSample<TenElemT, QNT> *tps_sample,
+                                                                                    WaveFunctionComponentType *tps_sample,
                                                                                     std::vector<bool> &local_sz,
                                                                                     std::vector<double> &energy_bond) {
   TenElemT energy(0);
@@ -80,7 +81,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
   energy_bond.reserve(ly * lx * 6);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = TPSSample<TenElemT, QNT>::trun_para;
+  const BMPSTruncatePara &trunc_para = tps_sample->trun_para;
   TenElemT inv_psi;
   tn.GenerateBMPSApproach(UP, trunc_para);
   for (size_t row = 0; row < tn.rows() - 1; row++) {
@@ -280,8 +281,9 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
  * @return
  */
 template<typename TenElemT, typename QNT>
+template<typename WaveFunctionComponentType>
 TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeasure2(const SITPS *split_index_tps,
-                                                                                     TPSSample<TenElemT, QNT> *tps_sample,
+                                                                                     WaveFunctionComponentType *tps_sample,
                                                                                      std::vector<bool> &local_sz,
                                                                                      std::vector<double> &energy_bond) {
   TenElemT energy(0);
@@ -291,7 +293,7 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
   energy_bond.reserve(ly * lx * 6);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = TPSSample<TenElemT, QNT>::trun_para;
+  const BMPSTruncatePara &trunc_para = tps_sample->trun_para;
   TenElemT inv_psi = 1.0 / (tps_sample->amplitude);
   tn.GenerateBMPSApproach(UP, trunc_para);
   for (size_t row = 0; row < tn.rows(); row++) {
@@ -426,7 +428,6 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
   }
   return energy;
 }
-
 
 }//gqpeps
 #endif //HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MEASUREMENT_SOLVER_H
