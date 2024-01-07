@@ -193,19 +193,31 @@ class MonteCarloMeasurementExecutor : public Executor {
   MeasurementSolver measurement_solver_;
 
   // observable
-  std::vector<TenElemT> energy_samples_;
-  std::vector<std::vector<TenElemT>> bond_energy_samples_;
-  std::vector<size_t> center_configs_; //used to analyze the auto correlation.
-  std::vector<std::vector<bool>> local_sz_samples_; // outside is the sample index, inner side is the lattice index.
+  struct SampleData {
+    std::vector<TenElemT> energy_samples;
+    std::vector<std::vector<TenElemT>> bond_energy_samples;
+    std::vector<std::vector<TenElemT>>
+        one_point_function_samples; // outside is the sample index, inner side is the lattice index.
+    std::vector<std::vector<TenElemT>>
+        two_point_function_samples;
+
+    void Reserve(const size_t sample_num) {
+      energy_samples.reserve(sample_num);
+      bond_energy_samples.reserve(sample_num);
+      one_point_function_samples.reserve(sample_num);
+      two_point_function_samples.reserve(sample_num);
+    }
+  } sample_data_;
   // the lattice site number = Lx * Ly * 3,  first the unit cell, then column idx, then row index.
 
   struct Result {
     TenElemT energy;
     TenElemT en_err;
-    std::vector<TenElemT> bond_energys;
-    std::vector<double> sz;
     std::vector<TenElemT> energy_auto_corr;
-    std::vector<double> spin_auto_corr;
+    std::vector<TenElemT> bond_energys;
+    std::vector<double> one_point_functions;
+    std::vector<double> two_point_functions;
+    std::vector<double> one_auto_corr;
   };
   Result res;
 };//MonteCarloMeasurementExecutor
@@ -269,10 +281,7 @@ void MonteCarloMeasurementExecutor<TenElemT,
                                    WaveFunctionComponentType,
                                    MeasurementSolver>::ReserveSamplesDataSpace_(
     void) {
-  energy_samples_.reserve(optimize_para.mc_samples);
-  center_configs_.reserve(optimize_para.mc_samples);
-  local_sz_samples_.reserve(optimize_para.mc_samples);
-  // add reserve if more measurements
+  sample_data_.Reserve(optimize_para.mc_samples);
 }
 
 template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
@@ -281,9 +290,9 @@ void MonteCarloMeasurementExecutor<TenElemT, QNT, WaveFunctionComponentType, Mea
   std::vector<bool> local_sz;
   std::vector<double> bond_energy;
   energy = measurement_solver_.SampleMeasure(&split_index_tps_, &tps_sample_, local_sz, bond_energy);
-  energy_samples_.push_back(energy);
-  local_sz_samples_.push_back(local_sz);
-  bond_energy_samples_.push_back(bond_energy);
+  energy_samples.push_back(energy);
+  bond_energy_samples.push_back(bond_energy);
+  one_point_function_samples.push_back(local_sz);
   //add more measurement here and the definition of measurement solver
 }
 

@@ -5,7 +5,7 @@
 #include "./gqdouble.h"
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "kagome_hei_model_combined_tps_sample.h"
-#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_energy_solver.h"
+#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
 #include "./params_parser.h"
 #include "myutil.h"
 
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
   optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
-  using Model = KagomeSpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
+  using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
   VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleT> *executor(nullptr);
   Model kagome_heisenberg_model = Model(params.RemoveCorner);
   if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {

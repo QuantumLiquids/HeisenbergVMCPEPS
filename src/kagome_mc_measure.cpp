@@ -3,12 +3,10 @@
 //
 
 #include "gqpeps/two_dim_tn/peps/square_lattice_peps.h"
-#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_energy_solver.h"
-#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_measurement_solver.h"
+#include "gqpeps/algorithm/vmc_update/monte_carlo_measurement.h"
+#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
 #include "./gqdouble.h"
-#include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "./params_parser.h"
-#include "monte_carlo_measurement.h"
 #include "kagome_hei_model_combined_tps_sample.h"
 
 using namespace gqpeps;
@@ -144,7 +142,7 @@ int main(int argc, char **argv) {
   }
   optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
-  using Model = KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, U1QN>;
+  using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
   MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
   if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
     executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
