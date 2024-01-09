@@ -10,9 +10,9 @@
 //#define PLAIN_TRANSPOSE 1
 
 #include "gqpeps/algorithm/simple_update/square_lattice_nn_simple_update.h"
+#include "gqpeps/algorithm/simple_update/square_lattice_nnn_simple_update.h"
 #include "./gqdouble.h"
 #include "./params_parser.h"
-
 
 int main(int argc, char **argv) {
   SimpleUpdateParams params(argv[1]);
@@ -37,6 +37,39 @@ int main(int argc, char **argv) {
   ham_hei_nn({0, 1, 1, 0}) = 0.5;
   ham_hei_nn({1, 0, 0, 1}) = 0.5;
 
+  Tensor ham_hei_tri_terms[3];
+  for (size_t i = 0; i < 3; i++) {
+    ham_hei_tri_terms[i] = Tensor({pb_in, pb_out, pb_in, pb_out, pb_in, pb_out});
+  }
+
+  for (size_t i = 0; i < 2; i++) {
+    ham_hei_tri_terms[0]({0, 0, 0, 0, i, i}) = 0.25;
+    ham_hei_tri_terms[0]({1, 1, 1, 1, i, i}) = 0.25;
+    ham_hei_tri_terms[0]({1, 1, 0, 0, i, i}) = -0.25;
+    ham_hei_tri_terms[0]({0, 0, 1, 1, i, i}) = -0.25;
+    ham_hei_tri_terms[0]({0, 1, 1, 0, i, i}) = 0.5;
+    ham_hei_tri_terms[0]({1, 0, 0, 1, i, i}) = 0.5;
+  }
+
+  for (size_t i = 0; i < 2; i++) {
+    ham_hei_tri_terms[1]({0, 0, i, i, 0, 0}) = 0.25;
+    ham_hei_tri_terms[1]({1, 1, i, i, 1, 1}) = 0.25;
+    ham_hei_tri_terms[1]({1, 1, i, i, 0, 0}) = -0.25;
+    ham_hei_tri_terms[1]({0, 0, i, i, 1, 1}) = -0.25;
+    ham_hei_tri_terms[1]({0, 1, i, i, 1, 0}) = 0.5;
+    ham_hei_tri_terms[1]({1, 0, i, i, 0, 1}) = 0.5;
+  }
+
+  for (size_t i = 0; i < 2; i++) {
+    ham_hei_tri_terms[2]({i, i, 0, 0, 0, 0}) = 0.25;
+    ham_hei_tri_terms[2]({i, i, 1, 1, 1, 1}) = 0.25;
+    ham_hei_tri_terms[2]({i, i, 1, 1, 0, 0}) = -0.25;
+    ham_hei_tri_terms[2]({i, i, 0, 0, 1, 1}) = -0.25;
+    ham_hei_tri_terms[2]({i, i, 0, 1, 1, 0}) = 0.5;
+    ham_hei_tri_terms[2]({i, i, 1, 0, 0, 1}) = 0.5;
+  }
+  Tensor ham_hei_tri = 0.5 * ham_hei_tri_terms[0] + params.J2 * ham_hei_tri_terms[1] + 0.5 * ham_hei_tri_terms[2];
+
   gqten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
   gqten::hp_numeric::SetTensorTransposeNumThreads(params.ThreadNum);
 
@@ -58,11 +91,22 @@ int main(int argc, char **argv) {
     }
     peps0.Initial(activates);
   }
-  auto su_exe = new gqpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
-                                                                ham_hei_nn);
-  su_exe->Execute();
-  auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
-  tps.Dump();
-  su_exe->DumpResult(peps_path, true);
+  if (params.J2 == 0) {
+    auto su_exe = new gqpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
+                                                                                  ham_hei_nn);
+    su_exe->Execute();
+    auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+    tps.Dump();
+    su_exe->DumpResult(peps_path, true);
+  } else {
+    auto su_exe = new gqpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
+                                                                                   ham_hei_nn,
+                                                                                   ham_hei_tri);
+    su_exe->Execute();
+    auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+    tps.Dump();
+    su_exe->DumpResult(peps_path, true);
+  }
+
   return 0;
 }
