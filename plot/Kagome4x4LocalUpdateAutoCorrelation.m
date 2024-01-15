@@ -1,5 +1,5 @@
-data = load("energy0");
-t_list = 1:30;
+data = load('../data/kagome_energy_raw_data8x8D8-iPESS/energy2');
+t_list = 1:100;
 A_list = zeros(1,numel(t_list)); %auto correlation
 mu = mean(data);
 std_energ = std(data);
