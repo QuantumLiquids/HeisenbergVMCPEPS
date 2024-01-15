@@ -132,6 +132,7 @@ link_libraries(
 
 add_executable(square_simple_update src/square_simple_update.cpp)
 add_executable(square_vmc_update src/square_vmc_update.cpp src/myutil.cpp)
+add_executable(square_mc_measure src/square_mc_measure.cpp src/myutil.cpp)
 add_executable(triangle_simple_update src/triangle_simple_update.cpp)
 add_executable(triangle_vmc_update src/triangle_vmc_update.cpp src/myutil.cpp)
 add_executable(kagome_simple_update src/kagome_simple_update.cpp)
