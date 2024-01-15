@@ -4,7 +4,7 @@
 * Author: Hao-Xin Wang<wanghaoxin1996@gmail.com>
 * Creation Date: 2023-09-28
 *
-* Description: VMC Update for Heisenberg model.
+* Description: VMC Update for Heisenberg model in triangle lattice.
 */
 
 #include "./gqdouble.h"
