@@ -38,10 +38,10 @@ int main(int argc, char **argv) {
 
   if (params.J2 == 0) {
     using Model = SpinOneHalfTriHeisenbergSqrPEPS<TenElemT, U1QN>;
-    VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleNNFlipT> *executor(nullptr);
+    VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model> *executor(nullptr);
     Model triangle_hei_solver;
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleNNFlipT>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para,
                                                                               params.Ly, params.Lx,
                                                                               world, triangle_hei_solver);
     } else {
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleNNFlipT>(optimize_para, tps,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para, tps,
                                                                               world, triangle_hei_solver);
     }
     executor->cg_params.max_iter = params.CGMaxIter;
@@ -61,11 +61,11 @@ int main(int argc, char **argv) {
     delete executor;
   } else {
     using Model = SpinOneHalfTriJ1J2HeisenbergSqrPEPS<TenElemT, U1QN>;
-    VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleNNFlipT> *executor(nullptr);
+    VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model trij1j2solver(j2);
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) { //actually almostly do the same thing
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleNNFlipT>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para,
                                                                               params.Ly, params.Lx,
                                                                               world, trij1j2solver);
     } else {
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleNNFlipT>(optimize_para, tps,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para, tps,
                                                                               world, trij1j2solver);
     }
     executor->cg_params.max_iter = params.CGMaxIter;

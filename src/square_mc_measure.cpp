@@ -41,7 +41,15 @@ int main(int argc, char **argv) {
                                                                                             params.Ly, params.Lx,
                                                                                             world);
     } else {
-
+      TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
+      if (!tps.Load()) {
+        std::cout << "Loading simple updated TPS files is broken." << std::endl;
+        exit(-2);
+      };
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para,
+                                                                                            SplitIndexTPS<TenElemT,
+                                                                                                          U1QN>(tps),
+                                                                                            world);
     }
 
     if (params.ReplicaTest) {
