@@ -88,11 +88,11 @@ int main(int argc, char **argv) {
   optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
   using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
-  VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleT> *executor(nullptr);
+  VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
   Model kagome_heisenberg_model = Model(params.RemoveCorner);
   if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {//has split_index_tps
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, Model, TPSSampleT>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
                                                                         params.Ly, params.Lx,
                                                                         world, kagome_heisenberg_model);
     } else {
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-1);
       };
-      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model, TPSSampleT>(optimize_para, tps,
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleT, Model>(optimize_para, tps,
                                                                             world, kagome_heisenberg_model);
     }
   } else {
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }
-    executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, Model, TPSSampleT>(optimize_para, split_idx_tps,
+    executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleT, Model>(optimize_para, split_idx_tps,
                                                                           world, kagome_heisenberg_model);
   }
 

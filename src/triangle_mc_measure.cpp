@@ -8,15 +8,16 @@
 */
 
 #include "gqpeps/algorithm/vmc_update/monte_carlo_measurement.h"
-#include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_triangle_heisenberg_sqrpeps.h"
-#include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_triangle_heisenbergJ1J2_sqrpeps.h"
+#include "gqpeps/algorithm/vmc_update/model_solvers/spin_onehalf_triangle_heisenberg_sqrpeps.h"
+#include "gqpeps/algorithm/vmc_update/model_solvers/spin_onehalf_triangle_heisenbergJ1J2_sqrpeps.h"
+#include "gqpeps/algorithm/vmc_update/wave_function_component_classes/square_tps_sample_3site_exchange.h"
 #include "./gqdouble.h"
 #include "./params_parser.h"
 #include "myutil.h"
 
 using namespace gqpeps;
 
-using TPSSampleNNFlipT = SquareTPSSampleNNFlip<TenElemT, U1QN>;
+using TPSSampleT = SquareTPSSample3SiteExchange<TenElemT, U1QN>;
 
 int main(int argc, char **argv) {
   boost::mpi::environment env;
@@ -38,12 +39,12 @@ int main(int argc, char **argv) {
 
   if (params.J2 == 0) {
     using Model = SpinOneHalfTriHeisenbergSqrPEPS<TenElemT, U1QN>;
-    MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model> *executor(nullptr);
+    MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
 
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {// test if split index tps tensors exsit
-      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para,
-                                                                                            params.Ly, params.Lx,
-                                                                                            world);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                                      params.Ly, params.Lx,
+                                                                                      world);
     } else {
 
     }
@@ -57,13 +58,13 @@ int main(int argc, char **argv) {
     std::string bondinfo_filename = "energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
   } else {
     using Model = SpinOneHalfTriJ1J2HeisenbergSqrPEPS<TenElemT, U1QN>;
-    MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model> *executor(nullptr);
+    MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {// test if split index tps tensors exsit
-      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para,
-                                                                                            params.Ly, params.Lx,
-                                                                                            world, j1j2solver);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                                      params.Ly, params.Lx,
+                                                                                      world, j1j2solver);
     } else {
 
     }

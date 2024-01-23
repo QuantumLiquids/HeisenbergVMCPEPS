@@ -9,14 +9,14 @@
 
 #include "./gqdouble.h"
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
-#include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_heisenberg_square.h"    // SpinOneHalfHeisenbergSquare
-#include "gqpeps/algorithm/vmc_update/model_energy_solvers/spin_onehalf_squareJ1J2.h"           // SpinOneHalfJ1J2HeisenbergSquare
+#include "gqpeps/algorithm/vmc_update/model_solvers/spin_onehalf_heisenberg_square.h"    // SpinOneHalfHeisenbergSquare
+#include "gqpeps/algorithm/vmc_update/model_solvers/spin_onehalf_squareJ1J2.h"           // SpinOneHalfJ1J2HeisenbergSquare
 #include "params_parser.h"
 #include "myutil.h"
 
 using namespace gqpeps;
 
-using TPSSampleNNFlipT = SquareTPSSampleNNFlip<TenElemT, U1QN>;
+using TPSSampleT = SquareTPSSampleNNFlip<TenElemT, U1QN>;
 
 int main(int argc, char **argv) {
   boost::mpi::environment env;
@@ -38,20 +38,20 @@ int main(int argc, char **argv) {
 
   if (params.J2 == 0) {
     using Model = SpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
-    VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model> *executor(nullptr);
+    VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
 
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) {// test if split index tps tensors exsit
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para,
-                                                                              params.Ly, params.Lx,
-                                                                              world);
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                        params.Ly, params.Lx,
+                                                                        world);
     } else {
       TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleNNFlipT, Model>(optimize_para, tps,
-                                                                              world);
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para, tps,
+                                                                        world);
     }
     executor->cg_params.max_iter = params.CGMaxIter;
     executor->cg_params.tolerance = params.CGTol;
@@ -61,21 +61,21 @@ int main(int argc, char **argv) {
     delete executor;
   } else {
     using Model = SpinOneHalfJ1J2HeisenbergSquare<GQTEN_Double, U1QN>;
-    VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleNNFlipT, Model> *executor(nullptr);
+    VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.gqten")) { //actually almostly do the same thing
-      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleNNFlipT, Model>(optimize_para,
-                                                                                  params.Ly, params.Lx,
-                                                                                  world, j1j2solver);
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                            params.Ly, params.Lx,
+                                                                            world, j1j2solver);
     } else {
       TPS<GQTEN_Double, U1QN> tps = TPS<GQTEN_Double, U1QN>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleNNFlipT, Model>(optimize_para, tps,
-                                                                                  world, j1j2solver);
+      executor = new VMCPEPSExecutor<GQTEN_Double, U1QN, TPSSampleT, Model>(optimize_para, tps,
+                                                                            world, j1j2solver);
     }
     executor->cg_params.max_iter = params.CGMaxIter;
     executor->cg_params.tolerance = params.CGTol;

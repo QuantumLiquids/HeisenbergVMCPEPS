@@ -45,15 +45,6 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
   }
 
 
-//  SplitIndexTPS<TenElemT, QNT> operator*(const SplitIndexTPS<TenElemT, QNT> &sitps) const {
-//
-//
-//  }
-//
-//  operator SplitIndexTPS<TenElemT, QNT>() const {
-//
-//  }
-
   // Smooth Boundary condition
   void MonteCarloSweepUpdate(const SplitIndexTPS<TenElemT, QNT> &sitps,
                              std::uniform_real_distribution<double> &u_double,
