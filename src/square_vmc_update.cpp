@@ -11,12 +11,13 @@
 #include "gqpeps/algorithm/vmc_update/vmc_peps.h"
 #include "gqpeps/algorithm/vmc_update/model_solvers/spin_onehalf_heisenberg_square.h"    // SpinOneHalfHeisenbergSquare
 #include "gqpeps/algorithm/vmc_update/model_solvers/spin_onehalf_squareJ1J2.h"           // SpinOneHalfJ1J2HeisenbergSquare
+#include "gqpeps/algorithm/vmc_update/wave_function_component_classes/square_tps_sample_3site_exchange.h"
 #include "params_parser.h"
 #include "myutil.h"
 
 using namespace gqpeps;
 
-using TPSSampleT = SquareTPSSampleNNFlip<TenElemT, U1QN>;
+using TPSSampleT = SquareTPSSample3SiteExchange<TenElemT, U1QN>;
 
 int main(int argc, char **argv) {
   boost::mpi::environment env;
