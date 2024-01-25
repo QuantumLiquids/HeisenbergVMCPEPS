@@ -85,8 +85,6 @@ int main(int argc, char **argv) {
                                             params.update_scheme);
   }
 
-  optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
-
   using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
   VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
   Model kagome_heisenberg_model = Model(params.RemoveCorner);
