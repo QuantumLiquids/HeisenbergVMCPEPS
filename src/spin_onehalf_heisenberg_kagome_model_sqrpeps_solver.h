@@ -13,12 +13,12 @@
 #ifndef HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MODEL_SQRPEPS_SOLVER_H
 #define HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MODEL_SQRPEPS_SOLVER_H
 
-#include "gqpeps/two_dim_tn/peps/square_lattice_peps.h"
-#include "gqpeps/algorithm/vmc_update/model_energy_solver.h"    //ModelEnergySolver
-#include "gqpeps/algorithm/vmc_update/model_measurement_solver.h"    //
+#include "qlpeps/two_dim_tn/peps/square_lattice_peps.h"
+#include "qlpeps/algorithm/vmc_update/model_energy_solver.h"    //ModelEnergySolver
+#include "qlpeps/algorithm/vmc_update/model_measurement_solver.h"    //
 
-namespace gqpeps {
-using namespace gqten;
+namespace qlpeps {
+using namespace qlten;
 
 template<typename TenElemT, typename QNT>
 SplitIndexTPS<TenElemT, QNT> KagomeSquarePEPSToSplitIndexTPS(
@@ -29,7 +29,7 @@ SplitIndexTPS<TenElemT, QNT> KagomeSquarePEPSToSplitIndexTPS(
   size_t phy_dim = tps({0, 0}).GetIndex(4).dim(); //2
   size_t combined_phy_dim = phy_dim * phy_dim * phy_dim;
   SplitIndexTPS<TenElemT, QNT> split_idx_tps(rows, cols);
-  using Tensor = GQTensor<TenElemT, QNT>;
+  using Tensor = QLTensor<TenElemT, QNT>;
   for (size_t row = 0; row < rows; row++) {
     for (size_t col = 0; col < cols; col++) {
       Tensor left_upper = tps({2 * row, 2 * col});
@@ -460,7 +460,7 @@ TenElemT KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, QNT>::CalEnergy
   return energy;
 }
 
-}//gqpeps
+}//qlpeps
 
 
 #endif //HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MODEL_SQRPEPS_SOLVER_H

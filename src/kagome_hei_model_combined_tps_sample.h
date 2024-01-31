@@ -8,10 +8,10 @@
 #ifndef GRACEQ_VMC_PEPS_KAGOME_HEI_MODEL_COMBINED_TPS_SAMPLE_H
 #define GRACEQ_VMC_PEPS_KAGOME_HEI_MODEL_COMBINED_TPS_SAMPLE_H
 
-#include "gqpeps/algorithm/vmc_update/wave_function_component.h"    //WaveFunctionComponent
-#include "gqpeps/two_dim_tn/tensor_network_2d/tensor_network_2d.h"
+#include "qlpeps/algorithm/vmc_update/wave_function_component.h"    //WaveFunctionComponent
+#include "qlpeps/two_dim_tn/tensor_network_2d/tensor_network_2d.h"
 
-namespace gqpeps {
+namespace qlpeps {
 template<typename TenElemT, typename QNT>
 class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, QNT> {
   using WaveFunctionComponentT = WaveFunctionComponent<TenElemT, QNT>;
@@ -440,6 +440,6 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
 
 }; //KagomeCombinedTPSSampleLoaclFlip
 
-}//gqpeps
+}//qlpeps
 
 #endif //GRACEQ_VMC_PEPS_KAGOME_HEI_MODEL_COMBINED_TPS_SAMPLE_H

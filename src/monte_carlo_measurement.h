@@ -5,10 +5,10 @@
 #ifndef HEISENBERGVMCPEPS_KAGOME_MC_MEASURE_H
 #define HEISENBERGVMCPEPS_KAGOME_MC_MEASURE_H
 
-#include "gqpeps/algorithm/vmc_update/vmc_peps.h"
+#include "qlpeps/algorithm/vmc_update/vmc_peps.h"
 
-namespace gqpeps {
-using namespace gqten;
+namespace qlpeps {
+using namespace qlten;
 
 std::vector<bool> KagomeConfig2Sz(
     const Configuration &config
@@ -130,7 +130,7 @@ void PrintProgressBar(int progress, int total) {
 template<typename TenElemT, typename QNT, typename WaveFunctionComponentType, typename MeasurementSolver>
 class MonteCarloMeasurementExecutor : public Executor {
  public:
-  using Tensor = GQTensor<TenElemT, QNT>;
+  using Tensor = QLTensor<TenElemT, QNT>;
   using TPST = TPS<TenElemT, QNT>;
   using SITPST = SplitIndexTPS<TenElemT, QNT>;
   using IndexT = Index<QNT>;
@@ -351,8 +351,8 @@ MonteCarloMeasurementExecutor<TenElemT,
                               QNT,
                               WaveFunctionComponentType,
                               MeasurementSolver>::DumpData(const std::string &tps_path) {
-  using gqmps2::IsPathExist;
-  using gqmps2::CreatPath;
+  using qlmps::IsPathExist;
+  using qlmps::CreatPath;
   tps_sample_.config.Dump(tps_path, world_.rank());
   std::string energy_raw_path = "energy_raw_data/";
   if (world_.rank() == kMasterProc)
@@ -551,6 +551,6 @@ std::vector<double> MonteCarloMeasurementExecutor<TenElemT,
   }
   return accept_rates;
 }
-}//gqpeps
+}//qlpeps
 
 #endif //HEISENBERGVMCPEPS_KAGOME_MC_MEASURE_H

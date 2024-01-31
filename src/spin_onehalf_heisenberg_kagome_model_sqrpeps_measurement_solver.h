@@ -5,11 +5,11 @@
 #ifndef HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MEASUREMENT_SOLVER_H
 #define HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MEASUREMENT_SOLVER_H
 
-#include "gqten/gqten.h"
-#include "gqpeps/two_dim_tn/tps/split_index_tps.h"      //SplitIndexTPS
+#include "qlten/qlten.h"
+#include "qlpeps/two_dim_tn/tps/split_index_tps.h"      //SplitIndexTPS
 #include "kagome_hei_model_combined_tps_sample.h"
 
-namespace gqpeps {
+namespace qlpeps {
 
 template<typename TenElemT, typename QNT>
 class KagomeSpinOneHalfHeisenbergMeasurementSolver {
@@ -410,5 +410,5 @@ TenElemT KagomeSpinOneHalfHeisenbergMeasurementSolver<TenElemT, QNT>::SampleMeas
   return energy;
 }
 
-}//gqpeps
+}//qlpeps
 #endif //HEISENBERGVMCPEPS_SPIN_ONEHALF_HEISENBERG_KAGOME_MEASUREMENT_SOLVER_H

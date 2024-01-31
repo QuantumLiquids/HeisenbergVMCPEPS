@@ -1,17 +1,16 @@
 /**
  * 2 processes parallel
  */
-#include "gqmps2/gqmps2.h"
-#include "gqten/gqten.h"
+#include "qlmps/qlmps.h"
+#include "qlten/qlten.h"
 #include <ctime>
-#include "gqdouble.h"
+#include "qldouble.h"
 #include "params_parser.h"
 #include "myutil.h"
 #include "dmrg_my_measure.h"
 
-
-using namespace gqmps2;
-using namespace gqten;
+using namespace qlmps;
+using namespace qlten;
 using namespace std;
 
 using Link = std::pair<size_t, size_t>;
@@ -81,7 +80,7 @@ std::vector<Link> GenerateOBCKagomeNNLinkSmoothBC(const size_t Lx, const size_t 
     res.push_back(make_pair(site0, site1));
     res.push_back(make_pair(site1, site1 + 1));
   }
-  for (Link &link: res) {
+  for (Link &link : res) {
     std::cout << "[ " << link.first << ", " << link.second << " ]" << std::endl;
   }
   return res;
@@ -103,9 +102,7 @@ int main(int argc, char *argv[]) {
   clock_t startTime, endTime;
   startTime = clock();
 
-  gqten::hp_numeric::SetTensorTransposeNumThreads(params.Threads);
-  gqten::hp_numeric::SetTensorManipulationThreads(params.Threads);
-
+  qlten::hp_numeric::SetTensorManipulationThreads(params.Threads);
 
   Tensor sz = Tensor({pb_in, pb_out});
   Tensor sp = Tensor({pb_in, pb_out});
@@ -119,8 +116,7 @@ int main(int argc, char *argv[]) {
   id({1, 1}) = 1.0;
   const SiteVec<TenElemT, U1QN> sites = SiteVec<TenElemT, U1QN>(N, pb_out);
 
-
-  using FiniteMPST = gqmps2::FiniteMPS<TenElemT, U1QN>;
+  using FiniteMPST = qlmps::FiniteMPS<TenElemT, U1QN>;
   FiniteMPST mps(sites);
 
   Timer one_site_timer("measure  one site operators");
@@ -141,9 +137,9 @@ int main(int argc, char *argv[]) {
   }
 
   mps.Load();
-  MeasureTwoSiteOp(mps, {sz, sz}, id,sites_set, "bondzz");
-  MeasureTwoSiteOp(mps, {sp, sm}, id,sites_set, "bondpm");
-  MeasureTwoSiteOp(mps, {sm, sp}, id,sites_set, "bondmp");
+  MeasureTwoSiteOp(mps, {sz, sz}, id, sites_set, "bondzz");
+  MeasureTwoSiteOp(mps, {sp, sm}, id, sites_set, "bondpm");
+  MeasureTwoSiteOp(mps, {sm, sp}, id, sites_set, "bondmp");
 
   endTime = clock();
   cout << "CPU Time : " << (double) (endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;

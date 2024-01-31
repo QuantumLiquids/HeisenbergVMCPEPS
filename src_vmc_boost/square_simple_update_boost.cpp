@@ -38,7 +38,6 @@ int main(int argc, char **argv) {
   ham_hei_nn({1, 0, 0, 1}) = 0.5;
 
   gqten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
-  gqten::hp_numeric::SetTensorTransposeNumThreads(params.ThreadNum);
 
   gqpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
                                        params.Dmin, params.Dmax,

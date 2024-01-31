@@ -3,12 +3,12 @@
 //
 
 
-#include "./gqdouble.h"
-#include "gqpeps/two_dim_tn/tps/split_index_tps.h"
+#include "./qldouble.h"
+#include "qlpeps/two_dim_tn/tps/split_index_tps.h"
 #include "params_parser.h"
 #include "myutil.h"
 
-using namespace gqpeps;
+using namespace qlpeps;
 
 int main(int argc, char **argv) {
 

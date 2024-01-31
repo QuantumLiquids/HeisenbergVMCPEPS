@@ -8,9 +8,9 @@
 #ifndef HUBBARD1D_DYNAMIC_SRC_MY_MEASURE_H
 #define HUBBARD1D_DYNAMIC_SRC_MY_MEASURE_H
 
-#include "gqmps2/one_dim_tn/mps/finite_mps/finite_mps.h"    // FiniteMPS
-#include "gqmps2/one_dim_tn/mps/finite_mps/finite_mps_measu.h"
-#include "gqten/gqten.h"
+#include "qlmps/one_dim_tn/mps/finite_mps/finite_mps.h"    // FiniteMPS
+#include "qlmps/one_dim_tn/mps/finite_mps/finite_mps_measu.h"
+#include "qlten/qlten.h"
 
 #include <string>
 #include <fstream>
@@ -18,8 +18,8 @@
 #include <algorithm>
 #include "boost/mpi.hpp"
 
-namespace gqmps2 {
-using namespace gqten;
+namespace qlmps {
+using namespace qlten;
 
 //helper
 ///< @note tensors from site 0 to left_boundary + 1 are loaded
@@ -29,7 +29,7 @@ size_t FindLeftBoundary(FiniteMPS<TenElemT, QNT> &mps,
   assert(mps.empty());
   size_t N = mps.size();
   const size_t left_middle_site = N / 2 - 1; //only for system large case, almost always work in phonon project
-  using TenT = GQTensor<TenElemT, QNT>;
+  using TenT = QLTensor<TenElemT, QNT>;
   mps.LoadTen(0, GenMPSTenName(mps_path, 0));
   size_t left_boundary(0);
   for (size_t i = 0; i < left_middle_site; i++) {
@@ -67,7 +67,7 @@ template<typename TenElemT, typename QNT>
 MeasuRes<TenElemT> MeasureOneSiteOp(
     FiniteMPS<TenElemT, QNT> &mps,
     const std::string mps_path,
-    const GQTensor<TenElemT, QNT> &op,
+    const QLTensor<TenElemT, QNT> &op,
     const std::string &res_file_basename
 ) {
   size_t N = mps.size();
@@ -118,7 +118,7 @@ Measure a list of one-site operators on specified sites of the finite MPS.
 template<typename TenElemT, typename QNT>
 MeasuResSet<TenElemT> MeasureOneSiteOp(
     FiniteMPS<TenElemT, QNT> &mps,
-    const std::vector<GQTensor<TenElemT, QNT>> &ops,
+    const std::vector<QLTensor<TenElemT, QNT>> &ops,
     const std::vector<size_t> &sites,
     const std::vector<std::string> &res_file_basenames
 ) {
@@ -194,12 +194,12 @@ MPI version, mps are stored in memory.
 template<typename TenElemT, typename QNT>
 inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     FiniteMPS<TenElemT, QNT> &mps,
-    const GQTensor<TenElemT, QNT> &phys_ops1,
-    const GQTensor<TenElemT, QNT> &phys_ops2,
+    const QLTensor<TenElemT, QNT> &phys_ops1,
+    const QLTensor<TenElemT, QNT> &phys_ops2,
     const std::vector<MeasureGroupTask> &measure_tasks,
     const std::string &res_file_basename,
     const boost::mpi::communicator &world,
-    const GQTensor<TenElemT, QNT> &inst = GQTensor<TenElemT, QNT
+    const QLTensor<TenElemT, QNT> &inst = QLTensor<TenElemT, QNT
     >()
 ) {
   const size_t mpi_size = world.size();
@@ -345,12 +345,12 @@ template<typename TenElemT, typename QNT>
 inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     FiniteMPS<TenElemT, QNT> &mps,
     const std::string &mps_path,
-    const GQTensor<TenElemT, QNT> &phys_ops1,
-    const GQTensor<TenElemT, QNT> &phys_ops2,
+    const QLTensor<TenElemT, QNT> &phys_ops1,
+    const QLTensor<TenElemT, QNT> &phys_ops2,
     const std::vector<MeasureGroupTask> &measure_tasks,
     const std::string &res_file_basename,
     const boost::mpi::communicator &world,
-    const GQTensor<TenElemT, QNT> &inst = GQTensor<TenElemT, QNT>()
+    const QLTensor<TenElemT, QNT> &inst = QLTensor<TenElemT, QNT>()
 ) {
   const size_t mpi_size = world.size();
   const size_t mpi_rank = world.rank();
@@ -456,11 +456,11 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
 template<typename TenElemT, typename QNT>
 inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
     FiniteMPS<TenElemT, QNT> &mps,
-    const GQTensor<TenElemT, QNT> &phys_ops1,
-    const GQTensor<TenElemT, QNT> &phys_ops2,
+    const QLTensor<TenElemT, QNT> &phys_ops1,
+    const QLTensor<TenElemT, QNT> &phys_ops2,
     const size_t site1,
     const std::vector<size_t> &site2_set,
-    const GQTensor<TenElemT, QNT> &inst_op = GQTensor<TenElemT, QNT>()
+    const QLTensor<TenElemT, QNT> &inst_op = QLTensor<TenElemT, QNT>()
 ) {
   mps.Centralize(site1);
   //move the center to site1
@@ -471,14 +471,14 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
   std::vector<size_t> head_mps_ten_ctrct_axes1{1};
   std::vector<size_t> head_mps_ten_ctrct_axes2{0, 2};
   std::vector<size_t> head_mps_ten_ctrct_axes3{0, 1};
-  GQTensor<TenElemT, QNT> temp_ten0;
-  auto ptemp_ten = new GQTensor<TenElemT, QNT>;
+  QLTensor<TenElemT, QNT> temp_ten0;
+  auto ptemp_ten = new QLTensor<TenElemT, QNT>;
   Contract(
       &mps[site1], &phys_ops1,
       {{1}, {0}},
       &temp_ten0
   );
-  GQTensor<TenElemT, QNT> mps_ten_dag = Dag(mps[site1]);
+  QLTensor<TenElemT, QNT> mps_ten_dag = Dag(mps[site1]);
   Contract(
       &temp_ten0, &mps_ten_dag,
       {head_mps_ten_ctrct_axes2, head_mps_ten_ctrct_axes3},
@@ -490,7 +490,7 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
   MeasuRes<TenElemT> measure_res(site2_set.size());
   for (size_t event = 0; event < site2_set.size(); event++) {
     const size_t site2 = site2_set[event];
-    if (inst_op == GQTensor<TenElemT, QNT>()) {
+    if (inst_op == QLTensor<TenElemT, QNT>()) {
       while (eated_site < site2 - 1) {
         size_t eating_site = eated_site + 1;
         //Contract ptemp_ten*mps[eating_site]*dag(mps[eating_site])
@@ -509,7 +509,7 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
     //Contract ptemp_ten*mps[site2]*ops2*dag(mps[site2]) gives the expected value.
     std::vector<size_t> tail_mps_ten_ctrct_axes1{0, 1, 2};
     std::vector<size_t> tail_mps_ten_ctrct_axes2{2, 0, 1};
-    GQTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
+    QLTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
     Contract(&mps[site2], ptemp_ten, {{0}, {0}}, &temp_ten2);
     Contract(&temp_ten2, &phys_ops2, {{0}, {0}}, &temp_ten3);
     mps_ten_dag = Dag(mps[site2]);
@@ -544,11 +544,11 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
     FiniteMPS<TenElemT, QNT> &mps,
     const std::string mps_path,
     const size_t initial_center,
-    const GQTensor<TenElemT, QNT> &phys_ops1,
-    const GQTensor<TenElemT, QNT> &phys_ops2,
+    const QLTensor<TenElemT, QNT> &phys_ops1,
+    const QLTensor<TenElemT, QNT> &phys_ops2,
     const size_t site1,
     const std::vector<size_t> &site2_set,
-    const GQTensor<TenElemT, QNT> &inst_op = GQTensor<TenElemT, QNT>()
+    const QLTensor<TenElemT, QNT> &inst_op = QLTensor<TenElemT, QNT>()
 ) {
   //move the center to site1
   mps.LoadTen(initial_center, GenMPSTenName(mps_path, initial_center));
@@ -564,14 +564,14 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
   std::vector<size_t> head_mps_ten_ctrct_axes1{1};
   std::vector<size_t> head_mps_ten_ctrct_axes2{0, 2};
   std::vector<size_t> head_mps_ten_ctrct_axes3{0, 1};
-  GQTensor<TenElemT, QNT> temp_ten0;
-  auto ptemp_ten = new GQTensor<TenElemT, QNT>;
+  QLTensor<TenElemT, QNT> temp_ten0;
+  auto ptemp_ten = new QLTensor<TenElemT, QNT>;
   Contract(
       &mps[site1], &phys_ops1,
       {{1}, {0}},
       &temp_ten0
   );
-  GQTensor<TenElemT, QNT> mps_ten_dag = Dag(mps[site1]);
+  QLTensor<TenElemT, QNT> mps_ten_dag = Dag(mps[site1]);
   Contract(
       &temp_ten0, &mps_ten_dag,
       {head_mps_ten_ctrct_axes2, head_mps_ten_ctrct_axes3},
@@ -584,7 +584,7 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
   MeasuRes<TenElemT> measure_res(site2_set.size());
   for (size_t event = 0; event < site2_set.size(); event++) {
     const size_t site2 = site2_set[event];
-    if (inst_op == GQTensor<TenElemT, QNT>()) {
+    if (inst_op == QLTensor<TenElemT, QNT>()) {
       while (eated_site < site2 - 1) {
         size_t eating_site = eated_site + 1;
         mps.LoadTen(eating_site, GenMPSTenName(mps_path, eating_site));
@@ -607,7 +607,7 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
     //Contract ptemp_ten*mps[site2]*ops2*dag(mps[site2]) gives the expected value.
     std::vector<size_t> tail_mps_ten_ctrct_axes1{0, 1, 2};
     std::vector<size_t> tail_mps_ten_ctrct_axes2{2, 0, 1};
-    GQTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
+    QLTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
     Contract(&mps[site2], ptemp_ten, {{0}, {0}}, &temp_ten2);
     Contract(&temp_ten2, &phys_ops2, {{0}, {0}}, &temp_ten3);
     mps_ten_dag = Dag(mps[site2]);
@@ -640,7 +640,7 @@ in electron-phonon system, especially for d-wave/t-wave pair correlation.
 template<typename TenElemT, typename QNT>
 inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunction(
     FiniteMPS<TenElemT, QNT> &mps,
-    const std::vector<GQTensor<TenElemT, QNT>> &phys_ops,
+    const std::vector<QLTensor<TenElemT, QNT>> &phys_ops,
     const std::vector<std::vector<size_t>> &sites_set,
     const size_t pesudosite_num,
     const std::string &res_file_basename
@@ -694,7 +694,7 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunction(
 
 template<typename TenElemT, typename QNT>
 struct TempTensorWithContract2Ops {
-  using TenT = GQTensor<TenElemT, QNT>;
+  using TenT = QLTensor<TenElemT, QNT>;
   size_t idx; // The last site having be contract
   TenT *tmp_tensor;
 
@@ -720,7 +720,7 @@ struct TempTensorWithContract2Ops {
 template<typename TenElemT, typename QNT>
 inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
     FiniteMPS<TenElemT, QNT> &mps, //input and output mps is empty
-    const std::vector<GQTensor<TenElemT, QNT>> &phys_ops,
+    const std::vector<QLTensor<TenElemT, QNT>> &phys_ops,
     const std::vector<std::vector<size_t>> &sites_set,
     const size_t pesudosite_num,//usually called Np in hxwang's program
     const size_t initial_center
@@ -734,7 +734,7 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
 //  const size_t bonson_op_dim = mps[site1+1].GetIndexes()[1].dim();// usually should be 2;
   const size_t fermion_op_dim(4), bonson_op_dim(2);
   assert(fermion_op_dim != bonson_op_dim);//we use dimension to differentiate boson site or fermion site
-  using Tensor = GQTensor<TenElemT, QNT>;
+  using Tensor = QLTensor<TenElemT, QNT>;
 
   static bool is_f_initial = false;
   static Tensor f;
@@ -762,8 +762,8 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
   std::vector<size_t> head_mps_ten_ctrct_axes1{1};
   std::vector<size_t> head_mps_ten_ctrct_axes2{0, 2};
   std::vector<size_t> head_mps_ten_ctrct_axes3{0, 1};
-  GQTensor<TenElemT, QNT> temp_ten0;
-  auto ptemp_ten = new GQTensor<TenElemT, QNT>;//delete when first called MoveOnTo
+  QLTensor<TenElemT, QNT> temp_ten0;
+  auto ptemp_ten = new QLTensor<TenElemT, QNT>;//delete when first called MoveOnTo
   Contract(
       &mps[site1], &phys_ops[0],
       {{1}, {0}},
@@ -811,7 +811,7 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
     // Deal with tail tensor.
     std::vector<size_t> tail_mps_ten_ctrct_axes1{0, 1, 2};
     std::vector<size_t> tail_mps_ten_ctrct_axes2{2, 0, 1};
-    GQTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
+    QLTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
     mps.LoadTen(site4, GenMPSTenName(mps_path, site4));
     Contract(&mps[site4], ptemp_ten, {{0}, {0}}, &temp_ten2);
     delete ptemp_ten;
@@ -834,6 +834,6 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
   return measure_res;
 }
 
-}//gqmps2
+}//qlmps
 
 #endif //HUBBARD1D_DYNAMIC_SRC_MY_MEASURE_H

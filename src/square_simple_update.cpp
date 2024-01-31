@@ -9,9 +9,9 @@
 
 //#define PLAIN_TRANSPOSE 1
 
-#include "gqpeps/algorithm/simple_update/square_lattice_nn_simple_update.h"
-#include "gqpeps/algorithm/simple_update/square_lattice_nnn_simple_update.h"
-#include "./gqdouble.h"
+#include "qlpeps/algorithm/simple_update/square_lattice_nn_simple_update.h"
+#include "qlpeps/algorithm/simple_update/square_lattice_nnn_simple_update.h"
+#include "./qldouble.h"
 #include "./params_parser.h"
 
 int main(int argc, char **argv) {
@@ -70,16 +70,15 @@ int main(int argc, char **argv) {
   }
   Tensor ham_hei_tri = 0.5 * ham_hei_tri_terms[0] + params.J2 * ham_hei_tri_terms[1] + 0.5 * ham_hei_tri_terms[2];
 
-  gqten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
-  gqten::hp_numeric::SetTensorTransposeNumThreads(params.ThreadNum);
+  qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
 
-  gqpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
+  qlpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
                                        params.Dmin, params.Dmax,
                                        params.TruncErr);
 
 //  size_t Ly = params.Ly, Lx = params.Lx;
-  gqpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, params.Ly, params.Lx);
-  if (gqmps2::IsPathExist(peps_path)) {
+  qlpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, params.Ly, params.Lx);
+  if (qlmps::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
     std::vector<std::vector<size_t>> activates(params.Ly, std::vector<size_t>(params.Lx));
@@ -92,18 +91,18 @@ int main(int argc, char **argv) {
     peps0.Initial(activates);
   }
   if (params.J2 == 0) {
-    auto su_exe = new gqpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
+    auto su_exe = new qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
                                                                                   ham_hei_nn);
     su_exe->Execute();
-    auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+    auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
     tps.Dump();
     su_exe->DumpResult(peps_path, true);
   } else {
-    auto su_exe = new gqpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
+    auto su_exe = new qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
                                                                                    ham_hei_nn,
                                                                                    ham_hei_tri);
     su_exe->Execute();
-    auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+    auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
     tps.Dump();
     su_exe->DumpResult(peps_path, true);
   }

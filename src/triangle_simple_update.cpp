@@ -8,8 +8,8 @@
 
 //#define PLAIN_TRANSPOSE 1
 
-#include "gqpeps/algorithm/simple_update/triangle_nn_on_sqr_peps_simple_update.h"
-#include "./gqdouble.h"
+#include "qlpeps/algorithm/simple_update/triangle_nn_on_sqr_peps_simple_update.h"
+#include "./qldouble.h"
 #include "./params_parser.h"
 
 int main(int argc, char **argv) {
@@ -68,15 +68,14 @@ int main(int argc, char **argv) {
   }
   Tensor ham_hei_tri = ham_hei_tri_terms[0] + ham_hei_tri_terms[1] + ham_hei_tri_terms[2];
 
-  gqten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
-  gqten::hp_numeric::SetTensorTransposeNumThreads(params.ThreadNum);
+  qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
 
-  gqpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
+  qlpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
                                        params.Dmin, params.Dmax,
                                        params.TruncErr);
 
-  gqpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, params.Ly, params.Lx);
-  if (gqmps2::IsPathExist(peps_path)) {
+  qlpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, params.Ly, params.Lx);
+  if (qlmps::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
     /*
@@ -113,11 +112,11 @@ int main(int argc, char **argv) {
       }
     }
   }
-  auto su_exe = new gqpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
+  auto su_exe = new qlpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
                                                                                           ham_hei_nn,
                                                                                           ham_hei_tri);
   su_exe->Execute();
-  auto tps = gqpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+  auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
   tps.Dump();
   su_exe->DumpResult(peps_path, true);
   return 0;
