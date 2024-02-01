@@ -1,6 +1,3 @@
-/**
- * 2 processes parallel
- */
 #include "qlmps/qlmps.h"
 #include "qlten/qlten.h"
 #include <ctime>
