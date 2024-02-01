@@ -46,12 +46,7 @@ int main(int argc, char *argv[]) {
 
   DMRGCaseParams params(argv[1]);
   size_t Lx = params.Lx, Ly = params.Ly;
-  size_t N;
-  if (params.RemoveCorner) {
-    N = 3 * Lx * Ly - Lx - Ly;
-  } else {
-    N = 3 * Lx * Ly;
-  }
+  size_t N = Lx * Ly;
   clock_t startTime, endTime;
   startTime = clock();
 
