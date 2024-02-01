@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
   MeasureTwoSiteOp(mps, {sm, sp}, id, sites_set, "bondmp");
 
   std::vector<std::vector<size_t>> corr_sites_set(Lx / 2);
-  for (size_t i = 0; i < links.size(); i++) {
+  for (size_t i = 0; i < corr_sites_set.size(); i++) {
     size_t site1 = Lx / 4 * Ly + Ly / 2;
     size_t site2 = (Lx / 4 + i + 1) * Ly + Ly / 2;
     corr_sites_set[i] = {site1, site2};
