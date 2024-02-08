@@ -6,7 +6,7 @@ Ly = 8
 D = 8
 Db = 15
 
-file_id = open(f'../data/square_two_point_functions{Ly}x{Lx}D{D}-{Db}', 'rb')
+file_id = open(f'../../data/square_two_point_functions{Ly}x{Lx}D{D}-{Db}', 'rb')
 data = np.fromfile(file_id, dtype=np.float64, count=Lx * 3)
 
 # Split the data into three parts: sz-sz correlation, s_plus-s_minus correlation, and s_minus-s_plus correlation

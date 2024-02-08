@@ -1,13 +1,19 @@
-Lx = 8;
-Ly = 8;
-J2 = 0.11;
+Lx = 6;
+Ly = 24;
+J2 = 0;
 Dpeps = 10;
 Db = 10;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;
 if(J2 == 0)
-    file_id = fopen(['../../data/triangle_one_point_functions', num2str(Ly),'x', num2str(Lx),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+    filename1 = ['../../data/triangle_one_point_functions', num2str(Ly),'x', num2str(Lx),'D', num2str(Dpeps),'-',num2str(Db)];
+    filename2 = ['../../data/triangle_one_point_functions', num2str(Ly),'x', num2str(Lx), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)];
+    if(exist(filename2,"file"))
+        file_id = fopen(filename2,'rb');
+    else 
+        file_id = fopen(filename1,'rb');
+    end
 else
     file_id = fopen(['../../data/triangle_one_point_functions', num2str(Ly),'x', num2str(Lx), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
 end
