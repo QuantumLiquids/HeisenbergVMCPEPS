@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef HUBBARD1D_DYNAMIC_SRC_MY_MEASURE_H
-#define HUBBARD1D_DYNAMIC_SRC_MY_MEASURE_H
+#ifndef TJMODEL_SRC_MY_MEASURE_H
+#define TJMODEL_SRC_MY_MEASURE_H
 
 #include "qlmps/one_dim_tn/mps/finite_mps/finite_mps.h"    // FiniteMPS
 #include "qlmps/one_dim_tn/mps/finite_mps/finite_mps_measu.h"
@@ -104,6 +104,55 @@ MeasuRes<TenElemT> MeasureOneSiteOp(
   return measu_res;
 }
 
+template<typename TenElemT, typename QNT>
+MeasuResSet<TenElemT> MeasureOneSiteOp(
+    FiniteMPS<TenElemT, QNT> &mps,
+    const std::string mps_path,
+    const std::vector<QLTensor<TenElemT, QNT>> &ops,
+    const std::vector<std::string> &res_file_basenames
+) {
+  size_t N = mps.size();
+  auto op_num = ops.size();
+  MeasuResSet<TenElemT> measu_res_set(op_num);
+  for (auto &measu_res : measu_res_set) {
+    measu_res = MeasuRes<TenElemT>(N);
+  }
+
+  //Find the canonical center. We suppose the center = first site which is not complete orthogonal transformation + 1
+  const size_t left_boundary = FindLeftBoundary(mps);
+  const size_t initial_center = left_boundary + 1;
+  //below we suppose sites[0] == 0
+  for (size_t i = initial_center; i > 0; i--) {
+    mps.RightCanonicalizeTen(i);
+  }
+
+  for (size_t site = 0; site < N; site++) {
+    if (site == 0) {
+      for (size_t j = 0; j < op_num; ++j) {
+        measu_res_set[j][site] = OneSiteOpAvg(mps[site], ops[j], site, N);
+      }
+      continue;
+    }
+
+    const size_t last_site = site - 1;
+    if (site > initial_center) {
+      mps.LoadTen(site, GenMPSTenName(mps_path, site));
+    }
+    mps.LeftCanonicalizeTen(last_site);
+    mps.dealloc(last_site);
+
+    for (size_t j = 0; j < op_num; ++j) {
+      measu_res_set[j][site] = OneSiteOpAvg(mps[site], ops[j], site, N);
+    }
+    std::cout << "measured site " << site << "\n";
+  }
+  mps.dealloc(N - 1);
+  for (size_t i = 0; i < op_num; ++i) {
+    DumpMeasuRes(measu_res_set[i], res_file_basenames[i]);
+  }
+  return measu_res_set;
+}
+
 /**
 Measure a list of one-site operators on specified sites of the finite MPS.
 
@@ -127,7 +176,7 @@ MeasuResSet<TenElemT> MeasureOneSiteOp(
   auto N = mps.size();
   size_t res_num = sites.size();
   MeasuResSet<TenElemT> measu_res_set(op_num);
-  for (MeasuRes<TenElemT> &measu_res: measu_res_set) {
+  for (MeasuRes<TenElemT> &measu_res : measu_res_set) {
     measu_res.reserve(res_num);
   }
 
@@ -175,7 +224,9 @@ MeasuResSet<TenElemT> MeasureOneSiteOp(
 struct MeasureGroupTask {
  public:
   MeasureGroupTask(void) = default;
+
   MeasureGroupTask(const size_t site1, const std::vector<size_t> site2_set) : site1(site1), site2_set(site2_set) {}
+
   size_t TaskSize() const { return site2_set.size(); }
 
   size_t site1;
@@ -209,27 +260,17 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
   const size_t group_size = measure_tasks.size();
   size_t total_measure_event_size = 0;
   std::vector<size_t> measure_event_size_set(group_size), measure_event_accumulate_size_set(group_size);
-  for (
-      size_t i = 0;
-      i < measure_tasks.
-          size();
-      i++) {
-    measure_event_size_set[i] = measure_tasks[i].
-        TaskSize();
-    total_measure_event_size += measure_tasks[i].
-        TaskSize();
-    measure_event_accumulate_size_set[i] =
-        total_measure_event_size;
+  for (size_t i = 0; i < measure_tasks.size(); i++) {
+    measure_event_accumulate_size_set[i] = total_measure_event_size;
+    measure_event_size_set[i] = measure_tasks[i].TaskSize();
+    total_measure_event_size += measure_tasks[i].TaskSize();
   }
-  assert(measure_event_accumulate_size_set.back() == total_measure_event_size);
   const size_t
       measure_event_per_node = (total_measure_event_size - 1) / mpi_size + 1; // round up the quotient to an integer
   const size_t measure_event_start = measure_event_per_node * mpi_rank;
   const size_t measure_event_end = std::min(total_measure_event_size, measure_event_per_node * (mpi_rank + 1));
 
-  size_t group_start(group_size *
-      2),
-      group_end(group_size * 2); // every node do task [group_start, group_end)
+  size_t group_start(group_size), group_end(group_size); // every node do task [group_start, group_end)
   for (size_t i = 0; i < group_size; i++) {
     if (measure_event_accumulate_size_set[i] >= measure_event_start) {
       group_start = i;
@@ -242,31 +283,14 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
       break;
     }
   }
-  assert(group_start < group_size);
-  assert(group_end < group_size);
-  if (mpi_rank == mpi_size - 1) {
-    group_end += 1;
-  }
+  assert(group_start <= group_size);
+  assert(group_end <= group_size);
 
   MeasuRes<TenElemT> measure_res;
-  for (
-      size_t i = group_start;
-      i < group_end;
-      i++) {
+  for (size_t i = group_start; i < group_end; i++) {
     auto group_res =
         MeasureTwoSiteOpGroup(mps, phys_ops1, phys_ops2, measure_tasks[i].site1, measure_tasks[i].site2_set, inst);
-    measure_res.
-        insert(
-        measure_res
-            .
-                end(),
-        group_res
-            .
-                begin(),
-        group_res
-            .
-                end()
-    );
+    measure_res.insert(measure_res.end(), group_res.begin(), group_res.end());
   }
   const size_t has_done_measure_event_num = measure_res.size();
 
@@ -274,16 +298,8 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     measure_res.
         resize(total_measure_event_size);
     size_t idx = 0;
-    for (
-        size_t i = 0;
-        i < measure_tasks.
-            size();
-        i++) {
-      for (
-          size_t j = 0;
-          j < measure_tasks[i].
-              TaskSize();
-          j++) {
+    for (size_t i = 0; i < measure_tasks.size(); i++) {
+      for (size_t j = 0; j < measure_tasks[i].TaskSize(); j++) {
         const size_t site1 = measure_tasks[i].site1;
         const size_t site2 = measure_tasks[i].site2_set[j];
         measure_res[idx].
@@ -293,43 +309,24 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     }
 
     idx = has_done_measure_event_num;
-    for (
-        size_t recv_group = 1;
-        recv_group < mpi_size;
-        recv_group++) {
+    for (size_t recv_group = 1; recv_group < mpi_size; recv_group++) {
       std::vector<TenElemT> recved_avgs;
-      world.
-          recv(recv_group, recv_group, recved_avgs
-      );
-      for (
-          size_t i = 0;
-          i < recved_avgs.
-              size();
-          i++) {
-        measure_res[idx].
-            avg = recved_avgs[i];
+      world.recv(recv_group, recv_group, recved_avgs);
+      for (size_t i = 0; i < recved_avgs.size(); i++) {
+        measure_res[idx].avg = recved_avgs[i];
         idx++;
       }
     }
-    DumpMeasuRes(measure_res, res_file_basename
-    );
-
+    DumpMeasuRes(measure_res, res_file_basename);
   } else {
     std::vector<TenElemT> avgs;
-    avgs.
-        reserve(has_done_measure_event_num);
-    for (
-        size_t i = 0;
-        i < has_done_measure_event_num;
-        i++) {
-      avgs.
-          push_back(measure_res[i]
-                        .avg);
+    avgs.reserve(has_done_measure_event_num);
+    for (size_t i = 0; i < has_done_measure_event_num; i++) {
+      avgs.push_back(measure_res[i].avg);
     }
     world.send(0, mpi_rank, avgs);
   }
-  return
-      measure_res;
+  return measure_res;
 }
 
 /**
@@ -360,17 +357,18 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
   size_t total_measure_event_size = 0;
   std::vector<size_t> measure_event_size_set(group_size), measure_event_accumulate_size_set(group_size);
   for (size_t i = 0; i < measure_tasks.size(); i++) {
+    measure_event_accumulate_size_set[i] = total_measure_event_size;
     measure_event_size_set[i] = measure_tasks[i].TaskSize();
     total_measure_event_size += measure_tasks[i].TaskSize();
-    measure_event_accumulate_size_set[i] = total_measure_event_size;
   }
-  assert(measure_event_accumulate_size_set.back() == total_measure_event_size);
   const size_t
       measure_event_per_node = (total_measure_event_size - 1) / mpi_size + 1; // round up the quotient to an integer
   const size_t measure_event_start = measure_event_per_node * mpi_rank;
   const size_t measure_event_end = std::min(total_measure_event_size, measure_event_per_node * (mpi_rank + 1));
+  std::cout << "rank : " << mpi_rank << ", measure_event_start : " << measure_event_start << ", measure_event_end : "
+            << measure_event_end << std::endl;
 
-  size_t group_start(group_size * 2), group_end(group_size * 2); // every node do task [group_start, group_end)
+  size_t group_start(group_size), group_end(group_size); // every node do task [group_start, group_end)
   for (size_t i = 0; i < group_size; i++) {
     if (measure_event_accumulate_size_set[i] >= measure_event_start) {
       group_start = i;
@@ -383,8 +381,9 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
       break;
     }
   }
-  assert(group_start < group_size);
-  assert(group_end < group_size);
+  std::cout << "rank : " << mpi_rank << ", group start : " << group_start << ", group end : " << group_end << std::endl;
+  assert(group_start <= group_size);
+  assert(group_end <= group_size);
 
   MeasuRes<TenElemT> measure_res;
   for (size_t i = group_start; i < group_end; i++) {
@@ -436,6 +435,7 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     }
     world.send(0, mpi_rank, avgs);
   }
+  mps.clear();
   return measure_res;
 }
 
@@ -472,10 +472,11 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
   std::vector<size_t> head_mps_ten_ctrct_axes2{0, 2};
   std::vector<size_t> head_mps_ten_ctrct_axes3{0, 1};
   QLTensor<TenElemT, QNT> temp_ten0;
-  auto ptemp_ten = new QLTensor<TenElemT, QNT>;
+  auto ptemp_ten = new QLTensor<TenElemT, QNT>;//TODO: delete
   Contract(
       &mps[site1], &phys_ops1,
-      {{1}, {0}},
+      {{1},
+       {0}},
       &temp_ten0
   );
   QLTensor<TenElemT, QNT> mps_ten_dag = Dag(mps[site1]);
@@ -510,8 +511,10 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
     std::vector<size_t> tail_mps_ten_ctrct_axes1{0, 1, 2};
     std::vector<size_t> tail_mps_ten_ctrct_axes2{2, 0, 1};
     QLTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
-    Contract(&mps[site2], ptemp_ten, {{0}, {0}}, &temp_ten2);
-    Contract(&temp_ten2, &phys_ops2, {{0}, {0}}, &temp_ten3);
+    Contract(&mps[site2], ptemp_ten, {{0},
+                                      {0}}, &temp_ten2);
+    Contract(&temp_ten2, &phys_ops2, {{0},
+                                      {0}}, &temp_ten3);
     mps_ten_dag = Dag(mps[site2]);
     Contract(
         &temp_ten3, &mps_ten_dag,
@@ -565,10 +568,11 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
   std::vector<size_t> head_mps_ten_ctrct_axes2{0, 2};
   std::vector<size_t> head_mps_ten_ctrct_axes3{0, 1};
   QLTensor<TenElemT, QNT> temp_ten0;
-  auto ptemp_ten = new QLTensor<TenElemT, QNT>;
+  auto ptemp_ten = new QLTensor<TenElemT, QNT>;//TODO: delete
   Contract(
       &mps[site1], &phys_ops1,
-      {{1}, {0}},
+      {{1},
+       {0}},
       &temp_ten0
   );
   QLTensor<TenElemT, QNT> mps_ten_dag = Dag(mps[site1]);
@@ -608,8 +612,10 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOpGroup(
     std::vector<size_t> tail_mps_ten_ctrct_axes1{0, 1, 2};
     std::vector<size_t> tail_mps_ten_ctrct_axes2{2, 0, 1};
     QLTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
-    Contract(&mps[site2], ptemp_ten, {{0}, {0}}, &temp_ten2);
-    Contract(&temp_ten2, &phys_ops2, {{0}, {0}}, &temp_ten3);
+    Contract(&mps[site2], ptemp_ten, {{0},
+                                      {0}}, &temp_ten2);
+    Contract(&temp_ten2, &phys_ops2, {{0},
+                                      {0}}, &temp_ten3);
     mps_ten_dag = Dag(mps[site2]);
     Contract(
         &temp_ten3, &mps_ten_dag,
@@ -629,7 +635,7 @@ Measure 4 point function, with some restriction.
 This is a specially designed function used to calculate 4 point fermion correlation function
 in electron-phonon system, especially for d-wave/t-wave pair correlation.
 @note The input phys_ops must be fermion operators (with matrix form of corresponding hardcore boson).
-@note The sites_set can be devided into `Ly` groups. We have assumed `Ly=4` here. First two sites in every group is same.
+@note The sites_set can be devided into `group_num` groups. We have assumed `group_num=4` here. First two sites in every group is same.
 
 @param mps To-be-measured MPS.
 @param sites_set The indexes of the four physical operators with ascending order
@@ -642,7 +648,7 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunction(
     FiniteMPS<TenElemT, QNT> &mps,
     const std::vector<QLTensor<TenElemT, QNT>> &phys_ops,
     const std::vector<std::vector<size_t>> &sites_set,
-    const size_t pesudosite_num,
+    const size_t group_num,   //for single layer 2D model, usually group_num = Ly.
     const std::string &res_file_basename
 ) {
   assert(mps.empty());
@@ -650,16 +656,14 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunction(
   for (size_t i = 0; i <= left_boundary + 1; i++) {
     mps.dealloc(i);
   }
-  const size_t Ly = 4; //change here when Ly of system changes
-  std::cout << "note: Ly = " << Ly << std::endl;
   assert(phys_ops.size() == 4);
-  assert(sites_set.size() % Ly == 0);
+  assert(sites_set.size() % group_num == 0);
   for (size_t i = 0; i < sites_set.size(); i++) {
     assert(sites_set[i].size() == 4);
   }
   const size_t measure_event_num = sites_set.size();
-  const size_t measure_event_per_group_num = sites_set.size() / Ly;
-  for (size_t group = 0; group < Ly; group++) {
+  const size_t measure_event_per_group_num = sites_set.size() / group_num;
+  for (size_t group = 0; group < group_num; group++) {
     std::vector<std::vector<size_t>> sites_set_group(
         sites_set.cbegin() + group * measure_event_per_group_num,
         sites_set.cbegin() + (group + 1) * measure_event_per_group_num
@@ -670,12 +674,12 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunction(
     for (auto iter = sites_set_group.begin(); iter < sites_set_group.cend(); iter++) {
       assert((*iter)[0] == site1);
       assert((*iter)[1] == site2);
-      // note the order: a. site1<site2<3<4 b. for every 3,4, ascending order
+      //TODO: check order: a. site1<site2<3<4 b. for every 3,4, ascending order
     }
   }
   MeasuRes<TenElemT> measure_res;
   measure_res.reserve(measure_event_num);
-  for (size_t group = 0; group < Ly; group++) {
+  for (size_t group = 0; group < group_num; group++) {
     std::vector<std::vector<size_t>> sites_set_group(
         sites_set.cbegin() + group * measure_event_per_group_num,
         sites_set.cbegin() + (group + 1) * measure_event_per_group_num
@@ -683,7 +687,7 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunction(
     auto measure_res_group = MeasureElectronPhonon4PointFunctionGroup(mps,
                                                                       phys_ops,
                                                                       sites_set_group,
-                                                                      pesudosite_num,
+                                                                      group_num,
                                                                       left_boundary + 1
     );
     measure_res.insert(measure_res.end(), measure_res_group.begin(), measure_res_group.end());
@@ -722,18 +726,13 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
     FiniteMPS<TenElemT, QNT> &mps, //input and output mps is empty
     const std::vector<QLTensor<TenElemT, QNT>> &phys_ops,
     const std::vector<std::vector<size_t>> &sites_set,
-    const size_t pesudosite_num,//usually called Np in hxwang's program
+    const size_t Ly,//usually called Np in hxwang's program
     const size_t initial_center
 ) {
   assert(mps.empty());
   std::string mps_path = kMpsPath;
   const size_t site1 = sites_set[0][0];
   const size_t site2 = sites_set[0][1];
-//  const size_t fermion_op_dim = mps[site1].GetIndexes()[1].dim();// should be 4 for SSH-Hubbard
-  assert(pesudosite_num > 0);
-//  const size_t bonson_op_dim = mps[site1+1].GetIndexes()[1].dim();// usually should be 2;
-  const size_t fermion_op_dim(4), bonson_op_dim(2);
-  assert(fermion_op_dim != bonson_op_dim);//we use dimension to differentiate boson site or fermion site
   using Tensor = QLTensor<TenElemT, QNT>;
 
   static bool is_f_initial = false;
@@ -744,10 +743,9 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
     mps.dealloc(0);
     Index<QNT> index_in_fermion = InverseIndex(index_out_fermion);
     f = Tensor({index_in_fermion, index_out_fermion});
-    f({0, 0}) = 1;
+    f({0, 0}) = -1;
     f({1, 1}) = -1;
-    f({2, 2}) = -1;
-    f({3, 3}) = 1;
+    f({2, 2}) = 1;
     is_f_initial = true;
   }
   mps.LoadTen(initial_center, GenMPSTenName(mps_path, initial_center));
@@ -766,7 +764,8 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
   auto ptemp_ten = new QLTensor<TenElemT, QNT>;//delete when first called MoveOnTo
   Contract(
       &mps[site1], &phys_ops[0],
-      {{1}, {0}},
+      {{1},
+       {0}},
       &temp_ten0
   );
   auto mps_ten_dag = Dag(mps[site1]);
@@ -780,11 +779,7 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
 
   for (size_t i = site1 + 1; i < site2; ++i) {
     mps.LoadTen(i, GenMPSTenName(mps_path, i));
-    if (mps[i].GetIndexes()[1].dim() == bonson_op_dim) {
-      CtrctMidTen(mps, i, id_op_set[i], id_op_set[i], ptemp_ten);
-    } else {
-      CtrctMidTen(mps, i, f, id_op_set[i], ptemp_ten);
-    }
+    CtrctMidTen(mps, i, f, id_op_set[i], ptemp_ten);
     mps.dealloc(i);
   }
   mps.LoadTen(site2, GenMPSTenName(mps_path, site2));
@@ -802,20 +797,18 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunctionGroup(
     CtrctMidTen(mps, site3, phys_ops[2], id_op_set[site3], ptemp_ten);
     for (size_t i = site3 + 1; i < site4; ++i) {
       mps.LoadTen(i, GenMPSTenName(mps_path, i));
-      if (mps[i].GetIndexes()[1].dim() == bonson_op_dim) {
-        CtrctMidTen(mps, i, id_op_set[i], id_op_set[i], ptemp_ten);
-      } else {
-        CtrctMidTen(mps, i, f, id_op_set[i], ptemp_ten);
-      }
+      CtrctMidTen(mps, i, f, id_op_set[i], ptemp_ten);
     }
     // Deal with tail tensor.
     std::vector<size_t> tail_mps_ten_ctrct_axes1{0, 1, 2};
     std::vector<size_t> tail_mps_ten_ctrct_axes2{2, 0, 1};
     QLTensor<TenElemT, QNT> temp_ten2, temp_ten3, res_ten;
     mps.LoadTen(site4, GenMPSTenName(mps_path, site4));
-    Contract(&mps[site4], ptemp_ten, {{0}, {0}}, &temp_ten2);
+    Contract(&mps[site4], ptemp_ten, {{0},
+                                      {0}}, &temp_ten2);
     delete ptemp_ten;
-    Contract(&temp_ten2, &phys_ops.back(), {{0}, {0}}, &temp_ten3);
+    Contract(&temp_ten2, &phys_ops.back(), {{0},
+                                            {0}}, &temp_ten3);
     mps_ten_dag = std::move(Dag(mps[site4]));
     Contract(
         &temp_ten3, &mps_ten_dag,
