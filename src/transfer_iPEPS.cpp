@@ -7,13 +7,12 @@
 #include <vector>
 
 #include "params_parser.h"
-#include "gqdouble.h"
-#include "gqpeps/two_dim_tn/peps/square_lattice_peps.h" //TPS, SquareLatticePEPS
-#include "gqpeps/two_dim_tn/tps/split_index_tps.h"
+#include "qldouble.h"
+#include "qlpeps/two_dim_tn/peps/square_lattice_peps.h" //TPS, SquareLatticePEPS
+#include "qlpeps/two_dim_tn/tps/split_index_tps.h"
 
-
-using namespace gqten;
-using namespace gqpeps;
+using namespace qlten;
+using namespace qlpeps;
 
 void LoadTenData(const std::string &filename,
                  const size_t data_size,
@@ -27,20 +26,20 @@ int main(int argc, char *argv[]) {
   size_t Db = params.Db_max;
   const IndexT pb_out = IndexT({
                                    QNSctT(U1QN(0), 2)},
-                               gqten::GQTenIndexDirType::OUT
+                               qlten::TenIndexDirType::OUT
   );
-  const IndexT pb_in = gqten::InverseIndex(pb_out);
+  const IndexT pb_in = qlten::InverseIndex(pb_out);
 
   const IndexT vb_out = IndexT({
                                    QNSctT(U1QN(0), Db)},
-                               gqten::GQTenIndexDirType::OUT
+                               qlten::TenIndexDirType::OUT
   );
-  const IndexT vb_in = gqten::InverseIndex(vb_out);
+  const IndexT vb_in = qlten::InverseIndex(vb_out);
   const IndexT trvb_out = IndexT({
                                      QNSctT(U1QN(0), 1)},
-                                 gqten::GQTenIndexDirType::OUT
+                                 qlten::TenIndexDirType::OUT
   );
-  const IndexT trvb_in = gqten::InverseIndex(trvb_out);
+  const IndexT trvb_in = qlten::InverseIndex(trvb_out);
 
 //  Tensor Ba({pb_out, vb_out, vb_in});
 //  Ba({0, 0, 0}) = 1.0;
@@ -62,7 +61,7 @@ int main(int argc, char *argv[]) {
   std::string filename;
 
   std::string tensor_path = "./D" + std::to_string(Db) + "/";
-  if (gqmps2::IsPathExist(tensor_path)) {
+  if (qlmps::IsPathExist(tensor_path)) {
     //  filename = tensor_path + "IPESS_Ba_D" + std::to_string(Db) + ".dat";
 //  LoadTenData(filename, Ba.GetActualDataSize(), Ba.GetRawDataPtr());
 //  filename = tensor_path + "IPESS_Bb_D" + std::to_string(Db) + ".dat";
@@ -108,7 +107,7 @@ int main(int argc, char *argv[]) {
     for (size_t col = 0; col < Lx; col++) {
       Tensor local_ten = square_ten;
       Tensor u, v;
-      GQTensor<double, U1QN> s;
+      QLTensor<double, U1QN> s;
       size_t D_act;
       double trunc_err_act;
       if (row == 0) {

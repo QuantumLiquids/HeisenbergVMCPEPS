@@ -1,3 +1,6 @@
+//
+// Created by haoxinwang on 28/12/2023.
+//
 #include <iostream>
 #include "qlmps/qlmps.h"
 #include "qlten/qlten.h"
@@ -14,73 +17,60 @@ using namespace std;
 
 using Link = std::pair<size_t, size_t>;
 
-std::vector<Link> GenerateOBCKagomeNNLinkWithCorner(const size_t Lx, const size_t Ly) {
+std::vector<Link> GenerateOBCTriangularNNLink(const size_t Lx, const size_t Ly) {
   using std::make_pair;
-  size_t N = 3 * Lx * Ly;
+  size_t N = Lx * Ly;
   std::vector<Link> res;
-  res.reserve(2 * N);
+  res.reserve(3 * N);
+
   for (size_t x = 0; x < Lx; x++) {
     for (size_t y = 0; y < Ly; y++) {
-      size_t site0 = (3 * Ly) * x + 2 * y;
-      size_t site1 = site0 + 1;
-      size_t site2 = (3 * Ly) * x + 2 * Ly + y;
-      res.push_back(make_pair(site0, site1));
-      res.push_back(make_pair(site0, site2));
-      res.push_back(make_pair(site1, site2));
+      size_t site0 = Ly * x + y;
       if (y < Ly - 1) {
-        res.push_back(make_pair(site1, site1 + 1));
+        res.push_back(make_pair(site0, site0 + 1)); //vertical bond
+      } else {
+//        res.push_back(make_pair(site0 - (Ly - 1), site0)); //vertical winding bond, for cylinder
       }
+
       if (x < Lx - 1) {
-        res.push_back(make_pair(site2, (3 * Ly) * (x + 1) + 2 * y));
-      }
-      if (y > 0 && x < Lx - 1) {
-        res.push_back(make_pair(site2, (3 * Ly) * (x + 1) + 2 * y - 1));
+        res.push_back(make_pair(site0, site0 + Ly)); //horizontal bond
+        if (y < Ly - 1) {
+          res.push_back(make_pair(site0 + 1, site0 + Ly)); //diagonal bond
+        } else {
+//          res.push_back(make_pair(site0 - (Ly - 1), site0 + Ly)); //diagonal bond, for cylinder
+        }
       }
     }
   }
   return res;
 }
 
-std::vector<Link> GenerateOBCKagomeNNLinkSmoothBC(const size_t Lx, const size_t Ly) {
+std::vector<Link> GenerateOBCTriangularJ2Link(const size_t Lx, const size_t Ly) {
   using std::make_pair;
-  size_t N = 3 * Lx * Ly - Lx - Ly;
+  size_t N = Lx * Ly;
   std::vector<Link> res;
-  res.reserve(2 * N);
+  res.reserve(3 * N);
+
   for (size_t x = 0; x < Lx - 1; x++) {
     for (size_t y = 0; y < Ly - 1; y++) {
-      size_t site0 = x * (3 * Ly - 1) + 2 * y;
-      size_t site1 = site0 + 1;
-      size_t site2 = x * (3 * Ly - 1) + (2 * Ly - 1) + y;
+      size_t site0 = Ly * x + y;
+      size_t site1 = Ly * (x + 1) + (y + 1);
       res.push_back(make_pair(site0, site1));
-      res.push_back(make_pair(site0, site2));
-      res.push_back(make_pair(site1, site2));
-      res.push_back(make_pair(site1, site1 + 1));
-      res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y));
-      if (y > 0) {
-        res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y - 1));
-      }
     }
   }
-
-  //last row :
+  for (size_t x = 0; x < Lx - 2; x++) {
+    for (size_t y = 0; y < Ly - 1; y++) {
+      size_t site0 = Ly * x + (y + 1);
+      size_t site1 = Ly * (x + 2) + y;
+      res.push_back(make_pair(site0, site1));
+    }
+  }
   for (size_t x = 0; x < Lx - 1; x++) {
-    size_t y = Ly - 1;
-    size_t site0 = x * (3 * Ly - 1) + 2 * y;
-    size_t site2 = x * (3 * Ly - 1) + (2 * Ly - 1) + y;
-    res.push_back(make_pair(site0, site2));
-    res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y));
-    res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y - 1));
-  }
-  //last column:
-  for (size_t y = 0; y < Ly - 1; y++) {
-    size_t x = Lx - 1;
-    size_t site0 = x * (3 * Ly - 1) + 2 * y;
-    size_t site1 = site0 + 1;
-    res.push_back(make_pair(site0, site1));
-    res.push_back(make_pair(site1, site1 + 1));
-  }
-  for (Link &link: res) {
-    std::cout << "[ " << link.first << ", " << link.second << " ]" << std::endl;
+    for (size_t y = 0; y < Ly - 2; y++) {
+      size_t site0 = Ly * (x + 1) + y;
+      size_t site1 = Ly * x + (y + 2);
+      res.push_back(make_pair(site0, site1));
+    }
   }
   return res;
 }
@@ -93,12 +83,7 @@ int main(int argc, char *argv[]) {
   DMRGCaseParams params(argv[1]);
   const size_t Lx = params.Lx;
   const size_t Ly = params.Ly;
-  size_t N;
-  if (params.RemoveCorner) {
-    N = 3 * Lx * Ly - Lx - Ly;
-  } else {
-    N = 3 * Lx * Ly;
-  }
+  size_t N = Lx * Ly;
 
   cout << "The total number of sites: " << N << endl;
   clock_t startTime, endTime;
@@ -118,16 +103,7 @@ int main(int argc, char *argv[]) {
       params.noise
   );
 
-  bool noise_valid(false);
-  for (size_t i = 0; i < params.noise.size(); i++) {
-    if (params.noise[i] != 0) {
-      noise_valid = true;
-      break;
-    }
-  }
-
   double e0(0.0); //energy
-
 
   const SiteVec<TenElemT, U1QN> sites(N, pb_out);
   qlmps::MPOGenerator<TenElemT, U1QN> mpo_gen(sites, qn0);
@@ -139,16 +115,18 @@ int main(int argc, char *argv[]) {
   sz({1, 1}) = -0.5;
   sp({0, 1}) = 1.0;
   sm({1, 0}) = 1.0;
-  std::vector<Link> links;
-  if (params.RemoveCorner) {
-    links = GenerateOBCKagomeNNLinkSmoothBC(Lx, Ly);
-  } else {
-    links = GenerateOBCKagomeNNLinkWithCorner(Lx, Ly);
-  }
-  for (auto &link: links) {
+  std::vector<Link> links = GenerateOBCTriangularNNLink(Lx, Ly);
+  std::vector<Link> links_j2 = GenerateOBCTriangularJ2Link(Lx, Ly);
+
+  for (auto &link : links) {
     mpo_gen.AddTerm(1.0, sz, link.first, sz, link.second);
     mpo_gen.AddTerm(0.5, sp, link.first, sm, link.second);
     mpo_gen.AddTerm(0.5, sm, link.first, sp, link.second);
+  }
+  for (auto &link : links_j2) {
+    mpo_gen.AddTerm(1.0 * params.J2, sz, link.first, sz, link.second);
+    mpo_gen.AddTerm(0.5 * params.J2, sp, link.first, sm, link.second);
+    mpo_gen.AddTerm(0.5 * params.J2, sm, link.first, sp, link.second);
   }
   auto mpo = mpo_gen.Gen();
 
@@ -160,7 +138,6 @@ int main(int argc, char *argv[]) {
   for (size_t i = 0; i < N; ++i) {
     stat_labs[i] = i % 2;
   }
-
 
   if (world.rank() == 0) {
     if (IsPathExist(kMpsPath)) {
@@ -198,7 +175,6 @@ int main(int argc, char *argv[]) {
     } else {
       std::cout << "Setting MaxLanczIter as : [" << MaxLanczIterSet[0] << "]" << std::endl;
     }
-
 
     for (size_t i = 0; i < DMRG_time; i++) {
       size_t D = input_D_set[i];

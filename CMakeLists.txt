@@ -15,34 +15,34 @@ if (${CMAKE_BUILD_TYPE} MATCHES Debug)
     set(CMAKE_VERBOSE_MAKEFILE ON)
 endif ()
 
-option(GQTEN_TIMING_MODE "Timing mode." OFF)
-if (GQTEN_TIMING_MODE)
-    add_definitions(-DGQTEN_TIMING_MODE)
+option(QLTEN_TIMING_MODE "Timing mode." OFF)
+if (QLTEN_TIMING_MODE)
+    add_definitions(-DQLTEN_TIMING_MODE)
 endif ()
 
-option(GQMPS2_TIMING_MODE "Timing mode." OFF)
-if (GQMPS2_TIMING_MODE)
-    add_definitions(-DGQMPS2_TIMING_MODE)
+option(QLMPS_TIMING_MODE "Timing mode." OFF)
+if (QLMPS_TIMING_MODE)
+    add_definitions(-DQLMPS_TIMING_MODE)
 endif ()
 
-option(GQPEPS_TIMING_MODE "Timing mode." OFF)
-if (GQPEPS_TIMING_MODE)
-    add_definitions(-DGQPEPS_TIMING_MODE)
+option(QLPEPS_TIMING_MODE "Timing mode." OFF)
+if (QLPEPS_TIMING_MODE)
+    add_definitions(-DQLPEPS_TIMING_MODE)
 endif ()
 
-option(GQTEN_MPI_TIMING_MODE "Timing mode." OFF)
-if (GQTEN_MPI_TIMING_MODE)
-    add_definitions(-DGQTEN_MPI_TIMING_MODE)
+option(QLTEN_MPI_TIMING_MODE "Timing mode." OFF)
+if (QLTEN_MPI_TIMING_MODE)
+    add_definitions(-DQLTEN_MPI_TIMING_MODE)
 endif ()
 
-option(GQPEPS_MPI_TIMING_MODE "Timing mode." OFF)
-if (GQPEPS_MPI_TIMING_MODE)
-    add_definitions(-DGQPEPS_MPI_TIMING_MODE)
+option(QLPEPS_MPI_TIMING_MODE "Timing mode." OFF)
+if (QLPEPS_MPI_TIMING_MODE)
+    add_definitions(-DQLPEPS_MPI_TIMING_MODE)
 endif ()
 
-option(GQMPS2_MPI_TIMING_MODE "Timing mode." OFF)
-if (GQMPS2_MPI_TIMING_MODE)
-    add_definitions(-DGQMPS2_MPI_TIMING_MODE)
+option(QLMPS_MPI_TIMING_MODE "Timing mode." OFF)
+if (QLMPS_MPI_TIMING_MODE)
+    add_definitions(-DQLMPS_MPI_TIMING_MODE)
 endif ()
 
 option(COMPILE_FIX_CODE "compile the fixing code" OFF)
@@ -92,9 +92,9 @@ elseif (UNIX)
 endif ()
 
 
-find_path(TENSOR_HEADER_PATH "gqten")
-find_path(MPS2_HEADER_PATH "gqmps2")
-find_path(PEPS_HEADER_PATH "gqpeps")
+find_path(TENSOR_HEADER_PATH "qlten")
+find_path(MPS_HEADER_PATH "qlmps")
+find_path(PEPS_HEADER_PATH "qlpeps")
 find_package(hptt)
 find_package(Boost
         1.74.0
@@ -113,7 +113,7 @@ endif ()
 #find openmp?
 add_compile_options(${MATH_LIB_COMPILE_FLAGS} ${OMP_FLAGS})
 
-include_directories(${MPS2_HEADER_PATH}
+include_directories(${MPS_HEADER_PATH}
         ${TENSOR_HEADER_PATH}
         ${PEPS_HEADER_PATH}
         ${hptt_INCLUDE_DIR}
@@ -136,12 +136,14 @@ add_executable(square_mc_measure src/square_mc_measure.cpp src/myutil.cpp)
 add_executable(triangle_simple_update src/triangle_simple_update.cpp)
 add_executable(triangle_vmc_update src/triangle_vmc_update.cpp src/myutil.cpp)
 add_executable(triangle_mc_measure src/triangle_mc_measure.cpp src/myutil.cpp)
+add_executable(triangle_vmps src/triangle_vmps.cpp src/myutil.cpp)
 add_executable(triangle_dmrg src/triangle_dmrg.cpp src/myutil.cpp)
+add_executable(triangle_dmrg_measure src/triangle_dmrg_measure.cpp src/myutil.cpp)
 add_executable(kagome_simple_update src/kagome_simple_update.cpp)
 add_executable(kagome_vmc_update src/kagome_vmc_update.cpp src/myutil.cpp)
 add_executable(kagome_mc_measure src/kagome_mc_measure.cpp)
 add_executable(kagome_dmrg src/kagome_dmrg.cpp src/myutil.cpp)
-add_executable(dmrg_measure1 src/dmrg_measure1.cpp src/myutil.cpp)
+add_executable(kagome_dmrg_measure src/kagome_dmrg_measure.cpp src/myutil.cpp)
 add_executable(transfer_ipeps src/transfer_iPEPS.cpp)
 add_executable(increaseD src/tps_increase_D.cpp src/myutil.cpp)
-add_executable(extension_tps src/sitps_space_extension.cpp src/myutil.cpp)
+add_executable(extend src/sitps_space_extension.cpp src/myutil.cpp)

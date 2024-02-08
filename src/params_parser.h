@@ -5,10 +5,10 @@
 #ifndef HEISENBERGVMCPEPS_PARAMS_PARSER_H
 #define HEISENBERGVMCPEPS_PARAMS_PARSER_H
 
-#include "gqmps2/case_params_parser.h"
-#include "gqpeps/algorithm/vmc_update/vmc_peps.h"
+#include "qlmps/case_params_parser.h"
+#include "qlpeps/algorithm/vmc_update/vmc_peps.h"
 
-struct SimpleUpdateParams : public gqmps2::CaseParamsParserBasic {
+struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
   SimpleUpdateParams(const char *f) : CaseParamsParserBasic(f) {
     Lx = ParseInt("Lx");
     Ly = ParseInt("Ly");
@@ -34,7 +34,7 @@ struct SimpleUpdateParams : public gqmps2::CaseParamsParserBasic {
   size_t ThreadNum;
 };
 
-struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
+struct VMCUpdateParams : public qlmps::CaseParamsParserBasic {
   VMCUpdateParams(const char *f) : CaseParamsParserBasic(f) {
     Lx = ParseInt("Lx");
     Ly = ParseInt("Ly");
@@ -50,7 +50,7 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
     CGResidueRestart = ParseInt("CGResidueRestart");
     CGDiagShift = ParseDouble("CGDiagShift");
     ReplicaTest = ParseBool("ReplicaTest");
-    MPSCompressScheme = static_cast<gqpeps::CompressMPSScheme>(ParseInt("MPSCompressScheme"));
+    MPSCompressScheme = static_cast<qlpeps::CompressMPSScheme>(ParseInt("MPSCompressScheme"));
     RemoveCorner = ParseBool("RemoveCorner");
     size_t update_times = ParseInt("UpdateNum");
     step_len = std::vector<double>(update_times);
@@ -61,7 +61,7 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
         step_len[i] = step_len[0] - i * step_len_change;
       }
     }
-    update_scheme = (gqpeps::WAVEFUNCTION_UPDATE_SCHEME) ParseInt("UpdateScheme");
+    update_scheme = (qlpeps::WAVEFUNCTION_UPDATE_SCHEME) ParseInt("UpdateScheme");
     ThreadNum = ParseInt("ThreadNum");
   }
 
@@ -79,14 +79,14 @@ struct VMCUpdateParams : public gqmps2::CaseParamsParserBasic {
   int CGResidueRestart;
   double CGDiagShift;
   bool ReplicaTest;
-  gqpeps::CompressMPSScheme MPSCompressScheme;
+  qlpeps::CompressMPSScheme MPSCompressScheme;
   bool RemoveCorner;
-  gqpeps::WAVEFUNCTION_UPDATE_SCHEME update_scheme;
+  qlpeps::WAVEFUNCTION_UPDATE_SCHEME update_scheme;
   std::vector<double> step_len;
   size_t ThreadNum;
 };
 
-struct DMRGCaseParams : public gqmps2::CaseParamsParserBasic {
+struct DMRGCaseParams : public qlmps::CaseParamsParserBasic {
   DMRGCaseParams(const char *pf) : CaseParamsParserBasic(pf) {
 //    Geometry = ParseStr("Geometry");
     Ly = ParseInt("Ly");

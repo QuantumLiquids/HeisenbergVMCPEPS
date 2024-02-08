@@ -35,6 +35,7 @@
 debug/
 build/
 release/
+build_doc/
 
 # CLion
 .idea

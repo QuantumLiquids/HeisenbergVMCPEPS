@@ -2,14 +2,14 @@
 // Created by haoxinwang on 04/11/2023.
 //
 
-#include "gqpeps/two_dim_tn/peps/square_lattice_peps.h"
-#include "gqpeps/algorithm/vmc_update/monte_carlo_measurement.h"
+#include "qlpeps/two_dim_tn/peps/square_lattice_peps.h"
+#include "qlpeps/algorithm/vmc_update/monte_carlo_measurement.h"
 #include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
-#include "./gqdouble.h"
+#include "./qldouble.h"
 #include "./params_parser.h"
 #include "kagome_hei_model_combined_tps_sample.h"
 
-using namespace gqpeps;
+using namespace qlpeps;
 
 using TPSSampleT = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
 
@@ -100,8 +100,7 @@ int main(int argc, char **argv) {
   boost::mpi::communicator world;
   VMCUpdateParams params(argv[1]);
 
-  gqten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
-  gqten::hp_numeric::SetTensorTransposeNumThreads(params.ThreadNum);
+  qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
 
   size_t N = params.Lx * params.Ly;
   std::vector<size_t> occupation_num(8, 0);
@@ -120,41 +119,40 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  gqpeps::VMCOptimizePara optimize_para;
+  qlpeps::VMCOptimizePara optimize_para;
   if (params.RemoveCorner) {
     Configuration init_config = GenerateInitialConfigurationInSmoothBoundary(params.Ly, params.Lx);
-    optimize_para = gqpeps::VMCOptimizePara(params.TruncErr, params.Db_min, params.Db_max,
-                                            params.MPSCompressScheme,
-                                            params.MC_samples, params.WarmUp,
-                                            params.MCLocalUpdateSweepsBetweenSample,
-                                            init_config,
-                                            params.step_len,
-                                            params.update_scheme);
+    optimize_para = qlpeps::VMCOptimizePara(
+        BMPSTruncatePara(params.Db_min, params.Db_max, params.TruncErr, params.MPSCompressScheme),
+        params.MC_samples, params.WarmUp,
+        params.MCLocalUpdateSweepsBetweenSample,
+        init_config,
+        params.step_len,
+        params.update_scheme);
   } else {
-    optimize_para = gqpeps::VMCOptimizePara(params.TruncErr, params.Db_min, params.Db_max,
-                                            params.MPSCompressScheme,
-                                            params.MC_samples, params.WarmUp,
-                                            params.MCLocalUpdateSweepsBetweenSample,
-                                            occupation_num,
-                                            params.Ly, params.Lx,
-                                            params.step_len,
-                                            params.update_scheme);
+    optimize_para = qlpeps::VMCOptimizePara(
+        BMPSTruncatePara(params.Db_min, params.Db_max, params.TruncErr, params.MPSCompressScheme),
+        params.MC_samples, params.WarmUp,
+        params.MCLocalUpdateSweepsBetweenSample,
+        occupation_num,
+        params.Ly, params.Lx,
+        params.step_len,
+        params.update_scheme);
   }
-  optimize_para.mc_sweep_scheme = CompressedLatticeKagomeLocalUpdate;
 
   using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
   MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
-  if (gqmps2::IsPathExist(optimize_para.wavefunction_path)) {
+  if (qlmps::IsPathExist(optimize_para.wavefunction_path)) {
     executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
                                                                                     params.Ly, params.Lx,
                                                                                     world);
   } else {  //after simple update, load from PEPS tensors
-    SquareLatticePEPS<GQTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
+    SquareLatticePEPS<QLTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
     if (!peps.Load(peps_path)) {
       std::cout << "Loading simple updated PEPS files is broken." << std::endl;
       exit(-2);
     };
-    SplitIndexTPS<GQTEN_Double, U1QN> split_idx_tps = KagomeSquarePEPSToSplitIndexTPS(peps);
+    SplitIndexTPS<QLTEN_Double, U1QN> split_idx_tps = KagomeSquarePEPSToSplitIndexTPS(peps);
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }

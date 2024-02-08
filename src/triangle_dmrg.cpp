@@ -2,17 +2,17 @@
 // Created by haoxinwang on 28/12/2023.
 //
 #include <iostream>
-#include "gqmps2/gqmps2.h"
-#include "gqten/gqten.h"
+#include "qlmps/qlmps.h"
+#include "qlten/qlten.h"
 #include <time.h>
 #include <vector>
 #include <stdlib.h>     // system
 #include "params_parser.h"
-#include "gqdouble.h"
+#include "qldouble.h"
 #include "myutil.h"
 
-using namespace gqmps2;
-using namespace gqten;
+using namespace qlmps;
+using namespace qlten;
 using namespace std;
 
 using Link = std::pair<size_t, size_t>;
@@ -94,20 +94,19 @@ int main(int argc, char *argv[]) {
       argc, argv,
       input_D_set);
 
-  gqten::hp_numeric::SetTensorTransposeNumThreads(params.Threads);
-  gqten::hp_numeric::SetTensorManipulationThreads(params.Threads);
+  qlten::hp_numeric::SetTensorManipulationThreads(params.Threads);
 
-  gqmps2::FiniteVMPSSweepParams sweep_params(
+  qlmps::FiniteVMPSSweepParams sweep_params(
       params.Sweeps,
       params.Dmin, params.Dmax, params.CutOff,
-      gqmps2::LanczosParams(params.LanczErr, params.MaxLanczIter),
+      qlmps::LanczosParams(params.LanczErr, params.MaxLanczIter),
       params.noise
   );
 
   double e0(0.0); //energy
 
   const SiteVec<TenElemT, U1QN> sites(N, pb_out);
-  gqmps2::MPOGenerator<TenElemT, U1QN> mpo_gen(sites, qn0);
+  qlmps::MPOGenerator<TenElemT, U1QN> mpo_gen(sites, qn0);
 
   Tensor sz = Tensor({pb_in, pb_out});
   Tensor sp = Tensor({pb_in, pb_out});
@@ -129,9 +128,9 @@ int main(int argc, char *argv[]) {
     mpo_gen.AddTerm(0.5 * params.J2, sp, link.first, sm, link.second);
     mpo_gen.AddTerm(0.5 * params.J2, sm, link.first, sp, link.second);
   }
-  auto mpo = mpo_gen.Gen();
+  auto mro = mpo_gen.GenMatReprMPO(false);
 
-  using FiniteMPST = gqmps2::FiniteMPS<TenElemT, U1QN>;
+  using FiniteMPST = qlmps::FiniteMPS<TenElemT, U1QN>;
   FiniteMPST mps(sites);
 
   std::vector<long unsigned int> stat_labs(N);
@@ -146,19 +145,19 @@ int main(int argc, char *argv[]) {
         cout << "The number of mps files is consistent with mps size." << endl;
         cout << "Directly use mps from files." << endl;
       } else {
-        gqmps2::DirectStateInitMps(mps, stat_labs);
+        qlmps::DirectStateInitMps(mps, stat_labs);
         cout << "Initial mps as direct product state." << endl;
         mps.Dump(sweep_params.mps_path, true);
       }
     } else {
-      gqmps2::DirectStateInitMps(mps, stat_labs);
+      qlmps::DirectStateInitMps(mps, stat_labs);
       cout << "Initial mps as direct product state." << endl;
       mps.Dump(sweep_params.mps_path, true);
     }
   }
 
   if (!has_bond_dimension_parameter) {
-    e0 = gqmps2::TwoSiteFiniteVMPS(mps, mpo, sweep_params, world);
+    e0 = qlmps::FiniteDMRG(mps, mro, sweep_params, world);
   } else {
     size_t DMRG_time = input_D_set.size();
     std::vector<size_t> MaxLanczIterSet(DMRG_time);
@@ -180,13 +179,13 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < DMRG_time; i++) {
       size_t D = input_D_set[i];
       std::cout << "D_max = " << D << std::endl;
-      gqmps2::FiniteVMPSSweepParams sweep_params(
+      qlmps::FiniteVMPSSweepParams sweep_params(
           params.Sweeps,
           D, D, params.CutOff,
-          gqmps2::LanczosParams(params.LanczErr, MaxLanczIterSet[i]),
+          qlmps::LanczosParams(params.LanczErr, MaxLanczIterSet[i]),
           params.noise
       );
-      e0 = gqmps2::TwoSiteFiniteVMPS(mps, mpo, sweep_params, world);
+      e0 = qlmps::FiniteDMRG(mps, mro, sweep_params, world);
     }
   }
   std::cout << "E0/site: " << e0 / N << std::endl;

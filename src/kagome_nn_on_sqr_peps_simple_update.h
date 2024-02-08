@@ -13,16 +13,16 @@
 #ifndef GRACEQ_VMC_PEPS_Kagome_NN_ON_SQR_PEPS_SIMPLE_UPDATE_H
 #define GRACEQ_VMC_PEPS_Kagome_NN_ON_SQR_PEPS_SIMPLE_UPDATE_H
 
-#include "gqpeps/algorithm/simple_update/simple_update.h"
+#include "qlpeps/algorithm/simple_update/simple_update.h"
 
-namespace gqpeps {
+namespace qlpeps {
 
-using namespace gqten;
+using namespace qlten;
 
 
 template<typename TenElemT, typename QNT>
 class KagomeNNModelSquarePEPSSimpleUpdateExecutor : public SimpleUpdateExecutor<TenElemT, QNT> {
-  using Tensor = GQTensor<TenElemT, QNT>;
+  using Tensor = QLTensor<TenElemT, QNT>;
   using PEPST = SquareLatticePEPS<TenElemT, QNT>;
  public:
   /**
