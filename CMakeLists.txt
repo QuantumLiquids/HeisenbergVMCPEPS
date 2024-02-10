@@ -55,7 +55,7 @@ if (U1SYM)
     message("USE U1 symmetry code.")
 endif ()
 
-if (APPLE)
+if (APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
     if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
         set(MATH_LIB_COMPILE_FLAGS "-I$ENV{MKLROOT}/include")
         #Need test
@@ -71,6 +71,20 @@ if (APPLE)
         # Note as of Intel oneAPI 2021.2, "source /opt/intel/oneapi/compiler/latest/env/vars.sh"
         set(MATH_LIB_LINK_FLAGS $ENV{MKLROOT}/lib/libmkl_intel_lp64.a $ENV{MKLROOT}/lib/libmkl_intel_thread.a $ENV{MKLROOT}/lib/libmkl_core.a -L$ENV{MKLROOT}/lib -L$ENV{CMPLR_ROOT}/mac/compiler/lib/ -Wl, -rpath $ENV{CMPLR_ROOT}/mac/compiler/lib/libiomp5.dylib -liomp5 -lpthread -lm -ldl)
     endif ()
+elseif (APPLE) #ARM
+    add_definitions(-DUSE_OPENBLAS)
+    set(BLA_VENDOR OpenBLAS)
+    #        FIND_PACKAGE(BLAS REQUIRED)
+    #        FIND_PACKAGE(LAPACK REQUIRED)
+    set(OpenBLAS_ROOT "/opt/homebrew/opt/openblas/")
+    set(Lapack_ROOT "/opt/homebrew/opt/lapack")
+    message(${OpenBLAS_ROOT})
+    set(OpenBLAS_INCLUDE_DIRS "${OpenBLAS_ROOT}/include")
+    set(OpenBLAS_LIBRARIES "${OpenBLAS_ROOT}/lib/libblas.dylib")
+    message(${OpenBLAS_LIBRARIES})
+    set(MATH_LIB_COMPILE_FLAGS -I${OpenBLAS_INCLUDE_DIRS} -pthread)
+    set(MATH_LIB_LINK_FLAGS ${OpenBLAS_LIBRARIES} ${OpenBLAS_ROOT}/lib/liblapack.dylib -lm -lpthread -ldl -fopenmp -lclapack)
+
 elseif (UNIX)
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "~/.local/")
     message("CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}")
@@ -133,12 +147,18 @@ link_libraries(
 add_executable(square_simple_update src/square_simple_update.cpp)
 add_executable(square_vmc_update src/square_vmc_update.cpp src/myutil.cpp)
 add_executable(square_mc_measure src/square_mc_measure.cpp src/myutil.cpp)
+
+
 add_executable(triangle_simple_update src/triangle_simple_update.cpp)
 add_executable(triangle_vmc_update src/triangle_vmc_update.cpp src/myutil.cpp)
+add_executable(triangle_vmc_update_no_u1 src/triangle_vmc_update_no_u1.cpp src/myutil.cpp)
 add_executable(triangle_mc_measure src/triangle_mc_measure.cpp src/myutil.cpp)
 add_executable(triangle_vmps src/triangle_vmps.cpp src/myutil.cpp)
 add_executable(triangle_dmrg src/triangle_dmrg.cpp src/myutil.cpp)
 add_executable(triangle_dmrg_measure src/triangle_dmrg_measure.cpp src/myutil.cpp)
+add_executable(triangle_dmrg_measure_sf src/triangle_dmrg_measure_sf.cpp src/myutil.cpp)
+
+
 add_executable(kagome_simple_update src/kagome_simple_update.cpp)
 add_executable(kagome_vmc_update src/kagome_vmc_update.cpp src/myutil.cpp)
 add_executable(kagome_mc_measure src/kagome_mc_measure.cpp)
