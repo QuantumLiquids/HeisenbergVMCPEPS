@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     using Model = SpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
     VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
 
-    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exsit
+    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exist
       executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
                                                                         params.Ly, params.Lx,
                                                                         world);
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
     VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
-    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) { //actually almostly do the same thing
+    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) { //actually almost do the same thing
       executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model>(optimize_para,
                                                                             params.Ly, params.Lx,
                                                                             world, j1j2solver);

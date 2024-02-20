@@ -70,7 +70,7 @@ struct VMCUpdateParams : public qlmps::CaseParamsParserBasic {
   double J2;
   size_t Db_min;
   size_t Db_max;
-  size_t TruncErr;
+  double TruncErr;
   size_t MC_samples;
   size_t WarmUp;
   size_t MCLocalUpdateSweepsBetweenSample;

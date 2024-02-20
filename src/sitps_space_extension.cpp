@@ -22,7 +22,12 @@ int main(int argc, char** argv) {
   size_t increase_width = std::atoi(argv[4]);
 
   SplitIndexTPS<TenElemT, U1QN> original_tps(params.Ly, params.Lx);
-  original_tps.Load();
+  if(original_tps.Load()){
+    std::cout << "Loaded Original TPS." << std::endl;
+  } else{
+    std::cout << "Loading Original TPS fails!" << std::endl;
+    exit(1);
+  }
 
   if (direction == 'c') {
     SplitIndexTPS<TenElemT, U1QN> extended_tps(params.Ly, params.Lx + increase_width);
