@@ -17,7 +17,7 @@
 
 using namespace qlpeps;
 
-using TPSSampleT = SquareTPSSampleNNExchange<TenElemT, U1QN>;
+using TPSSampleT = SquareTPSSample3SiteExchange<TenElemT, U1QN>;
 
 int main(int argc, char **argv) {
   boost::mpi::environment env;

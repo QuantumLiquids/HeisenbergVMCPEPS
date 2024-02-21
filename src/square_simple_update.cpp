@@ -103,6 +103,10 @@ int main(int argc, char **argv) {
                                                                                    ham_hei_tri);
     su_exe->Execute();
     auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+    //TODO: if the first step vmc behave better, move into VMC package
+    for (auto tensor : tps) {
+      tensor.Normalize();
+    }
     tps.Dump();
     su_exe->DumpResult(peps_path, true);
   }
