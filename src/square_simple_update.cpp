@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
     su_exe->Execute();
     auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
     //TODO: if the first step vmc behave better, move into VMC package
-    for (auto tensor : tps) {
+    for (auto &tensor : tps) {
       tensor.Normalize();
     }
     tps.Dump();
