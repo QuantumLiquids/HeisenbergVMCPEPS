@@ -95,6 +95,9 @@ int main(int argc, char **argv) {
                                                                                   ham_hei_nn);
     su_exe->Execute();
     auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+    for (auto &tensor : tps) {
+      tensor.Normalize();
+    }
     tps.Dump();
     su_exe->DumpResult(peps_path, true);
   } else {
