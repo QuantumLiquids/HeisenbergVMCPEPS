@@ -69,7 +69,9 @@ int main(int argc, char **argv) {
     optimize_para = qlpeps::VMCOptimizePara(
         BMPSTruncatePara(params.Db_min, params.Db_max,
                          params.TruncErr,
-                         params.MPSCompressScheme),
+                         params.MPSCompressScheme,
+                         std::make_optional<double>(params.TruncErr),
+                         std::make_optional<size_t>(10)),
         params.MC_samples, params.WarmUp,
         params.MCLocalUpdateSweepsBetweenSample,
         init_config,
@@ -80,7 +82,9 @@ int main(int argc, char **argv) {
     optimize_para = qlpeps::VMCOptimizePara(
         BMPSTruncatePara(params.Db_min, params.Db_max,
                          params.TruncErr,
-                         params.MPSCompressScheme),
+                         params.MPSCompressScheme,
+                         std::make_optional<double>(params.TruncErr),
+                         std::make_optional<size_t>(10)),
         params.MC_samples, params.WarmUp,
         params.MCLocalUpdateSweepsBetweenSample,
         occupation_num,

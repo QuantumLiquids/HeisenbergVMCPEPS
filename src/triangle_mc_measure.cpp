@@ -29,7 +29,9 @@ int main(int argc, char **argv) {
   qlpeps::VMCOptimizePara optimize_para(
       BMPSTruncatePara(params.Db_min, params.Db_max,
                        params.TruncErr,
-                       params.MPSCompressScheme),
+                       params.MPSCompressScheme,
+                       std::make_optional<double>(params.TruncErr),
+                       std::make_optional<size_t>(10)),
       params.MC_samples, params.WarmUp,
       params.MCLocalUpdateSweepsBetweenSample,
       std::vector<size_t>{N / 2, N / 2},
