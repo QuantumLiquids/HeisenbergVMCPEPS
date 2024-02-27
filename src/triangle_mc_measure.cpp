@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
                        params.TruncErr,
                        params.MPSCompressScheme,
                        std::make_optional<double>(params.TruncErr),
-                       std::make_optional<size_t>(10)),
+                       std::make_optional<size_t>(10)),w
       params.MC_samples, params.WarmUp,
       params.MCLocalUpdateSweepsBetweenSample,
       std::vector<size_t>{N / 2, N / 2},

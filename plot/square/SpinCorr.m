@@ -1,36 +1,34 @@
-Ly = 6;
-Lx = 15;
-J2 = 0;
-Dpeps = 8;
+clear all;
+Ly = 10;
+Lx = 28;
+J2 = 0.5;
+Dpeps = 10;
 Db = 8;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;
 num_points = floor(Lx / 2);
 if(J2 == 0)
-    filename1 = ['../../data/triangle_two_point_functions', num2str(Lx),'x', num2str(Ly),'D', num2str(Dpeps),'-',num2str(Db)];
-    filename2 = ['../../data/triangle_two_point_functions', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)];
+    filename1 = ['../../data/square_two_point_functions', num2str(Lx),'x', num2str(Ly),'D', num2str(Dpeps),'-',num2str(Db)];
+    filename2 = ['../../data/square_two_point_functions', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)];
     if(exist(filename2,"file"))
         file_id = fopen(filename2,'rb');
-    else 
+    else
         file_id = fopen(filename1,'rb');
     end
 else
-    file_id = fopen(['../../data/triangle_two_point_functions', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+    file_id = fopen(['../../data/square_two_point_functions', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
 end
 
-corr_data = fread(file_id, num_points * 3, 'double');
-struc_factor_data = fread(file_id, N * N, 'double');
-corr_err_data = fread(file_id, num_points * 3, 'double');
-struc_factor_err = fread(file_id, N * N, 'double');
+data = fread(file_id, num_points * 6, 'double');
 fclose(file_id);
 
-sz_sz_corr = corr_data(1:num_points);
-s_plus_s_minus_corr = corr_data(num_points+1:2*num_points);
-s_minus_s_plus_corr = corr_data(2*num_points+1:3*num_points);
-sz_sz_corr_err = corr_err_data(1:num_points);
-s_plus_s_minus_corr_err = corr_err_data(num_points+1:2*num_points);
-s_minus_s_plus_corr_err = corr_err_data(2*num_points+1:3*num_points);
+sz_sz_corr = data(1:num_points);
+s_plus_s_minus_corr = data(num_points+1:2*num_points);
+s_minus_s_plus_corr = data(2*num_points+1:3*num_points);
+sz_sz_corr_err = data(3*num_points+1:4*num_points);
+s_plus_s_minus_corr_err = data(4*num_points+1:5*num_points);
+s_minus_s_plus_corr_err = data(5*num_points+1:6*num_points);
 
 % Plot the spin correlation
 x = 1:num_points;  
@@ -45,6 +43,7 @@ ss_corr_err = sqrt(sz_sz_corr_err.^2 + (0.5 * s_plus_s_minus_corr_err).^2 + (0.5
 
 h = errorbar(x, abs(ss_corr), ss_corr_err, '-x'); hold on;
 set(gca, 'YScale', 'log');
+set(gca, 'XScale', 'log');
 
 set(gca,'fontsize',24);
 set(gca,'linewidth',1.5);
