@@ -167,3 +167,5 @@ add_executable(kagome_dmrg_measure src/kagome_dmrg_measure.cpp src/myutil.cpp)
 add_executable(transfer_ipeps src/transfer_iPEPS.cpp)
 add_executable(increaseD src/tps_increase_D.cpp src/myutil.cpp)
 add_executable(extend src/sitps_space_extension.cpp src/myutil.cpp)
+
+add_executable(zero_evolve src/square_peps_zero_evolve.cpp)
