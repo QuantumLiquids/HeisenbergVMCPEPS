@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
   qlpeps::SimpleUpdatePara update_para(params.Step, 1,
                                        params.Dmax, params.Dmax,
-                                       0);
+                                       params.TruncErr);
 
   SplitIndexTPS<TenElemT, U1QN> split_index_tps(params.Ly, params.Lx);
   if (!split_index_tps.Load()) {
