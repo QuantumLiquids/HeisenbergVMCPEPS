@@ -1,8 +1,8 @@
-Lx = 8;
-Ly = 8;
-J2 = 0;
-Dpeps = 10;
-Db = 10;
+Ly = 6;
+Lx = 24;
+J2 = 0.125;
+Dpeps = 8;
+Db = 24;
 
 auto_correlation_data_len=20;
 if(J2==0)
@@ -11,7 +11,7 @@ else
     bond_num =  Lx * (Ly-1)+ (Lx-1) * Ly + (Lx-1) * (Ly-1) *2 + (Lx-2) * (Ly-1) + (Ly-2)*(Lx-1);
 end
 site_num = Ly * Lx ;
-file_id = fopen(['../../data/triangle_energy_statistics', num2str(Ly),'x', num2str(Lx), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+file_id = fopen(['../../data/triangle_energy_statistics', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
 energy = fread(file_id, 1, 'double');
 en_std = fread(file_id, 1, 'double');
 bond_energys = fread(file_id, bond_num, 'double');
