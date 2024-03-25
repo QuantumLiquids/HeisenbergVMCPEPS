@@ -1,16 +1,18 @@
-Lx = 12;
-Ly = 12;
-J2 = 0;
+clear;
+Ly = 10;
+Lx = 28;
+J2 = 0.5;
 Dpeps = 8;
-Db = 8;
+Db = 24;
+
 
 auto_correlation_data_len=20;
 bond_num =  Lx * (Ly-1)+ (Lx-1) * Ly ;
 site_num = Ly * Lx ;
 if(J2 == 0)
-    file_id = fopen(['../../data/square_one_point_functions', num2str(Ly),'x', num2str(Lx),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+    file_id = fopen(['../../data/square_one_point_functions', num2str(Lx),'x', num2str(Ly),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
 else
-    file_id = fopen(['../../data/square_one_point_functions', num2str(Ly),'x', num2str(Lx), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+    file_id = fopen(['../../data/square_one_point_functions', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
 end
 sz = fread(file_id, site_num, 'double');
 sz_err = fread(file_id, site_num, 'double');
@@ -19,7 +21,7 @@ fclose(file_id);
 
 
 if ~isempty(sz_auto_corr)
-    plot(1:auto_correlation_data_len, sz_auto_corr);
+    semilogy(1:auto_correlation_data_len, sz_auto_corr);
     set(gca,'fontsize',24);
     set(gca,'linewidth',1.5);
     set(get(gca,'Children'),'linewidth',2); % Set line width 1.5 pounds

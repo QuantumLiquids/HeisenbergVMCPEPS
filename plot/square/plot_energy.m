@@ -1,16 +1,17 @@
-Lx = 12;
-Ly = 12;
-J2 = 0;
+clear;
+Ly = 10;
+Lx = 28;
+J2 = 0.5;
 Dpeps = 8;
-Db = 8;
+Db = 24;
 
 auto_correlation_data_len=20;
 bond_num =  Lx * (Ly-1)+ (Lx-1) * Ly ;
 site_num = Ly * Lx ;
 if(J2 == 0)
-    file_id = fopen(['../../data/square_energy_statistics', num2str(Ly),'x', num2str(Lx),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+    file_id = fopen(['../../data/square_energy_statistics', num2str(Lx),'x', num2str(Ly),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
 else
-    file_id = fopen(['../../data/square_energy_statistics', num2str(Ly),'x', num2str(Lx), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+    file_id = fopen(['../../data/square_energy_statistics', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
 end
 energy = fread(file_id, 1, 'double');
 en_std = fread(file_id, 1, 'double');

@@ -1,8 +1,9 @@
-Ly = 6;
-Lx = 24;
-J2 = 0.11;
-Dpeps = 10;
-Db = 10;
+Ly = 8;
+Lx = 8;
+J2 = 0;
+Dpeps = 8;
+Db = 32;
+
 mark_energy_value  = 0;
 energy_text_size = 40;
 bond_with_scale = 10;

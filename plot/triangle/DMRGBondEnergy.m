@@ -1,7 +1,7 @@
-Ly = 6;
-Lx = 24;
-J2 = 0;
-D=12000;
+Ly = 10;
+Lx = 10;
+J2 = 0.125;
+D=15000;
 mark_energy_value = 0;
 energy_text_size=10;
 

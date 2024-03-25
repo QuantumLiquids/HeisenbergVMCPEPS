@@ -1,8 +1,8 @@
-Ly = 6;
+Ly = 8;
 Lx = 24;
 J2 = 0.125;
 Dpeps = 8;
-Db = 24;
+Db = 8;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;
@@ -20,13 +20,10 @@ else
 end
 
 corr_data = fread(file_id, num_points * 3, 'double');
-if(J2 == 0)
 struc_factor_data = fread(file_id, site_num * site_num, 'double');
-end
 corr_err_data = fread(file_id, num_points * 3, 'double');
-if(J2 == 0)
 struc_factor_err = fread(file_id, site_num * site_num, 'double');
-end
+
 fclose(file_id);
 
 sz_sz_corr = corr_data(1:num_points);
@@ -47,8 +44,9 @@ x = 1:num_points;
 ss_corr = sz_sz_corr + 0.5 * s_plus_s_minus_corr + 0.5 * s_minus_s_plus_corr;
 ss_corr_err = sqrt(sz_sz_corr_err.^2 + (0.5 * s_plus_s_minus_corr_err).^2 + (0.5 * s_minus_s_plus_corr_err).^2);
 
-h = errorbar(x, (ss_corr), ss_corr_err, '-x'); hold on;
-% set(gca, 'YScale', 'log');
+h = errorbar(x, abs(ss_corr), ss_corr_err, '-x'); hold on;
+set(gca, 'YScale', 'log');
+set(gca, 'XScale', 'log');
 
 set(gca,'fontsize',24);
 set(gca,'linewidth',1.5);

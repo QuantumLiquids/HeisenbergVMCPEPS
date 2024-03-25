@@ -1,9 +1,9 @@
-clear all;
+clear;
 Ly = 10;
 Lx = 28;
 J2 = 0.5;
-Dpeps = 10;
-Db = 8;
+Dpeps = 8;
+Db = 24;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;
@@ -34,14 +34,15 @@ s_minus_s_plus_corr_err = data(5*num_points+1:6*num_points);
 x = 1:num_points;  
 % h1 = errorbar(x, sz_sz_corr, sz_sz_corr_err);
 % hold on;
-% h2 = errorbar(x, 0.5 * s_plus_s_minus_corr, s_plus_s_minus_corr_err);
-% h3 = errorbar(x, 0.5 * s_minus_s_plus_corr, s_minus_s_plus_corr_err);
+% h2 = errorbar(x, 0.5 * s_plus_s_minus_corr, 0.5 * s_plus_s_minus_corr_err);
+% h3 = errorbar(x, 0.5 * s_minus_s_plus_corr, 0.5 * s_minus_s_plus_corr_err);
 % hold off;
 
 ss_corr = sz_sz_corr + 0.5 * s_plus_s_minus_corr + 0.5 * s_minus_s_plus_corr;
 ss_corr_err = sqrt(sz_sz_corr_err.^2 + (0.5 * s_plus_s_minus_corr_err).^2 + (0.5 * s_minus_s_plus_corr_err).^2);
 
 h = errorbar(x, abs(ss_corr), ss_corr_err, '-x'); hold on;
+% errorbar(x, 1.5 * abs(sz_sz_corr), 1.5 * sz_sz_corr_err);
 set(gca, 'YScale', 'log');
 set(gca, 'XScale', 'log');
 
@@ -49,7 +50,7 @@ set(gca,'fontsize',24);
 set(gca,'linewidth',1.5);
 set(get(gca,'Children'),'linewidth',2); % Set line width 1.5 pounds
 xlabel('$\Delta x$','Interpreter','latex');
-ylabel('$\langle \bf S_i \cdot \bf S_j\rangle$','Interpreter','latex');
+ylabel('$|\langle \bf S_i \cdot \bf S_j\rangle|$','Interpreter','latex');
 set(get(gca,'XLabel'),'FontSize',24);
 set(get(gca,'YLabel'),'FontSize',24);
 

@@ -21,13 +21,11 @@ end
 
 
 corr_data = fread(file_id, num_points * 3, 'double');
-if(J2 == 0)
-    struc_factor_data = fread(file_id, site_num * site_num, 'double');
-end
+struc_factor_data = fread(file_id, site_num * site_num, 'double');
+
 corr_err_data = fread(file_id, num_points * 3, 'double');
-if(J2 == 0)
-    struc_factor_err = fread(file_id, site_num * site_num, 'double');
-end
+struc_factor_err = fread(file_id, site_num * site_num, 'double');
+
 fclose(file_id);
 
 DeltaX = zeros(1, site_num * site_num);
@@ -40,9 +38,6 @@ for site1_idx = 0:N-1
         [x2_idx, y2_idx, x2_coor, y2_coor] = PEPSIdx2Coor(Lx,  site2_idx);
         DeltaX(i) = x2_coor - x1_coor;
         DeltaY(i) = y2_coor - y1_coor;
-        if(site1_idx == site2_idx)
-            SpinCorr(i) = SpinCorr(i)/2;
-        end
         i = i+1;
     end
 end
@@ -56,7 +51,7 @@ ky_num = numel(ky_set);
 struct_factor = zeros(ky_num, kx_num);
 
 for i = 1:numel(SpinCorr)
-    struct_factor = struct_factor +  2 * SpinCorr(i) * cos( (kx_set *DeltaX(i) + ky_set' * DeltaY(i)));
+    struct_factor = struct_factor + SpinCorr(i) * cos( (kx_set *DeltaX(i) + ky_set' * DeltaY(i)));
 end
 struct_factor = struct_factor/ N/N;
 

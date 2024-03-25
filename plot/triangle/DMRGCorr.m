@@ -1,7 +1,7 @@
-Ly = 6;
-Lx = 15;
-J2 = 0;
-D=6000;
+Ly = 8;
+Lx = 24;
+J2 = 0.125;
+D=15000;
 mark_energy_value = 0;
 energy_text_size=10;
 
@@ -27,10 +27,9 @@ for i = 1:numel(corr_data1)
     [x2_idx, y2_idx, x2_coor, y2_coor] = DMRGIdx2Coor(Ly,  site2_idx);
     DeltaX(i) = x2_coor - x1_coor;
 end
-semilogy(DeltaX, abs(SpinCorr) ,'-o');
+loglog(DeltaX, abs(SpinCorr) ,'-o'); hold on;
 
 % axis tight;
-
 
 set(gca,'fontsize',24);
 set(gca,'linewidth',1.5);
