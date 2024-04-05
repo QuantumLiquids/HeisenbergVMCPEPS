@@ -10,7 +10,6 @@
 using namespace qlpeps;
 using namespace std;
 
-
 int main(int argc, char **argv) {
   VMCUpdateParams params(argv[1]);
   SplitIndexTPS<TenElemT, U1QN> split_index_tps(params.Ly, params.Lx);
@@ -32,11 +31,20 @@ int main(int argc, char **argv) {
         Tensor local_ten = split_index_tps({row, col})[i];
         double norm = local_ten.Get2Norm();
         std::vector<IndexT> index_vec(4);
+        std::cout << "\t from [";
+        for (auto d : vb_dims) {
+          std::cout << " " << d;
+        }
+        std::cout << "] to [";
         for (size_t a = 0; a < 4; a++) {
-          index_vec[a] = IndexT({QNSctT(U1QN(0), vb_dims[a] + 1)},
+          //we assume peps D >= 2
+          size_t increased_dims = (vb_dims[a] == 1 ? 1 : vb_dims[a] + 1);
+          index_vec[a] = IndexT({QNSctT(U1QN(0), increased_dims)},
                                 local_ten.GetIndex(a).GetDir()
           );
+          std::cout << " " << increased_dims;
         }
+        std::cout << "]";
         Tensor new_ten(index_vec);
         new_ten.Random(qn0);
         new_ten *= (1e-3 * norm);
@@ -49,6 +57,7 @@ int main(int argc, char **argv) {
               }
         split_index_tps({row, col})[i] = new_ten;
       }
+      std::cout << std::endl;
     }
   }
   split_index_tps.Dump();
