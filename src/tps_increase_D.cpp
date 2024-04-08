@@ -11,7 +11,13 @@ using namespace qlpeps;
 using namespace std;
 
 int main(int argc, char **argv) {
+  if (argc < 3) {
+    std::string program_name = argv[0];
+    std::cout << "Usage: " << program_name << "<vmc_params.json> <double magnitude>" << std::endl;
+    return 1;
+  }
   VMCUpdateParams params(argv[1]);
+  double magnitude = std::strtod(argv[2], nullptr);
   SplitIndexTPS<TenElemT, U1QN> split_index_tps(params.Ly, params.Lx);
   bool is_load = split_index_tps.Load();
   if (!is_load) {
@@ -47,7 +53,7 @@ int main(int argc, char **argv) {
         std::cout << "]";
         Tensor new_ten(index_vec);
         new_ten.Random(qn0);
-        new_ten *= (1e-3 * norm);
+        new_ten *= (magnitude * norm);
         for (size_t x = 0; x < vb_dims[0]; x++)
           for (size_t y = 0; y < vb_dims[1]; y++)
             for (size_t z = 0; z < vb_dims[2]; z++)
