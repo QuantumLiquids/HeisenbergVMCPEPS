@@ -1,5 +1,5 @@
-Ly = 8;
-Lx = 8;
+Ly = 10;
+Lx = 10;
 J2 = 0;
 Dpeps = 10;
 Db = 10;
@@ -70,8 +70,8 @@ end
 figure;
 imagesc(kx_set, ky_set,struct_factor);hold on;
 colorbar;
-T1=text(0,0,'$\Gamma$');
-set(T1,'Interpreter','latex');set(T1,'Fontsize',32);
+% T1=text(0,0,'$\Gamma$');
+% set(T1,'Interpreter','latex');set(T1,'Fontsize',32);
 axis equal;
 axis off;
 

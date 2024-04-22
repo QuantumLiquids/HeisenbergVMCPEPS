@@ -1,8 +1,8 @@
 Ly = 8;
-Lx = 8;
+Lx = 15;
 N = Lx * Ly;
 J2 = 0;
-D=12000;
+D = 16000;
 mark_energy_value = 0;
 energy_text_size=10;
 
@@ -57,8 +57,8 @@ end
 figure;
 imagesc(kx_set, ky_set,struct_factor);hold on;
 colorbar;
-T1=text(0,0,'$\Gamma$');
-set(T1,'Interpreter','latex');set(T1,'Fontsize',32);
+% T1=text(0,0,'$\Gamma$');
+% set(T1,'Interpreter','latex');set(T1,'Fontsize',32);
 axis equal;
 axis off;
 

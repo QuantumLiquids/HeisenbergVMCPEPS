@@ -1,12 +1,16 @@
 Ly = 8;
-Lx = 24;
-J2 = 0.125;
+Lx = 8;
+J2 = 0;
 Dpeps = 8;
 Db = 8;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;
 num_points = floor(Lx / 2);
+
+marker_color =  [019, 103, 131]/256; % Marker color for both positive and negative values
+marker_face_color = marker_color; % Filled marker color
+
 if(J2 == 0)
     filename1 = ['../../data/triangle_two_point_functions', num2str(Lx),'x', num2str(Ly),'D', num2str(Dpeps),'-',num2str(Db)];
     filename2 = ['../../data/triangle_two_point_functions', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)];
@@ -44,9 +48,21 @@ x = 1:num_points;
 ss_corr = sz_sz_corr + 0.5 * s_plus_s_minus_corr + 0.5 * s_minus_s_plus_corr;
 ss_corr_err = sqrt(sz_sz_corr_err.^2 + (0.5 * s_plus_s_minus_corr_err).^2 + (0.5 * s_minus_s_plus_corr_err).^2);
 
-h = errorbar(x, abs(ss_corr), ss_corr_err, '-x'); hold on;
+positiveIndices = ss_corr >= 0;
+negativeIndices = ss_corr < 0;
+
+
+positive_h = errorbar(x(positiveIndices), abs(ss_corr(positiveIndices)), ss_corr_err(positiveIndices), 's'); hold on;
+negative_h = errorbar(x(negativeIndices), abs(ss_corr(negativeIndices)), ss_corr_err(negativeIndices), 's');
+
+set(positive_h, 'Color', marker_color);
 set(gca, 'YScale', 'log');
 set(gca, 'XScale', 'log');
+set(positive_h, 'MarkerSize', 10);
+
+set(negative_h, 'Color', marker_color);
+set(negative_h, 'MarkerFaceColor',  marker_face_color);
+set(negative_h, 'MarkerSize', 10);
 
 set(gca,'fontsize',24);
 set(gca,'linewidth',1.5);
