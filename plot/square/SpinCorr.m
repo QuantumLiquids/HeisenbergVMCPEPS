@@ -1,9 +1,9 @@
 clear;
-Ly = 10;
+Ly = 12;
 Lx = 28;
 J2 = 0.5;
 Dpeps = 8;
-Db = 24;
+Db = 8;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;
@@ -55,4 +55,18 @@ set(get(gca,'XLabel'),'FontSize',24);
 set(get(gca,'YLabel'),'FontSize',24);
 
 
+% print the energy data
+if(J2 == 0)
+    filename1 = ['../../data/square_energy_statistics', num2str(Lx),'x', num2str(Ly),'D', num2str(Dpeps),'-',num2str(Db)];
+    filename2 = ['../../data/square_energy_statistics', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)];
+    if(exist(filename2,"file"))
+        file_id = fopen(filename2,'rb');
+    else
+        file_id = fopen(filename1,'rb');
+    end
+else
+    file_id = fopen(['../../data/square_energy_statistics', num2str(Lx),'x', num2str(Ly), 'J2',num2str(J2),'D', num2str(Dpeps),'-',num2str(Db)],'rb');
+end
+data = fread(file_id, num_points * 6, 'double');
+fclose(file_id);
 

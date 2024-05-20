@@ -1,13 +1,14 @@
-Ly = 10;
-Lx = 10;
+Ly = 8;
+Lx = 16;
 N = Lx * Ly;
-J2 = 0;
-D = 18000;
+J2 = 0.125;
+D = 15000;
 mark_energy_value = 0;
 energy_text_size = 10;
 
 bond_with_scale = 10;
 marker_color =  [255,158,002] / 256; % Marker color for both positive and negative values
+% marker_color =  [019, 103, 131]/256;
 marker_face_color = marker_color; % Filled marker color
 
 corr_file1 = ['../../data/triangle_dmrg', num2str(Ly), 'x', num2str(Lx), 'J2', num2str(J2), 'D', num2str(D), 'corrzz.json'];
@@ -32,14 +33,14 @@ end
 positiveIndices = SpinCorr >= 0;
 negativeIndices = SpinCorr < 0;
 
-loglog(DeltaX(positiveIndices), abs(SpinCorr(positiveIndices)), 'o','Color', marker_color); hold on;
+h1=loglog(DeltaX(positiveIndices), abs(SpinCorr(positiveIndices)), 'o','Color', marker_color); hold on;
 loglog(DeltaX(negativeIndices), abs(SpinCorr(negativeIndices)), 'o', 'Color', marker_color, 'MarkerFaceColor',  marker_face_color);
 
 
 set(gca, 'fontsize', 24);
 set(gca, 'linewidth', 1.5);
 set(get(gca, 'Children'), 'linewidth', 2); % Set line width 1.5 pounds
-xlabel('$\Delta x$', 'Interpreter', 'latex');
+xlabel('$r$', 'Interpreter', 'latex');
 ylabel('$\langle \bf S_i \cdot \bf S_j\rangle$', 'Interpreter', 'latex');
 set(get(gca, 'XLabel'), 'FontSize', 24);
 set(get(gca, 'YLabel'), 'FontSize', 24);

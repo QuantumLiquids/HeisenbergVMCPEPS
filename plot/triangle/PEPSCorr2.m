@@ -1,8 +1,8 @@
 Ly = 8;
-Lx = 24;
+Lx = 16;
 J2 = 0.125;
-Dpeps = 8;
-Db = 8;
+Dpeps = 10;
+Db = 10;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;
@@ -52,15 +52,15 @@ positiveIndices = ss_corr >= 0;
 negativeIndices = ss_corr < 0;
 
 
-positive_h = errorbar(x(positiveIndices), abs(ss_corr(positiveIndices)), ss_corr_err(positiveIndices), 's'); hold on;
-negative_h = errorbar(x(negativeIndices), abs(ss_corr(negativeIndices)), ss_corr_err(negativeIndices), 's');
+positive_h2 = errorbar(x(positiveIndices), abs(ss_corr(positiveIndices)), ss_corr_err(positiveIndices), 'diamond'); hold on;
+negative_h = errorbar(x(negativeIndices), abs(ss_corr(negativeIndices)), ss_corr_err(negativeIndices), 'diamond');
 
 plot(x, abs(ss_corr),'-.', 'Color',marker_color);
 
-set(positive_h, 'Color', marker_color);
+set(positive_h2, 'Color', marker_color);
 set(gca, 'YScale', 'log');
 set(gca, 'XScale', 'log');
-set(positive_h, 'MarkerSize', marker_size);
+set(positive_h2, 'MarkerSize', marker_size);
 
 set(negative_h, 'Color', marker_color);
 set(negative_h, 'MarkerFaceColor',  marker_face_color);
