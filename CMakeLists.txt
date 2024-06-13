@@ -150,9 +150,12 @@ add_executable(square_mc_measure src/square_mc_measure.cpp src/myutil.cpp)
 
 
 add_executable(triangle_simple_update src/triangle_simple_update.cpp)
+add_executable(triangle_simple_update_c src/triangle_simple_update_complex.cpp)
 add_executable(triangle_vmc_update src/triangle_vmc_update.cpp src/myutil.cpp)
+add_executable(triangle_vmc_update_c src/triangle_vmc_update_complex.cpp src/myutil.cpp)
 add_executable(triangle_vmc_update_no_u1 src/triangle_vmc_update_no_u1.cpp src/myutil.cpp)
 add_executable(triangle_mc_measure src/triangle_mc_measure.cpp src/myutil.cpp)
+add_executable(triangle_mc_measure_c src/triangle_mc_measure_complex.cpp src/myutil.cpp)
 add_executable(triangle_vmps src/triangle_vmps.cpp src/myutil.cpp)
 add_executable(triangle_dmrg src/triangle_dmrg.cpp src/myutil.cpp)
 add_executable(triangle_dmrg_measure src/triangle_dmrg_measure.cpp src/myutil.cpp)
@@ -169,3 +172,4 @@ add_executable(increaseD src/tps_increase_D.cpp src/myutil.cpp)
 add_executable(extend src/sitps_space_extension.cpp src/myutil.cpp)
 
 add_executable(zero_evolve src/square_peps_zero_evolve.cpp)
+add_executable(zero_evolve_c src/square_peps_zero_evolve_complex.cpp)
