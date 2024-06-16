@@ -36,10 +36,10 @@ int main(int argc, char **argv) {
   peps0.Gamma = tps;
   for (size_t row = 1; row < peps0.lambda_vert.rows() - 1; row++) {
     for (size_t col = 0; col < peps0.lambda_vert.cols(); col++) {
-      Tensor &lambda = peps0.lambda_vert({row, col});
+      auto &lambda = peps0.lambda_vert({row, col});
       Index<U1QN> up_index = InverseIndex(peps0.Gamma({row - 1, col}).GetIndex(1));
       Index<U1QN> dn_index = InverseIndex(peps0.Gamma({row, col}).GetIndex(3));
-      lambda = Tensor({up_index, dn_index});
+      lambda = QLTensor<double, U1QN>({up_index, dn_index});
       for (size_t i = 0; i < up_index.dim(); i++)
         lambda({i, i}) = 1.0;
     }
@@ -47,10 +47,10 @@ int main(int argc, char **argv) {
 
   for (size_t row = 0; row < peps0.lambda_horiz.rows(); row++) {
     for (size_t col = 1; col < peps0.lambda_horiz.cols() - 1; col++) {
-      Tensor &lambda = peps0.lambda_horiz({row, col});
+      auto &lambda = peps0.lambda_horiz({row, col});
       Index<U1QN> left_index = peps0.Gamma({row, col}).GetIndex(0);
       Index<U1QN> right_index = InverseIndex(left_index);
-      lambda = Tensor({left_index, right_index});
+      lambda = QLTensor<double, U1QN>({left_index, right_index});
       for (size_t i = 0; i < left_index.dim(); i++)
         lambda({i, i}) = 1.0;
     }
