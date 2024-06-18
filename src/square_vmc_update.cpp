@@ -10,7 +10,7 @@
 #include "./qldouble.h"
 #include "qlpeps/algorithm/vmc_update/vmc_peps.h"
 #include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_heisenberg_square.h"    // SpinOneHalfHeisenbergSquare
-#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_squareJ1J2.h"           // SpinOneHalfJ1J2HeisenbergSquare
+#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_squareJ1J2.h"           // SpinOneHalfPlanarJ1J2HeisenbergSquare
 #include "qlpeps/algorithm/vmc_update/wave_function_component_classes/square_tps_sample_3site_exchange.h"
 #include "params_parser.h"
 #include "myutil.h"
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     executor->Execute();
     delete executor;
   } else {
-    using Model = SpinOneHalfJ1J2HeisenbergSquare<QLTEN_Double, U1QN>;
+    using Model = SpinOneHalfPlanarJ1J2HeisenbergSquare<QLTEN_Double, U1QN>;
     VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);

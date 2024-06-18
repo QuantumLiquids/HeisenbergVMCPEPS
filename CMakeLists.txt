@@ -148,6 +148,9 @@ add_executable(square_simple_update src/square_simple_update.cpp)
 add_executable(square_vmc_update src/square_vmc_update.cpp src/myutil.cpp)
 add_executable(square_mc_measure src/square_mc_measure.cpp src/myutil.cpp)
 
+add_executable(square_planar_simple_update src/square_planar_simple_update.cpp)
+add_executable(square_planar_vmc_update src/square_planar_vmc_update.cpp src/myutil.cpp)
+
 
 add_executable(triangle_simple_update src/triangle_simple_update.cpp)
 add_executable(triangle_simple_update_c src/triangle_simple_update_complex.cpp)
