@@ -153,6 +153,7 @@ add_executable(square_planar_vmc_update src/square_planar_vmc_update.cpp src/myu
 
 
 add_executable(triangle_simple_update src/triangle_simple_update.cpp)
+add_executable(triangle_loop_update src/triangle_loop_update.cpp)
 add_executable(triangle_simple_update_c src/triangle_simple_update_complex.cpp)
 add_executable(triangle_vmc_update src/triangle_vmc_update.cpp src/myutil.cpp)
 add_executable(triangle_vmc_update_c src/triangle_vmc_update_complex.cpp src/myutil.cpp)

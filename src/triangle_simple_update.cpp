@@ -102,8 +102,8 @@ int main(int argc, char **argv) {
           case 0:peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = 0;
             peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = 1; // spin down;
             break;
-          case 1:peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = std::sqrt(3.0) / 2.0;
-            peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = 1.0 / 2.0;
+          case 1:peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = -std::sqrt(3.0) / 2.0;
+            peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = -1.0 / 2.0;
             break;
           case 2:peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = std::sqrt(3.0) / 2.0;
             peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = -1.0 / 2.0;
