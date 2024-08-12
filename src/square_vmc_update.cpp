@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     executor->Execute();
     delete executor;
   } else {
-    using Model = SpinOneHalfPlanarJ1J2HeisenbergSquare<QLTEN_Double, U1QN>;
+    using Model = SpinOneHalfJ1J2HeisenbergSquare<QLTEN_Double, U1QN>;
     VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);

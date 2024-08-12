@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
                                        params.Dmin, params.Dmax,
                                        params.TruncErr);
 
-  ArnoldiParams arnoldi_params(1e-10, 30);
+  ArnoldiParams arnoldi_params(1e-10, 200);
   double fet_tol = 1e-12;
   double fet_max_iter = 30;
   ConjugateGradientParams cg_params(100, 1e-10, 20, 0.0);
