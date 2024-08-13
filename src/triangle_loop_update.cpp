@@ -6,7 +6,7 @@
 */
 
 
-//#define PLAIN_TRANSPOSE 1
+#define PLAIN_TRANSPOSE 1
 
 #include "qlpeps/algorithm/loop_update/loop_update.h"
 #include "./qldouble.h"
@@ -120,7 +120,8 @@ int main(int argc, char **argv) {
   using namespace qlpeps;
   SimpleUpdateParams params(argv[1]);
 
-  qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
+  qlten::hp_numeric::SetTensorManipulationThreads(1);
+  omp_set_num_threads(params.ThreadNum);
   size_t Lx = params.Lx;
   size_t Ly = params.Ly;
 
