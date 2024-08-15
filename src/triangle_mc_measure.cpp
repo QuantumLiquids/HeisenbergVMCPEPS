@@ -48,7 +48,15 @@ int main(int argc, char **argv) {
                                                                                       params.Ly, params.Lx,
                                                                                       world);
     } else {
-
+      TPS<TenElemT, U1QN> tps = TPS<TenElemT, U1QN>(params.Ly, params.Lx);
+      if (!tps.Load()) {
+        std::cout << "Loading simple updated TPS files is broken." << std::endl;
+        exit(-2);
+      };
+      SplitIndexTPS<TenElemT, U1QN> split_index_tps(tps);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                                      split_index_tps,
+                                                                                      world);
     }
 
     if (params.ReplicaTest) {
@@ -68,7 +76,15 @@ int main(int argc, char **argv) {
                                                                                       params.Ly, params.Lx,
                                                                                       world, j1j2solver);
     } else {
-
+      TPS<TenElemT, U1QN> tps = TPS<TenElemT, U1QN>(params.Ly, params.Lx);
+      if (!tps.Load()) {
+        std::cout << "Loading simple updated TPS files is broken." << std::endl;
+        exit(-2);
+      };
+      SplitIndexTPS<TenElemT, U1QN> split_index_tps(tps);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+                                                                                      split_index_tps,
+                                                                                      world, j1j2solver);
     }
 
     if (params.ReplicaTest) {
