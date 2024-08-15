@@ -54,6 +54,7 @@ int main(int argc, char **argv) {
         exit(-2);
       };
       SplitIndexTPS<TenElemT, U1QN> split_index_tps(tps);
+      split_index_tps.NormalizeAllSite();
       std::cout << "Show Split Index TPS tensors Info :" << std::endl;
       for (auto &tens : split_index_tps) {
         for (auto &ten : tens) {
