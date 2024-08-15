@@ -54,6 +54,12 @@ int main(int argc, char **argv) {
         exit(-2);
       };
       SplitIndexTPS<TenElemT, U1QN> split_index_tps(tps);
+      std::cout << "Show Split Index TPS tensors Info :" << std::endl;
+      for (auto &tens : split_index_tps) {
+        for (auto &ten : tens) {
+          ten.ConciseShow();
+        }
+      }
       executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
                                                                                       split_index_tps,
                                                                                       world);
