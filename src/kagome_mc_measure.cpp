@@ -119,10 +119,10 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  qlpeps::VMCOptimizePara optimize_para;
+  qlpeps::MCMeasurementPara measurement_para;
   if (params.RemoveCorner) {
     Configuration init_config = GenerateInitialConfigurationInSmoothBoundary(params.Ly, params.Lx);
-    optimize_para = qlpeps::VMCOptimizePara(
+    measurement_para = qlpeps::MCMeasurementPara(
         BMPSTruncatePara(params.Db_min, params.Db_max,
                          params.TruncErr,
                          params.MPSCompressScheme,
@@ -130,11 +130,9 @@ int main(int argc, char **argv) {
                          std::make_optional<size_t>(10)),
         params.MC_samples, params.WarmUp,
         params.MCLocalUpdateSweepsBetweenSample,
-        init_config,
-        params.step_len,
-        params.update_scheme);
+        init_config);
   } else {
-    optimize_para = qlpeps::VMCOptimizePara(
+    measurement_para = qlpeps::MCMeasurementPara(
         BMPSTruncatePara(params.Db_min, params.Db_max,
                          params.TruncErr,
                          params.MPSCompressScheme,
@@ -143,15 +141,13 @@ int main(int argc, char **argv) {
         params.MC_samples, params.WarmUp,
         params.MCLocalUpdateSweepsBetweenSample,
         occupation_num,
-        params.Ly, params.Lx,
-        params.step_len,
-        params.update_scheme);
+        params.Ly, params.Lx);
   }
 
   using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
   MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
-  if (qlmps::IsPathExist(optimize_para.wavefunction_path)) {
-    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+  if (qlmps::IsPathExist(measurement_para.wavefunction_path)) {
+    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
                                                                                     params.Ly, params.Lx,
                                                                                     world);
   } else {  //after simple update, load from PEPS tensors
@@ -164,7 +160,7 @@ int main(int argc, char **argv) {
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }
-    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
                                                                                     split_idx_tps,
                                                                                     world);
   }

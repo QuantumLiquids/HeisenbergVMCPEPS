@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
 
   size_t N = params.Lx * params.Ly;
-  qlpeps::VMCOptimizePara optimize_para(
+  qlpeps::MCMeasurementPara measurement_para(
       BMPSTruncatePara(params.Db_min, params.Db_max,
                        params.TruncErr,
                        params.MPSCompressScheme,
@@ -32,16 +32,15 @@ int main(int argc, char **argv) {
       params.MC_samples, params.WarmUp,
       params.MCLocalUpdateSweepsBetweenSample,
       std::vector<size_t>{N / 2, N / 2},
-      params.Ly, params.Lx,
-      params.step_len,
-      params.update_scheme);
+      params.Ly, params.Lx);
 
   if (params.J2 == 0) {
     using Model = SpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
     MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
 
-    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exsit
-      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+    if (IsFileExist(
+        measurement_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exsit
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
                                                                                       params.Ly, params.Lx,
                                                                                       world);
     } else {
@@ -50,17 +49,13 @@ int main(int argc, char **argv) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
                                                                                       SplitIndexTPS<TenElemT,
                                                                                                     U1QN>(tps),
                                                                                       world);
     }
 
-    if (params.ReplicaTest) {
-      executor->ReplicaTest();
-    } else {
-      executor->Execute();
-    }
+    executor->Execute();
     delete executor;
     std::string bondinfo_filename = "energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
   } else {
@@ -68,19 +63,23 @@ int main(int argc, char **argv) {
     MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
-    if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exsit
-      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+    if (IsFileExist(
+        measurement_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exsit
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
                                                                                       params.Ly, params.Lx,
                                                                                       world, j1j2solver);
     } else {
-
+      TPS<QLTEN_Double, U1QN> tps = TPS<QLTEN_Double, U1QN>(params.Ly, params.Lx);
+      if (!tps.Load()) {
+        std::cout << "Loading simple updated TPS files is broken." << std::endl;
+        exit(-2);
+      };
+      executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
+                                                                                      SplitIndexTPS<TenElemT,
+                                                                                                    U1QN>(tps),
+                                                                                      world, j1j2solver);
     }
-
-    if (params.ReplicaTest) {
-      executor->ReplicaTest();
-    } else {
-      executor->Execute();
-    }
+    executor->Execute();
   }
 
   return 0;
