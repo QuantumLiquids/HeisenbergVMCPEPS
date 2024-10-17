@@ -8,12 +8,9 @@
 */
 
 #include "./qldouble.h"
-#include "qlpeps/algorithm/vmc_update/vmc_peps.h"
-#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_heisenberg_square.h"    // SpinOneHalfHeisenbergSquare
-#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_squareJ1J2.h"           // SpinOneHalfPlanarJ1J2HeisenbergSquare
-#include "qlpeps/algorithm/vmc_update/wave_function_component_classes/square_tps_sample_3site_exchange.h"
 #include "params_parser.h"
 #include "myutil.h"
+#include "qlpeps/qlpeps.h"
 
 using namespace qlpeps;
 

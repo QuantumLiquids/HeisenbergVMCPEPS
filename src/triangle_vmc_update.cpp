@@ -8,10 +8,7 @@
 */
 
 #include "./qldouble.h"
-#include "qlpeps/algorithm/vmc_update/vmc_peps.h"
-#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_triangle_heisenberg_sqrpeps.h"
-#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_triangle_heisenbergJ1J2_sqrpeps.h"
-#include "qlpeps/algorithm/vmc_update/wave_function_component_classes/square_tps_sample_3site_exchange.h"
+#include "qlpeps/qlpeps.h"
 #include "params_parser.h"
 #include "myutil.h"
 
