@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
   }
   auto *loop_exe = new LoopUpdateExecutor<QLTEN_Double, U1QN>(LoopUpdateTruncatePara(
                                                                   arnoldi_params,
+                                                                  1e-8,
                                                                   fet_params),
                                                               params.Step,
                                                               params.Tau,
