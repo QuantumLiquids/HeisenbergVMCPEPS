@@ -24,7 +24,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
   KagomeCombinedTPSSampleLoaclFlip(const SplitIndexTPS<TenElemT, QNT> &sitps, const Configuration &config)
       : WaveFunctionComponentT(config), tn(config.rows(), config.cols()) {
     tn = TensorNetwork2D<TenElemT, QNT>(sitps, config);
-    tn.GrowBMPSForRow(0, this->trun_para);
+    tn.GrowBMPSForRow(0, this->trun_para.value());
     tn.GrowFullBTen(RIGHT, 0, 2, true);
     tn.InitBTen(LEFT, 0);
     this->amplitude = tn.Trace({0, 0}, HORIZONTAL);
@@ -38,7 +38,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
                   const std::vector<size_t> &occupancy_num) {
     this->config.Random(occupancy_num);
     tn = TensorNetwork2D<TenElemT, QNT>(sitps, this->config);
-    tn.GrowBMPSForRow(0, this->trun_para);
+    tn.GrowBMPSForRow(0, this->trun_para.value());
     tn.GrowFullBTen(RIGHT, 0, 2, true);
     tn.InitBTen(LEFT, 0);
     this->amplitude = tn.Trace({0, 0}, HORIZONTAL);
@@ -51,7 +51,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
                              std::vector<double> &accept_rates) {
     size_t accept_num_tri = 0;
     size_t accept_num_bond = 0;
-    tn.GenerateBMPSApproach(UP, this->trun_para);
+    tn.GenerateBMPSApproach(UP, this->trun_para.value());
     for (size_t row = 0; row < tn.rows() - 1; row++) {
       tn.InitBTen(LEFT, row);
       tn.GrowFullBTen(RIGHT, row, 1, true);
@@ -63,7 +63,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
       }
       accept_num_tri += CompressedKagomeLatticeInnerSiteVerticalBondExchangeUpdate_({row, tn.cols() - 1}, sitps,
                                                                                     u_double, HORIZONTAL);
-      tn.BMPSMoveStep(DOWN, this->trun_para);
+      tn.BMPSMoveStep(DOWN, this->trun_para.value());
     }
     //for the last row flip update
     size_t last_row_idx = tn.rows() - 1;
@@ -81,7 +81,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
     tn.DeleteInnerBMPS(LEFT);
     tn.DeleteInnerBMPS(RIGHT);
 
-    tn.GenerateBMPSApproach(LEFT, this->trun_para);
+    tn.GenerateBMPSApproach(LEFT, this->trun_para.value());
     for (size_t col = 0; col < tn.cols() - 1; col++) {
       tn.InitBTen(UP, col);
       tn.GrowFullBTen(DOWN, col, 1, true);
@@ -93,7 +93,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
       }
       accept_num_tri += CompressedKagomeLatticeInnerSiteHorizontalBondExchangeUpdate_({tn.rows() - 1, col}, sitps,
                                                                                       u_double, VERTICAL);
-      tn.BMPSMoveStep(RIGHT, this->trun_para);
+      tn.BMPSMoveStep(RIGHT, this->trun_para.value());
     }
     size_t last_col_idx = tn.cols() - 1;
     tn.InitBTen(UP, last_col_idx);
@@ -121,7 +121,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
                                                              size_t &accept_num_bond) {
     accept_num_tri = 0;
     accept_num_bond = 0;
-    tn.GenerateBMPSApproach(UP, this->trun_para);
+    tn.GenerateBMPSApproach(UP, this->trun_para.value());
     for (size_t row = 0; row < tn.rows(); row++) {
       tn.InitBTen(LEFT, row);
       tn.GrowFullBTen(RIGHT, row, 1, true);
@@ -133,14 +133,14 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
       }
       accept_num_tri += CompressedKagomeLatticeSingleSiteUpdate_({row, tn.cols() - 1}, sitps, u_double, HORIZONTAL);
       if (row < tn.rows() - 1) {
-        tn.BMPSMoveStep(DOWN, this->trun_para);
+        tn.BMPSMoveStep(DOWN, this->trun_para.value());
       }
     }
 
     tn.DeleteInnerBMPS(LEFT);
     tn.DeleteInnerBMPS(RIGHT);
 
-    tn.GenerateBMPSApproach(LEFT, this->trun_para);
+    tn.GenerateBMPSApproach(LEFT, this->trun_para.value());
     for (size_t col = 0; col < tn.cols(); col++) {
       tn.InitBTen(UP, col);
       tn.GrowFullBTen(DOWN, col, 1, true);
@@ -153,7 +153,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
         }
       }
       if (col < tn.cols() - 1) {
-        tn.BMPSMoveStep(RIGHT, this->trun_para);
+        tn.BMPSMoveStep(RIGHT, this->trun_para.value());
       }
     }
 
@@ -164,7 +164,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
   size_t MCSequentiallyNNFlipSweep(const SplitIndexTPS<TenElemT, QNT> &sitps,
                                    std::uniform_real_distribution<double> &u_double) {
     size_t accept_num = 0;
-    tn.GenerateBMPSApproach(UP, this->trun_para);
+    tn.GenerateBMPSApproach(UP, this->trun_para.value());
     for (size_t row = 0; row < tn.rows(); row++) {
       tn.InitBTen(LEFT, row);
       tn.GrowFullBTen(RIGHT, row, 2, true);
@@ -175,14 +175,14 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
         }
       }
       if (row < tn.rows() - 1) {
-        tn.BMPSMoveStep(DOWN, this->trun_para);
+        tn.BMPSMoveStep(DOWN, this->trun_para.value());
       }
     }
 
     tn.DeleteInnerBMPS(LEFT);
     tn.DeleteInnerBMPS(RIGHT);
 
-    tn.GenerateBMPSApproach(LEFT, this->trun_para);
+    tn.GenerateBMPSApproach(LEFT, this->trun_para.value());
     for (size_t col = 0; col < tn.cols(); col++) {
       tn.InitBTen(UP, col);
       tn.GrowFullBTen(DOWN, col, 2, true);
@@ -193,7 +193,7 @@ class KagomeCombinedTPSSampleLoaclFlip : public WaveFunctionComponent<TenElemT, 
         }
       }
       if (col < tn.cols() - 1) {
-        tn.BMPSMoveStep(RIGHT, this->trun_para);
+        tn.BMPSMoveStep(RIGHT, this->trun_para.value());
       }
     }
 

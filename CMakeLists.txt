@@ -177,3 +177,5 @@ add_executable(extend src/sitps_space_extension.cpp src/myutil.cpp)
 
 add_executable(zero_evolve src/square_peps_zero_evolve.cpp)
 add_executable(zero_evolve_c src/square_peps_zero_evolve_complex.cpp)
+
+add_executable(fluctuation src_vmc_boost/fluctuation_vmc_update.cpp src/myutil.cpp)

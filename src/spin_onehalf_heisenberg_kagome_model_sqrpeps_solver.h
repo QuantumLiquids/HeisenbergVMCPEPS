@@ -118,7 +118,7 @@ ObservablesLocal<TenElemT> KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElem
   energy_bond.reserve(ly * lx * 6);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = tps_sample->trun_para;
+  const BMPSTruncatePara &trunc_para = tps_sample->trun_para.value();
   TenElemT inv_psi;
   tn.GenerateBMPSApproach(UP, trunc_para);
   for (size_t row = 0; row < tn.rows() - 1; row++) {
@@ -319,7 +319,7 @@ TenElemT KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, QNT>::CalEnergy
   TenElemT energy(0);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = tps_sample->trun_para;
+  const BMPSTruncatePara &trunc_para = tps_sample->trun_para.value();
   TenElemT inv_psi;
   const size_t tri_right_bound = tn.cols() - (size_t) remove_corner_;
   const size_t tri_lower_bound = tn.rows() - (size_t) remove_corner_;

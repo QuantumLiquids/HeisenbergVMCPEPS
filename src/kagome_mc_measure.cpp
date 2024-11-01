@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
   }
 
   if (params.ReplicaTest) {
-    executor->ReplicaTest();
+//    executor->ReplicaTest();
   } else {
     executor->Execute();
   }
