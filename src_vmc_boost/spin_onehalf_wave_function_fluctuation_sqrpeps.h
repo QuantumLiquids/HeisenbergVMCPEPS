@@ -46,7 +46,7 @@ template<typename WaveFunctionComponentType, bool calchols>
 TenElemT SpinOneHalfWaveFunctionFluctuationSqrPEPS<TenElemT, QNT>::CalEnergyAndHoles(const SITPS *split_index_tps,
                                                                                      WaveFunctionComponentType *tps_sample,
                                                                                      TensorNetwork2D<TenElemT,
-                                                                                                      QNT> &hole_res) {
+                                                                                                     QNT> &hole_res) {
   TenElemT e(0);
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
@@ -70,6 +70,9 @@ TenElemT SpinOneHalfWaveFunctionFluctuationSqrPEPS<TenElemT, QNT>::CalEnergyAndH
       if (col < tn.cols() - 1) {
         tn.BTenMoveStep(RIGHT);
       }
+    }
+    if (row < tn.rows() - 1) {
+      tn.BMPSMoveStep(DOWN, trunc_para);
     }
   }
 

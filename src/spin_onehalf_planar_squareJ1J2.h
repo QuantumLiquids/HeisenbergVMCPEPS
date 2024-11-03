@@ -15,7 +15,8 @@ namespace qlpeps {
 using namespace qlten;
 
 template<typename TenElemT, typename QNT>
-class SpinOneHalfPlanarJ1J2HeisenbergSquare : public ModelEnergySolver<TenElemT, QNT>, ModelMeasurementSolver<TenElemT, QNT> {
+class SpinOneHalfPlanarJ1J2HeisenbergSquare : public ModelEnergySolver<TenElemT, QNT>,
+                                              ModelMeasurementSolver<TenElemT, QNT> {
   using SITPS = SplitIndexTPS<TenElemT, QNT>;
  public:
   SpinOneHalfPlanarJ1J2HeisenbergSquare(void) = delete;
@@ -52,7 +53,7 @@ ObservablesLocal<TenElemT> SpinOneHalfPlanarJ1J2HeisenbergSquare<TenElemT, QNT>:
   res.bond_energys_loc.reserve(tn.rows() * tn.cols() * 4);
   res.two_point_functions_loc.reserve(tn.cols() / 2 * 3);
   const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = SquareTPSSampleNNExchange<TenElemT, QNT>::trun_para;
+  const BMPSTruncatePara &trunc_para = tps_sample->trun_para.value();
   TenElemT inv_psi = 1.0 / (tps_sample->amplitude);
   tn.GenerateBMPSApproach(UP, trunc_para);
   std::vector<TenElemT> psi_gather;
@@ -212,7 +213,7 @@ CalEnergyAndHoles(const SITPS *split_index_tps,
   TenElemT e1(0), e2(0); // energy in J1 and J2 bond respectively
   TensorNetwork2D<TenElemT, QNT> &tn = tps_sample->tn;
   const Configuration &config = tps_sample->config;
-  const BMPSTruncatePara &trunc_para = SquareTPSSampleNNExchange<TenElemT, QNT>::trun_para;
+  const BMPSTruncatePara &trunc_para = tps_sample->trun_para.value();
   TenElemT inv_psi = 1.0 / (tps_sample->amplitude);
   tn.GenerateBMPSApproach(UP, trunc_para);
   std::vector<TenElemT> psi_gather;
