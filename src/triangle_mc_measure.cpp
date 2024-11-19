@@ -62,13 +62,8 @@ int main(int argc, char **argv) {
                                                                                       world);
     }
 
-    params.ReplicaTest = false;
-    if (params.ReplicaTest) {
-      executor->ReplicaTest();
-    } else {
-      executor->Execute();
-      executor->OutputEnergy();
-    }
+    executor->Execute();
+    executor->OutputEnergy();
     delete executor;
     std::string bondinfo_filename = "energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
   } else {
@@ -93,13 +88,8 @@ int main(int argc, char **argv) {
                                                                                       world, j1j2solver);
     }
 
-    params.ReplicaTest = false;
-    if (params.ReplicaTest) {
-      executor->ReplicaTest();
-    } else {
-      executor->Execute();
-      executor->OutputEnergy();
-    }
+    executor->Execute();
+    executor->OutputEnergy();
   }
 
   return 0;

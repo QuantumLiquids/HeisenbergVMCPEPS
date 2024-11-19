@@ -80,6 +80,7 @@ int main(int argc, char **argv) {
                                                                                       world, j1j2solver);
     }
     executor->Execute();
+    executor->OutputEnergy();
   }
 
   return 0;
