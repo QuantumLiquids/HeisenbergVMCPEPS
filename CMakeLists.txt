@@ -50,132 +50,86 @@ option(COMPILE_FIX_CODE "compile the fixing code" OFF)
 # Compilation and linking control.
 add_definitions(-Wall -g)
 
-if (U1SYM)
-    add_definitions(-DU1SYM)
-    message("USE U1 symmetry code.")
+if (DEFINED U1SYM)
+    add_definitions(-DU1SYM=${U1SYM})
+    message("USE U1 symmetry code with U1SYM=${U1SYM}.")
 endif ()
 
-if (APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-        set(MATH_LIB_COMPILE_FLAGS "-I$ENV{MKLROOT}/include")
-        #Need test
-        set(MATH_LIB_LINK_FLAGS $ENV{MKLROOT}/lib/libmkl_intel_lp64.a $ENV{MKLROOT}/lib/libmkl_intel_thread.a $ENV{MKLROOT}/lib/libmkl_core.a -liomp5 -lpthread -lm -ldl)
-    endif ()
-    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        set(MATH_LIB_COMPILE_FLAGS -m64 -I$ENV{MKLROOT}/include)
-        # May not work
-        set(MATH_LIB_LINK_FLAGS $ENV{MKLROOT}/lib/libmkl_intel_lp64.a $ENV{MKLROOT}/lib/libmkl_intel_thread.a $ENV{MKLROOT}/lib/libmkl_core.a -L$ENV{MKLROOT}/lib -L$ENV{CMPLR_ROOT}/mac/compiler/lib/ -liomp5 -lpthread -lm -ldl)
-    endif ()
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set(MATH_LIB_COMPILE_FLAGS -m64 -I$ENV{MKLROOT}/include)
-        # Note as of Intel oneAPI 2021.2, "source /opt/intel/oneapi/compiler/latest/env/vars.sh"
-        set(MATH_LIB_LINK_FLAGS $ENV{MKLROOT}/lib/libmkl_intel_lp64.a $ENV{MKLROOT}/lib/libmkl_intel_thread.a $ENV{MKLROOT}/lib/libmkl_core.a -L$ENV{MKLROOT}/lib -L$ENV{CMPLR_ROOT}/mac/compiler/lib/ -Wl, -rpath $ENV{CMPLR_ROOT}/mac/compiler/lib/libiomp5.dylib -liomp5 -lpthread -lm -ldl)
-    endif ()
-elseif (APPLE) #ARM
+
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+    set(BLA_VENDOR Intel10_64lp_seq)   #FOR VENDOR CHOICE: https://cmake.org/cmake/help/latest/module/FindBLAS.html
+    set(BLAS_INCLUDE_DIR "$ENV{MKLROOT}/include")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") # (e.g., Apple Silicon)
     add_definitions(-DUSE_OPENBLAS)
     set(BLA_VENDOR OpenBLAS)
-    #        FIND_PACKAGE(BLAS REQUIRED)
-    #        FIND_PACKAGE(LAPACK REQUIRED)
-    set(OpenBLAS_ROOT "/opt/homebrew/opt/openblas/")
+    set(OpenBLAS_ROOT "/opt/homebrew/opt/openblas/") #work for homebrew installed openblas in MacOSX
     set(Lapack_ROOT "/opt/homebrew/opt/lapack")
-    message(${OpenBLAS_ROOT})
-    set(OpenBLAS_INCLUDE_DIRS "${OpenBLAS_ROOT}/include")
-    set(OpenBLAS_LIBRARIES "${OpenBLAS_ROOT}/lib/libblas.dylib")
-    message(${OpenBLAS_LIBRARIES})
-    set(MATH_LIB_COMPILE_FLAGS -I${OpenBLAS_INCLUDE_DIRS} -pthread)
-    set(MATH_LIB_LINK_FLAGS ${OpenBLAS_LIBRARIES} ${OpenBLAS_ROOT}/lib/liblapack.dylib -lm -lpthread -ldl -fopenmp -lclapack)
-
-elseif (UNIX)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "~/.local/")
-    message("CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}")
-
-    #UNIX include APPLE, but we except it here
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-        set(MATH_LIB_COMPILE_FLAGS "-I$ENV{MKLROOT}/include")
-        set(MATH_LIB_LINK_FLAGS -Wl,--start-group $ENV{MKLROOT}/lib/intel64/libmkl_intel_lp64.a $ENV{MKLROOT}/lib/intel64/libmkl_intel_thread.a $ENV{MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -liomp5 -lpthread -lm -ldl)
-    endif ()
-    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        set(MATH_LIB_COMPILE_FLAGS -m64 -I$ENV{MKLROOT}/include)
-        # Link the Intel's OpenMP library to avoid performance issue when the library calls the MKL's gesdd function.
-        set(MATH_LIB_LINK_FLAGS -Wl,--start-group $ENV{MKLROOT}/lib/intel64/libmkl_intel_lp64.a $ENV{MKLROOT}/lib/intel64/libmkl_intel_thread.a $ENV{MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -L$ENV{MKLROOT}/lib/intel64 -liomp5 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_rt -lmkl_core -lpthread -Wl,--no-as-needed -ldl)
-    endif ()
-    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set(MATH_LIB_COMPILE_FLAGS -m64 -I$ENV{MKLROOT}/include)
-        set(MATH_LIB_LINK_FLAGS -Wl,--start-group $ENV{MKLROOT}/lib/intel64/libmkl_intel_lp64.a $ENV{MKLROOT}/lib/intel64/libmkl_intel_thread.a $ENV{MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -L$ENV{MKLROOT}/lib/intel64 -liomp5 -lpthread -lm -ldl)
-    endif ()
+    set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OpenBLAS_ROOT} ${Lapack_ROOT}) # For find
+    set(BLAS_INCLUDE_DIR "${OpenBLAS_ROOT}/include")
 endif ()
+
+FIND_PACKAGE(BLAS REQUIRED)
+FIND_PACKAGE(LAPACK REQUIRED)
+find_package(MPI REQUIRED)
+find_package(OpenMP REQUIRED) # link necessary
 
 
 find_path(TENSOR_HEADER_PATH "qlten")
 find_path(MPS_HEADER_PATH "qlmps")
 find_path(PEPS_HEADER_PATH "qlpeps")
 find_package(hptt)
-find_package(Boost
-        1.74.0
-        REQUIRED
-        COMPONENTS serialization mpi)
-find_package(MPI REQUIRED)
-#set omp flag
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    set(OMP_FLAGS -qopenmp)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(OMP_FLAGS -fopenmp)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(OMP_FLAGS -fopenmp)
-endif ()
 
-#find openmp?
-add_compile_options(${MATH_LIB_COMPILE_FLAGS} ${OMP_FLAGS})
 
-include_directories(${MPS_HEADER_PATH}
-        ${TENSOR_HEADER_PATH}
-        ${PEPS_HEADER_PATH}
-        ${hptt_INCLUDE_DIR}
-        ${Boost_INCLUDE_DIR}
+include_directories(
         ${MPI_CXX_HEADER_DIR}
+        ${BLAS_INCLUDE_DIR}
+        ${hptt_INCLUDE_DIR}
+        ${TENSOR_HEADER_PATH}
+        ${MPS_HEADER_PATH}
+        ${PEPS_HEADER_PATH}
 )
-
 link_libraries(
         ${hptt_LIBRARY}
-        ${MATH_LIB_LINK_FLAGS}
-        Boost::serialization
-        Boost::mpi
-        ${MPI_CXX_LINK_FLAGS}
-        ${MPI_mpi_LIBRARY}
+        BLAS::BLAS
+        LAPACK::LAPACK
+        OpenMP::OpenMP_CXX
+        MPI::MPI_CXX
 )
 
+add_library(myutil_obj OBJECT src/myutil.cpp)
+
 add_executable(square_simple_update src/square_simple_update.cpp)
-add_executable(square_vmc_update src/square_vmc_update.cpp src/myutil.cpp)
-add_executable(square_mc_measure src/square_mc_measure.cpp src/myutil.cpp)
+add_executable(square_vmc_update src/square_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(square_mc_measure src/square_mc_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
 
 add_executable(square_planar_simple_update src/square_planar_simple_update.cpp)
-add_executable(square_planar_vmc_update src/square_planar_vmc_update.cpp src/myutil.cpp)
+add_executable(square_planar_vmc_update src/square_planar_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
 
 
 add_executable(triangle_simple_update src/triangle_simple_update.cpp)
 add_executable(triangle_loop_update src/triangle_loop_update.cpp)
 add_executable(triangle_simple_update_c src/triangle_simple_update_complex.cpp)
-add_executable(triangle_vmc_update src/triangle_vmc_update.cpp src/myutil.cpp)
-add_executable(triangle_vmc_update_c src/triangle_vmc_update_complex.cpp src/myutil.cpp)
-add_executable(triangle_vmc_update_no_u1 src/triangle_vmc_update_no_u1.cpp src/myutil.cpp)
-add_executable(triangle_mc_measure src/triangle_mc_measure.cpp src/myutil.cpp)
-add_executable(triangle_mc_measure_c src/triangle_mc_measure_complex.cpp src/myutil.cpp)
-add_executable(triangle_vmps src/triangle_vmps.cpp src/myutil.cpp)
-add_executable(triangle_dmrg src/triangle_dmrg.cpp src/myutil.cpp)
-add_executable(triangle_dmrg_measure src/triangle_dmrg_measure.cpp src/myutil.cpp)
-add_executable(triangle_dmrg_measure_sf src/triangle_dmrg_measure_sf.cpp src/myutil.cpp)
+add_executable(triangle_vmc_update src/triangle_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_vmc_update_c src/triangle_vmc_update_complex.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_vmc_update_no_u1 src/triangle_vmc_update_no_u1.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_mc_measure src/triangle_mc_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_mc_measure_c src/triangle_mc_measure_complex.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_vmps src/triangle_vmps.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_dmrg src/triangle_dmrg.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_dmrg_measure src/triangle_dmrg_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(triangle_dmrg_measure_sf src/triangle_dmrg_measure_sf.cpp $<TARGET_OBJECTS:myutil_obj>)
 
 
 add_executable(kagome_simple_update src/kagome_simple_update.cpp)
-add_executable(kagome_vmc_update src/kagome_vmc_update.cpp src/myutil.cpp)
+add_executable(kagome_vmc_update src/kagome_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
 add_executable(kagome_mc_measure src/kagome_mc_measure.cpp)
-add_executable(kagome_dmrg src/kagome_dmrg.cpp src/myutil.cpp)
-add_executable(kagome_dmrg_measure src/kagome_dmrg_measure.cpp src/myutil.cpp)
+add_executable(kagome_dmrg src/kagome_dmrg.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(kagome_dmrg_measure src/kagome_dmrg_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
 add_executable(transfer_ipeps src/transfer_iPEPS.cpp)
-add_executable(increaseD src/tps_increase_D.cpp src/myutil.cpp)
-add_executable(extend src/sitps_space_extension.cpp src/myutil.cpp)
+add_executable(increaseD src/tps_increase_D.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(extend src/sitps_space_extension.cpp $<TARGET_OBJECTS:myutil_obj>)
 
 add_executable(zero_evolve src/square_peps_zero_evolve.cpp)
 add_executable(zero_evolve_c src/square_peps_zero_evolve_complex.cpp)
 
-add_executable(fluctuation src_vmc_boost/fluctuation_vmc_update.cpp src/myutil.cpp)
+add_executable(fluctuation src_vmc_boost/fluctuation_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)

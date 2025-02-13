@@ -11,20 +11,25 @@
 #include "qlten/qlten.h"
 
 using TenElemT = qlten::QLTEN_Double;
-using qlten::special_qn::U1QN;
+#ifdef U1SYM
+using QNT = qlten::special_qn::U1QN;
+const QNT qn0 = QNT(0); //N(particle number), Sz
+#else
+using QNT = qlten::special_qn::TrivialRepQN;
+const QNT qn0 = QNT(); //N(particle number), Sz
+#endif
 using qlten::QLTensor;
 
-using QNSctT = qlten::QNSector<U1QN>;
-using IndexT = qlten::Index<U1QN>;
-using Tensor = QLTensor<TenElemT, U1QN>;
-const U1QN qn0 = U1QN(0); //N(particle number), Sz
+using QNSctT = qlten::QNSector<QNT>;
+using IndexT = qlten::Index<QNT>;
+using Tensor = QLTensor<TenElemT, QNT>;
+
 #ifdef U1SYM
-const IndexT pb_out = IndexT({QNSctT(U1QN(1), 1), QNSctT(U1QN(-1), 1)},
+const IndexT pb_out = IndexT({QNSctT(QNT(1), 1), QNSctT(QNT(-1), 1)},
                              qlten::TenIndexDirType::OUT
 );
 #else
-const IndexT pb_out = IndexT({
-                                 QNSctT(U1QN(0), 2)},
+const IndexT pb_out = IndexT({QNSctT(qn0, 2)},
                              qlten::TenIndexDirType::OUT
 );
 #endif

@@ -14,11 +14,14 @@
 
 using namespace qlpeps;
 
-using TPSSampleT = SquareTPSSample3SiteExchange<TenElemT, U1QN>;
+using TPSSampleT = SquareTPSSample3SiteExchange<TenElemT, QNT>;
 
 int main(int argc, char **argv) {
-  boost::mpi::environment env;
-  boost::mpi::communicator world;
+  MPI_Init(nullptr, nullptr);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int rank, mpi_size;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &mpi_size);
   VMCUpdateParams params(argv[1]);
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
@@ -39,41 +42,41 @@ int main(int argc, char **argv) {
       ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
 
   if (params.J2 == 0) {
-    using Model = SpinOneHalfHeisenbergSquare<TenElemT, U1QN>;
-    VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
+    using Model = SpinOneHalfHeisenbergSquare<TenElemT, QNT>;
+    VMCPEPSExecutor<TenElemT, QNT, TPSSampleT, Model> *executor(nullptr);
 
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exist
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, QNT, TPSSampleT, Model>(optimize_para,
                                                                         params.Ly, params.Lx,
-                                                                        world);
+                                                                        comm);
     } else {
-      TPS<QLTEN_Double, U1QN> tps = TPS<QLTEN_Double, U1QN>(params.Ly, params.Lx);
+      TPS<QLTEN_Double, QNT> tps = TPS<QLTEN_Double, QNT>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para, tps,
-                                                                        world);
+      executor = new VMCPEPSExecutor<TenElemT, QNT, TPSSampleT, Model>(optimize_para, tps,
+                                                                        comm);
     }
     executor->Execute();
     delete executor;
   } else {
-    using Model = SpinOneHalfJ1J2HeisenbergSquare<QLTEN_Double, U1QN>;
-    VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model> *executor(nullptr);
+    using Model = SpinOneHalfJ1J2HeisenbergSquare<QLTEN_Double, QNT>;
+    VMCPEPSExecutor<QLTEN_Double, QNT, TPSSampleT, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) { //actually almost do the same thing
-      executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model>(optimize_para,
+      executor = new VMCPEPSExecutor<QLTEN_Double, QNT, TPSSampleT, Model>(optimize_para,
                                                                             params.Ly, params.Lx,
-                                                                            world, j1j2solver);
+                                                                            comm, j1j2solver);
     } else {
-      TPS<QLTEN_Double, U1QN> tps = TPS<QLTEN_Double, U1QN>(params.Ly, params.Lx);
+      TPS<QLTEN_Double, QNT> tps = TPS<QLTEN_Double, QNT>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model>(optimize_para, tps,
-                                                                            world, j1j2solver);
+      executor = new VMCPEPSExecutor<QLTEN_Double, QNT, TPSSampleT, Model>(optimize_para, tps,
+                                                                            comm, j1j2solver);
     }
     executor->Execute();
     delete executor;

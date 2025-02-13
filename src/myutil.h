@@ -1,7 +1,7 @@
 
 #ifndef HONEYCOMBHEISENBERGJ1J2J3_SRC_MYUTIL_H
 #define HONEYCOMBHEISENBERGJ1J2J3_SRC_MYUTIL_H
-#include <stdlib.h>
+#include <cstdlib>
 #include <vector>
 
 size_t GetNumofMps();
