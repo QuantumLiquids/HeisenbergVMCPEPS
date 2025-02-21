@@ -14,11 +14,14 @@
 
 using namespace qlpeps;
 
-using TPSSampleT = SquareTPSSample3SiteExchange<TenElemT, U1QN>;
+using MCUpdater = MCUpdateSquareTNN3SiteExchange;
 
 int main(int argc, char **argv) {
-  boost::mpi::environment env;
-  boost::mpi::communicator world;
+ MPI_Init(nullptr, nullptr);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int rank, mpi_size;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &mpi_size);
   VMCUpdateParams params(argv[1]);
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
@@ -40,10 +43,10 @@ int main(int argc, char **argv) {
 
   if (params.J2 == 0) {
     using Model = SpinOneHalfTriHeisenbergSqrPEPS<TenElemT, U1QN>;
-    VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
+    VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model> *executor(nullptr);
     Model triangle_hei_solver;
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para,
                                                                         params.Ly, params.Lx,
                                                                         world, triangle_hei_solver);
     } else {
@@ -52,18 +55,18 @@ int main(int argc, char **argv) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para, tps,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para, tps,
                                                                         world, triangle_hei_solver);
     }
     executor->Execute();
     delete executor;
   } else {
     using Model = SpinOneHalfTriJ1J2HeisenbergSqrPEPS<TenElemT, U1QN>;
-    VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
+    VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model> *executor(nullptr);
     double j2 = params.J2;
     Model trij1j2solver(j2);
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) { //actually almostly do the same thing
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para,
                                                                         params.Ly, params.Lx,
                                                                         world, trij1j2solver);
     } else {
@@ -72,7 +75,7 @@ int main(int argc, char **argv) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para, tps,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para, tps,
                                                                         world, trij1j2solver);
     }
     executor->Execute();

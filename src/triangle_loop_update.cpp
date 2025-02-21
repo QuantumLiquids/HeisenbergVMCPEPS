@@ -22,7 +22,7 @@ IndexT vb_out = IndexT({QNSctT(U1QN(0), 2),
 );
 #else
 IndexT vb_out = IndexT({
-                           QNSctT(U1QN(0), 4)},
+                           QNSctT(qn0, 4)},
                        qlten::TenIndexDirType::OUT
 );
 #endif
@@ -168,19 +168,19 @@ int main(int argc, char **argv) {
       }
     }
   }
-  auto *loop_exe = new LoopUpdateExecutor<QLTEN_Double, U1QN>(LoopUpdateTruncatePara(
-                                                                  arnoldi_params,
-                                                                  1e-8,
-                                                                  fet_params),
-                                                              params.Step,
-                                                              params.Tau,
-                                                              evolve_gates,
-                                                              peps0);
+  auto *loop_exe = new LoopUpdateExecutor<QLTEN_Double, QNT>(LoopUpdateTruncatePara(
+                                                                 arnoldi_params,
+                                                                 1e-8,
+                                                                 fet_params),
+                                                             params.Step,
+                                                             params.Tau,
+                                                             evolve_gates,
+                                                             peps0);
 
   loop_exe->Execute();
   auto peps_res = loop_exe->GetPEPS();
   loop_exe->DumpResult(peps_path, true);
-  auto tps = qlpeps::TPS<TenElemT, U1QN>(peps_res);
+  auto tps = qlpeps::TPS<TenElemT, QNT>(peps_res);
   tps.Dump();
   delete loop_exe;
   return 0;

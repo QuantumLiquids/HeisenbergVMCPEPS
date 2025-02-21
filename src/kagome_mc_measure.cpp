@@ -11,7 +11,7 @@
 
 using namespace qlpeps;
 
-using TPSSampleT = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
+using MCUpdater = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
 
 Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx) {
   size_t sys_ly = 2 * ly, sys_lx = 2 * lx;
@@ -96,8 +96,11 @@ void DumpBondInfo(size_t ly, size_t lx, std::string &basename) {
 }
 
 int main(int argc, char **argv) {
-  boost::mpi::environment env;
-  boost::mpi::communicator world;
+ MPI_Init(nullptr, nullptr);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int rank, mpi_size;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &mpi_size);
   VMCUpdateParams params(argv[1]);
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
@@ -145,9 +148,9 @@ int main(int argc, char **argv) {
   }
 
   using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
-  MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
+  MonteCarloMeasurementExecutor<TenElemT, U1QN, MCUpdater, Model> *executor(nullptr);
   if (qlmps::IsPathExist(measurement_para.wavefunction_path)) {
-    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
+    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, MCUpdater, Model>(measurement_para,
                                                                                     params.Ly, params.Lx,
                                                                                     world);
   } else {  //after simple update, load from PEPS tensors
@@ -160,7 +163,7 @@ int main(int argc, char **argv) {
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }
-    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, TPSSampleT, Model>(measurement_para,
+    executor = new MonteCarloMeasurementExecutor<TenElemT, U1QN, MCUpdater, Model>(measurement_para,
                                                                                     split_idx_tps,
                                                                                     world);
   }

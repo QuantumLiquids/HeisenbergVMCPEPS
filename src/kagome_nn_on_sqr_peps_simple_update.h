@@ -57,13 +57,12 @@ template<typename TenElemT, typename QNT>
 double KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>::SimpleUpdateSweep_(void) {
   Timer simple_update_sweep_timer("simple_update_sweep");
   SimpleUpdateTruncatePara para(this->update_para.Dmin, this->update_para.Dmax, this->update_para.Trunc_err);
-  double norm = 1.0;
   double e0 = 0.0;
 
   //first row, horizontal bond link
   for (size_t col = 1; col < this->lx_ - 2; col += 2) {
-    norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {0, col}, HORIZONTAL, para);
-    e0 += -std::log(norm) / this->update_para.tau;
+    auto proj_res = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {0, col}, HORIZONTAL, para);
+    e0 += -std::log(proj_res.norm) / this->update_para.tau;
   }
 
   size_t upper_left_triangle_row_bound, upper_left_triangle_col_bound;
@@ -76,33 +75,33 @@ double KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>::SimpleUpdateS
   }
   for (size_t row = 0; row < upper_left_triangle_row_bound; row += 2) {
     for (size_t col = 0; col < upper_left_triangle_col_bound; col += 2) {
-      norm = this->peps_.UpperLeftTriangleProject(evolve_gate_tri_, {row, col}, para);
-      e0 += -std::log(norm) / this->update_para.tau;
+      auto proj_res = this->peps_.UpperLeftTriangleProject(evolve_gate_tri_, {row, col}, para);
+      e0 += -std::log(proj_res.norm) / this->update_para.tau;
     }
   }
 
   //first column, vertical bond link
   for (size_t row = 1; row < this->ly_ - 2; row += 2) {
-    norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {row, 0}, VERTICAL, para);
-    e0 += -std::log(norm) / this->update_para.tau;
+    auto proj_res = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {row, 0}, VERTICAL, para);
+    e0 += -std::log(proj_res.norm) / this->update_para.tau;
   }
 
   for (size_t row = 1; row < this->ly_ - 2; row += 2) {
     for (size_t col = 2; col < this->lx_ - 1; col += 2) {
-      norm = this->peps_.LowerRightTriangleProject(evolve_gate_tri_, {row, col}, para);
-      e0 += -std::log(norm) / this->update_para.tau;
+      auto proj_res = this->peps_.LowerRightTriangleProject(evolve_gate_tri_, {row, col}, para);
+      e0 += -std::log(proj_res.norm) / this->update_para.tau;
     }
   }
   if (remove_corner_) {
     //last row, horizontal bond link
     for (size_t col = 0; col < this->lx_ - 3; col += 2) {
-      norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {this->ly_ - 2, col}, HORIZONTAL, para);
-      e0 += -std::log(norm) / this->update_para.tau;
+      auto proj_res = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {this->ly_ - 2, col}, HORIZONTAL, para);
+      e0 += -std::log(proj_res.norm) / this->update_para.tau;
     }
     //last column,vertical bond link
     for (size_t row = 0; row < this->ly_ - 3; row += 2) {
-      norm = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {row, this->lx_ - 2}, VERTICAL, para);
-      e0 += -std::log(norm) / this->update_para.tau;
+      auto proj_res = this->peps_.NearestNeighborSiteProject(evolve_gate_nn_, {row, this->lx_ - 2}, VERTICAL, para);
+      e0 += -std::log(proj_res.norm) / this->update_para.tau;
     }
   }
 
@@ -113,7 +112,7 @@ double KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>::SimpleUpdateS
             << " Dmin/Dmax = " << std::setw(2) << std::right << dmin << "/" << std::setw(2) << std::left << dmax
             << " SweepTime = " << std::setw(8) << sweep_time
             << std::endl;
-  return norm;
+  return e0;
 }
 }
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(HeisenbergVMCPEPS)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 set(CMAKE_SOURCE_DIR "${PROJECT_SOURCE_DIR}/src/")
@@ -53,6 +53,13 @@ add_definitions(-Wall -g)
 if (DEFINED U1SYM)
     add_definitions(-DU1SYM=${U1SYM})
     message("USE U1 symmetry code with U1SYM=${U1SYM}.")
+endif ()
+
+option(RealCode "tensor element type double or complex" ON)
+if (RealCode)
+    add_definitions(-DUSE_REAL=1)
+else ()
+    add_definitions(-DUSE_COMPLEX=1)
 endif ()
 
 

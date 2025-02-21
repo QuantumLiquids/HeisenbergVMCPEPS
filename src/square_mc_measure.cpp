@@ -3,17 +3,14 @@
 //
 
 
-#include "qlpeps/algorithm/vmc_update/monte_carlo_measurement.h"
-#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_heisenberg_square.h"
-#include "qlpeps/algorithm/vmc_update/model_solvers/spin_onehalf_squareJ1J2.h"
-#include "qlpeps/algorithm/vmc_update/wave_function_component_classes/square_tps_sample_3site_exchange.h"
+#include "qlpeps/qlpeps.h"
 #include "./qldouble.h"
 #include "./params_parser.h"
 #include "myutil.h"
 
 using namespace qlpeps;
 
-using TPSSampleT = SquareTPSSample3SiteExchange<TenElemT, QNT>;
+using MCUpdater = MCUpdateSquareTNN3SiteExchange;
 
 int main(int argc, char **argv) {
   MPI_Init(nullptr, nullptr);
@@ -38,53 +35,54 @@ int main(int argc, char **argv) {
       params.Ly, params.Lx);
 
   if (params.J2 == 0) {
-    using Model = SpinOneHalfHeisenbergSquare<TenElemT, QNT>;
-    MonteCarloMeasurementExecutor<TenElemT, QNT, TPSSampleT, Model> *executor(nullptr);
+    using Model = SpinOneHalfHeisenbergSquare;
+    MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
 
     if (IsFileExist(
         measurement_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exsit
-      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, TPSSampleT, Model>(measurement_para,
-                                                                                     params.Ly, params.Lx,
-                                                                                     comm);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model>(measurement_para,
+                                                                                    params.Ly, params.Lx,
+                                                                                    comm);
     } else {
       TPS<QLTEN_Double, QNT> tps = TPS<QLTEN_Double, QNT>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, TPSSampleT, Model>(measurement_para,
-                                                                                     SplitIndexTPS<TenElemT,
-                                                                                                   QNT>(tps),
-                                                                                     comm);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model>(measurement_para,
+                                                                                    SplitIndexTPS<TenElemT,
+                                                                                                  QNT>(tps),
+                                                                                    comm);
     }
 
     executor->Execute();
+    executor->OutputEnergy();
     delete executor;
     std::string bondinfo_filename = "energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
   } else {
-    using Model = SpinOneHalfJ1J2HeisenbergSquare<TenElemT, QNT>;
-    MonteCarloMeasurementExecutor<TenElemT, QNT, TPSSampleT, Model> *executor(nullptr);
+    using Model = SpinOneHalfJ1J2HeisenbergSquare;
+    MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
     if (IsFileExist(
         measurement_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exsit
-      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, TPSSampleT, Model>(measurement_para,
-                                                                                     params.Ly, params.Lx,
-                                                                                     comm, j1j2solver);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model>(measurement_para,
+                                                                                    params.Ly, params.Lx,
+                                                                                    comm, j1j2solver);
     } else {
       TPS<QLTEN_Double, QNT> tps = TPS<QLTEN_Double, QNT>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-2);
       };
-      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, TPSSampleT, Model>(measurement_para,
-                                                                                     SplitIndexTPS<TenElemT,
-                                                                                                   QNT>(tps),
-                                                                                     comm, j1j2solver);
+      executor = new MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model>(measurement_para,
+                                                                                    SplitIndexTPS<TenElemT,
+                                                                                                  QNT>(tps),
+                                                                                    comm, j1j2solver);
     }
     executor->Execute();
     executor->OutputEnergy();
   }
-
+  MPI_Finalize();
   return 0;
 }

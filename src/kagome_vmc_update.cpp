@@ -12,7 +12,7 @@
 using namespace qlpeps;
 using namespace std;
 
-using TPSSampleT = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
+using MCUpdater = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
 
 Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx) {
   size_t sys_ly = 2 * ly, sys_lx = 2 * lx;
@@ -40,8 +40,11 @@ Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx)
 }
 
 int main(int argc, char **argv) {
-  boost::mpi::environment env;
-  boost::mpi::communicator world;
+ MPI_Init(nullptr, nullptr);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int rank, mpi_size;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &mpi_size);
   VMCUpdateParams params(argv[1]);
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
@@ -95,11 +98,11 @@ int main(int argc, char **argv) {
   }
 
   using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
-  VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model> *executor(nullptr);
+  VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model> *executor(nullptr);
   Model kagome_heisenberg_model = Model(params.RemoveCorner);
   if (qlmps::IsPathExist(optimize_para.wavefunction_path)) {
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {//has split_index_tps
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, TPSSampleT, Model>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para,
                                                                         params.Ly, params.Lx,
                                                                         world, kagome_heisenberg_model);
     } else {
@@ -108,7 +111,7 @@ int main(int argc, char **argv) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-1);
       };
-      executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model>(optimize_para, tps,
+      executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, MCUpdater, Model>(optimize_para, tps,
                                                                             world, kagome_heisenberg_model);
     }
   } else {
@@ -121,7 +124,7 @@ int main(int argc, char **argv) {
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }
-    executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, TPSSampleT, Model>(optimize_para, split_idx_tps,
+    executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, MCUpdater, Model>(optimize_para, split_idx_tps,
                                                                           world, kagome_heisenberg_model);
   }
 

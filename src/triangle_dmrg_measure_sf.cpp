@@ -19,9 +19,11 @@ using namespace qlten;
 using namespace std;
 
 int main(int argc, char *argv[]) {
-  namespace mpi = boost::mpi;
-  mpi::environment env;
-  mpi::communicator world;
+  MPI_Init(nullptr, nullptr);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int rank, mpi_size;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &mpi_size);
 
   DMRGCaseParams params(argv[1]);
   size_t Lx = params.Lx, Ly = params.Ly;
@@ -41,9 +43,9 @@ int main(int argc, char *argv[]) {
   sm({1, 0}) = 1.0;
   id({0, 0}) = 1.0;
   id({1, 1}) = 1.0;
-  const SiteVec<TenElemT, U1QN> sites = SiteVec<TenElemT, U1QN>(N, pb_out);
+  const SiteVec<TenElemT, QNT> sites = SiteVec<TenElemT, QNT>(N, pb_out);
 
-  using FiniteMPST = qlmps::FiniteMPS<TenElemT, U1QN>;
+  using FiniteMPST = qlmps::FiniteMPS<TenElemT, QNT>;
   FiniteMPST mps(sites);
 
   /******** define the measure_tasks ********/
@@ -62,11 +64,12 @@ int main(int argc, char *argv[]) {
   }
   mps.Load();
   Timer measure_struct_factor_timer("measure structure factor");
-  MeasureTwoSiteOp(mps, sz, sz, measure_tasks, "zzsf", world);
-  MeasureTwoSiteOp(mps, sp, sm, measure_tasks, "pmsf", world);
-  MeasureTwoSiteOp(mps, sm, sp, measure_tasks, "mpsf", world);
+  MeasureTwoSiteOp(mps, sz, sz, measure_tasks, "zzsf", comm);
+  MeasureTwoSiteOp(mps, sp, sm, measure_tasks, "pmsf", comm);
+  MeasureTwoSiteOp(mps, sm, sp, measure_tasks, "mpsf", comm);
   measure_struct_factor_timer.PrintElapsed();
   endTime = clock();
   cout << "CPU Time : " << (double) (endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
+  MPI_Finalize();
   return 0;
 }

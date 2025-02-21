@@ -76,9 +76,11 @@ std::vector<Link> GenerateOBCTriangularJ2Link(const size_t Lx, const size_t Ly) 
 }
 
 int main(int argc, char *argv[]) {
-  namespace mpi = boost::mpi;
-  mpi::environment env;
-  mpi::communicator world;
+  MPI_Init(nullptr, nullptr);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  int rank, mpi_size;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &mpi_size);
 
   DMRGCaseParams params(argv[1]);
   const size_t Lx = params.Lx;

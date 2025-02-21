@@ -3,7 +3,6 @@
 #include "qldouble.h"
 #include "params_parser.h"
 #include "myutil.h"
-#include "dmrg_my_measure.h"
 
 using namespace qlmps;
 using namespace qlten;
@@ -62,9 +61,9 @@ int main(int argc, char *argv[]) {
   sm({1, 0}) = 1.0;
   id({0, 0}) = 1.0;
   id({1, 1}) = 1.0;
-  const SiteVec<TenElemT, U1QN> sites = SiteVec<TenElemT, U1QN>(N, pb_out);
+  const SiteVec<TenElemT, QNT> sites = SiteVec<TenElemT, QNT>(N, pb_out);
 
-  using FiniteMPST = qlmps::FiniteMPS<TenElemT, U1QN>;
+  using FiniteMPST = qlmps::FiniteMPS<TenElemT, QNT>;
   FiniteMPST mps(sites);
 
   Timer one_site_timer("measure  one site operators");
