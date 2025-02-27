@@ -14,26 +14,26 @@
 namespace qlpeps {
 using namespace qlten;
 
-template<typename TenElemT, typename QNT>
-class SpinOneHalfPlanarJ1J2HeisenbergSquare : public ModelEnergySolver<TenElemT, QNT>,
-                                              ModelMeasurementSolver<TenElemT, QNT> {
-  using SITPS = SplitIndexTPS<TenElemT, QNT>;
+class SpinOneHalfPlanarJ1J2HeisenbergSquare : public ModelEnergySolver<SpinOneHalfPlanarJ1J2HeisenbergSquare>,
+                                              public ModelMeasurementSolver<SpinOneHalfPlanarJ1J2HeisenbergSquare> {
  public:
   SpinOneHalfPlanarJ1J2HeisenbergSquare(void) = delete;
 
   SpinOneHalfPlanarJ1J2HeisenbergSquare(double j2) : j2_(j2) {}
 
-  template<typename WaveFunctionComponentType, bool calchols = true>
-  TenElemT CalEnergyAndHoles(
-      const SITPS *sitps,
-      WaveFunctionComponentType *tps_sample,
-      TensorNetwork2D<TenElemT, QNT> &hole_res
+  template<typename TenElemT, typename QNT, bool calchols = true>
+  TenElemT CalEnergyAndHolesImpl(
+      const SplitIndexTPS<TenElemT, QNT> *sitps,
+      TPSWaveFunctionComponent<TenElemT, QNT> *tps_sample,
+      TensorNetwork2D<TenElemT, QNT> &hole_res,
+      std::vector<TenElemT> &psi_list
   );
 
-  template<typename WaveFunctionComponentType>
-  ObservablesLocal<TenElemT> SampleMeasure(
-      const SITPS *sitps,
-      WaveFunctionComponentType *tps_sample
+  template<typename TenElemT, typename QNT>
+  ObservablesLocal<TenElemT> SampleMeasureImpl(
+      const SplitIndexTPS<TenElemT, QNT> *sitps,
+      TPSWaveFunctionComponent<TenElemT, QNT> *tps_sample,
+      std::vector<TenElemT> &psi_list
   );
 
  private:
@@ -41,10 +41,10 @@ class SpinOneHalfPlanarJ1J2HeisenbergSquare : public ModelEnergySolver<TenElemT,
 };
 
 template<typename TenElemT, typename QNT>
-template<typename WaveFunctionComponentType>
-ObservablesLocal<TenElemT> SpinOneHalfPlanarJ1J2HeisenbergSquare<TenElemT, QNT>::SampleMeasure(
-    const SITPS *split_index_tps,
-    WaveFunctionComponentType *tps_sample
+ObservablesLocal<TenElemT> SpinOneHalfPlanarJ1J2HeisenbergSquare::SampleMeasureImpl(
+    const SplitIndexTPS<TenElemT, QNT> *split_index_tps,
+    TPSWaveFunctionComponent<TenElemT, QNT> *tps_sample,
+    std::vector<TenElemT> &psi_list
 ) {
   ObservablesLocal<TenElemT> res;
   TenElemT e1(0), e2(0); // energy in J1 and J2 bond respectively
