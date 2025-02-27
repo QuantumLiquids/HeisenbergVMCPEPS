@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     delete executor;
     std::string bondinfo_filename = "energy_bonds" + std::to_string(params.Ly) + "-" + std::to_string(params.Lx);
   } else {
-    using Model = SpinOneHalfJ1J2HeisenbergSquare;
+    using Model = SquareSpinOneHalfJ1J2XXZModel;
     MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
     double j2 = params.J2;
     Model j1j2solver(j2);
