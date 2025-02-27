@@ -15,9 +15,9 @@
 using LoopGateT = qlpeps::LoopGates<Tensor>;
 
 #ifdef U1SYM
-IndexT vb_out = IndexT({QNSctT(U1QN(0), 2),
-                        QNSctT(U1QN(-1), 1),
-                        QNSctT(U1QN(1), 1)},
+IndexT vb_out = IndexT({QNSctT(QNT(0), 2),
+                        QNSctT(QNT(-1), 1),
+                        QNSctT(QNT(1), 1)},
                        TenIndexDirType::OUT
 );
 #else
@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
                                            fet_tol, fet_max_iter,
                                            cg_params);
 
-  qlpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, params.Ly, params.Lx);
+  qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.Ly, params.Lx);
   if (qlmps::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {

@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
       params.Ly, params.Lx);
 
   if (params.J2 == 0) {
-    using Model = SpinOneHalfHeisenbergSquare;
+    using Model = SquareSpinOneHalfXXZModel;
     MonteCarloMeasurementExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
 
     if (IsFileExist(

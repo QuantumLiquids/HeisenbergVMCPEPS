@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
       ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
 
   if (params.J2 == 0) {
-    using Model = SpinOneHalfHeisenbergSquare;
+    using Model = SquareSpinOneHalfXXZModel;
     VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
 
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {// test if split index tps tensors exist

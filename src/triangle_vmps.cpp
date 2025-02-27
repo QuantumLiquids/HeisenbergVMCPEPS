@@ -107,8 +107,8 @@ int main(int argc, char *argv[]) {
 
   double e0(0.0); //energy
 
-  const SiteVec<TenElemT, U1QN> sites(N, pb_out);
-  qlmps::MPOGenerator<TenElemT, U1QN> mpo_gen(sites, qn0);
+  const SiteVec<TenElemT, QNT> sites(N, pb_out);
+  qlmps::MPOGenerator<TenElemT, QNT> mpo_gen(sites, qn0);
 
   Tensor sz = Tensor({pb_in, pb_out});
   Tensor sp = Tensor({pb_in, pb_out});
@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
   }
   auto mpo = mpo_gen.Gen();
 
-  using FiniteMPST = qlmps::FiniteMPS<TenElemT, U1QN>;
+  using FiniteMPST = qlmps::FiniteMPS<TenElemT, QNT>;
   FiniteMPST mps(sites);
 
   std::vector<long unsigned int> stat_labs(N);
@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
     stat_labs[i] = i % 2;
   }
 
-  if (world.rank() == 0) {
+  if (rank == 0) {
     if (IsPathExist(kMpsPath)) {
       if (N == GetNumofMps()) {
         cout << "The number of mps files is consistent with mps size." << endl;
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (!has_bond_dimension_parameter) {
-    e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, world);
+    e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, comm);
   } else {
     size_t DMRG_time = input_D_set.size();
     std::vector<size_t> MaxLanczIterSet(DMRG_time);
@@ -187,12 +187,13 @@ int main(int argc, char *argv[]) {
           qlmps::LanczosParams(params.LanczErr, MaxLanczIterSet[i]),
           params.noise
       );
-      e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, world);
+      e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, comm);
     }
   }
   std::cout << "E0/site: " << e0 / N << std::endl;
 
   endTime = clock();
   cout << "CPU Time : " << (double) (endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
+  MPI_Finalize();
   return 0;
 }

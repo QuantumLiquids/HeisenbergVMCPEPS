@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  if (world.rank() == 0) {
+  if (rank == 0) {
     if (IsPathExist(kMpsPath)) {
       if (N == GetNumofMps()) {
         cout << "The number of mps files is consistent with mps size." << endl;
