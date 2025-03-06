@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
                                        params.Dmin, params.Dmax,
                                        params.TruncErr);
 
-  qlpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, params.Ly, params.Lx);
+  qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.Ly, params.Lx);
   if (qlmps::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
@@ -112,11 +112,11 @@ int main(int argc, char **argv) {
       }
     }
   }
-  auto su_exe = new qlpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
+  auto su_exe = new qlpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
                                                                                           ham_hei_nn,
                                                                                           ham_hei_tri);
   su_exe->Execute();
-  auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+  auto tps = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
   tps.Dump();
   su_exe->DumpResult(peps_path, true);
   return 0;

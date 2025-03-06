@@ -254,7 +254,7 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     >()
 ) {
   const size_t mpi_size = world.size();
-  const size_t mpi_rank = world.rank();
+  const size_t mpi_rank = rank;
 //  const std::string mps_path = kMpsPath;
 
   const size_t group_size = measure_tasks.size();
@@ -350,7 +350,7 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     const QLTensor<TenElemT, QNT> &inst = QLTensor<TenElemT, QNT>()
 ) {
   const size_t mpi_size = world.size();
-  const size_t mpi_rank = world.rank();
+  const size_t mpi_rank = rank;
   assert(mps.empty());
   size_t left_boundry = FindLeftBoundary(mps, mps_path);
   const size_t group_size = measure_tasks.size();

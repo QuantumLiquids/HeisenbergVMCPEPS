@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   // peps size should be double of that.
   size_t peps_lx = 2 * params.Lx;
   size_t peps_ly = 2 * params.Ly;
-  qlpeps::SquareLatticePEPS<TenElemT, U1QN> peps0(pb_out, peps_ly, peps_lx);
+  qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, peps_ly, peps_lx);
   if (qlmps::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
@@ -97,12 +97,12 @@ int main(int argc, char **argv) {
     }
     peps0.Initial(activates);
   }
-  auto su_exe = new qlpeps::KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, U1QN>(update_para, peps0,
-                                                                                        ham_hei_nn,
-                                                                                        ham_hei_tri,
-                                                                                        params.RemoveCorner);
+  auto su_exe = new qlpeps::KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
+                                                                                       ham_hei_nn,
+                                                                                       ham_hei_tri,
+                                                                                       params.RemoveCorner);
   su_exe->Execute();
-//  auto tps = qlpeps::TPS<TenElemT, U1QN>(su_exe->GetPEPS());
+//  auto tps = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
 //  tps.Dump();
   su_exe->DumpResult(peps_path, true);
   return 0;

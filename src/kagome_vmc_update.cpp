@@ -12,7 +12,7 @@
 using namespace qlpeps;
 using namespace std;
 
-using MCUpdater = KagomeCombinedTPSSampleLoaclFlip<TenElemT, U1QN>;
+using MCUpdater = KagomeCombinedTPSSampleLoaclFlip<TenElemT, QNT>;
 
 Configuration GenerateInitialConfigurationInSmoothBoundary(size_t ly, size_t lx) {
   size_t sys_ly = 2 * ly, sys_lx = 2 * lx;
@@ -97,34 +97,34 @@ int main(int argc, char **argv) {
         ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
   }
 
-  using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, U1QN>;
-  VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model> *executor(nullptr);
+  using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, QNT>;
+  VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
   Model kagome_heisenberg_model = Model(params.RemoveCorner);
   if (qlmps::IsPathExist(optimize_para.wavefunction_path)) {
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {//has split_index_tps
-      executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para,
+      executor = new VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model>(optimize_para,
                                                                         params.Ly, params.Lx,
                                                                         world, kagome_heisenberg_model);
     } else {
-      TPS<QLTEN_Double, U1QN> tps = TPS<QLTEN_Double, U1QN>(params.Ly, params.Lx);
+      TPS<QLTEN_Double, QNT> tps = TPS<QLTEN_Double, QNT>(params.Ly, params.Lx);
       if (!tps.Load()) {
         std::cout << "Loading simple updated TPS files is broken." << std::endl;
         exit(-1);
       };
-      executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, MCUpdater, Model>(optimize_para, tps,
+      executor = new VMCPEPSExecutor<QLTEN_Double, QNT, MCUpdater, Model>(optimize_para, tps,
                                                                             world, kagome_heisenberg_model);
     }
   } else {
-    SquareLatticePEPS<QLTEN_Double, U1QN> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
+    SquareLatticePEPS<QLTEN_Double, QNT> peps(pb_out, 2 * params.Ly, 2 * params.Lx);
     if (!peps.Load(peps_path)) {
       std::cout << "Loading simple updated PEPS files is broken." << std::endl;
       exit(-2);
     };
-    SplitIndexTPS<QLTEN_Double, U1QN> split_idx_tps = KagomeSquarePEPSToSplitIndexTPS(peps);
+    SplitIndexTPS<QLTEN_Double, QNT> split_idx_tps = KagomeSquarePEPSToSplitIndexTPS(peps);
     if (!split_idx_tps.IsBondDimensionEven()) {
       std::cout << "Warning: Split Index TPS bond dimension  is not even!" << std::endl;
     }
-    executor = new VMCPEPSExecutor<QLTEN_Double, U1QN, MCUpdater, Model>(optimize_para, split_idx_tps,
+    executor = new VMCPEPSExecutor<QLTEN_Double, QNT, MCUpdater, Model>(optimize_para, split_idx_tps,
                                                                           world, kagome_heisenberg_model);
   }
 
