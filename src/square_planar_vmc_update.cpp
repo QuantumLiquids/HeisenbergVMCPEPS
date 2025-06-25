@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
   using Model = SquareSpinOneHalfJ1J2XXZModel;
   VMCPEPSExecutor<QLTEN_Double, QNT, MCUpdater, Model> *executor(nullptr);
   double j2 = params.J2;
-  Model j1j2solver(j2, 0);
+  Model j1j2solver(0, 1, 0, j2, 0);
   if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) { //actually almost do the same thing
     executor = new VMCPEPSExecutor<QLTEN_Double, QNT, MCUpdater, Model>(optimize_para,
                                                                         params.Ly, params.Lx,

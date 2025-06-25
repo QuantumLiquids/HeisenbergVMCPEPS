@@ -37,38 +37,7 @@ int main(int argc, char **argv) {
   ham_hei_nn({0, 1, 1, 0}) = 0.5;
   ham_hei_nn({1, 0, 0, 1}) = 0.5;
 
-  Tensor ham_hei_tri_terms[3];
-  for (size_t i = 0; i < 3; i++) {
-    ham_hei_tri_terms[i] = Tensor({pb_in, pb_out, pb_in, pb_out, pb_in, pb_out});
-  }
-
-  for (size_t i = 0; i < 2; i++) {
-    ham_hei_tri_terms[0]({0, 0, 0, 0, i, i}) = 0.25;
-    ham_hei_tri_terms[0]({1, 1, 1, 1, i, i}) = 0.25;
-    ham_hei_tri_terms[0]({1, 1, 0, 0, i, i}) = -0.25;
-    ham_hei_tri_terms[0]({0, 0, 1, 1, i, i}) = -0.25;
-    ham_hei_tri_terms[0]({0, 1, 1, 0, i, i}) = 0.5;
-    ham_hei_tri_terms[0]({1, 0, 0, 1, i, i}) = 0.5;
-  }
-
-  for (size_t i = 0; i < 2; i++) {
-    ham_hei_tri_terms[1]({0, 0, i, i, 0, 0}) = 0.25;
-    ham_hei_tri_terms[1]({1, 1, i, i, 1, 1}) = 0.25;
-    ham_hei_tri_terms[1]({1, 1, i, i, 0, 0}) = -0.25;
-    ham_hei_tri_terms[1]({0, 0, i, i, 1, 1}) = -0.25;
-    ham_hei_tri_terms[1]({0, 1, i, i, 1, 0}) = 0.5;
-    ham_hei_tri_terms[1]({1, 0, i, i, 0, 1}) = 0.5;
-  }
-
-  for (size_t i = 0; i < 2; i++) {
-    ham_hei_tri_terms[2]({i, i, 0, 0, 0, 0}) = 0.25;
-    ham_hei_tri_terms[2]({i, i, 1, 1, 1, 1}) = 0.25;
-    ham_hei_tri_terms[2]({i, i, 1, 1, 0, 0}) = -0.25;
-    ham_hei_tri_terms[2]({i, i, 0, 0, 1, 1}) = -0.25;
-    ham_hei_tri_terms[2]({i, i, 0, 1, 1, 0}) = 0.5;
-    ham_hei_tri_terms[2]({i, i, 1, 0, 0, 1}) = 0.5;
-  }
-  Tensor ham_hei_tri = 0.5 * ham_hei_tri_terms[0] + params.J2 * ham_hei_tri_terms[1] + 0.5 * ham_hei_tri_terms[2];
+  auto ham_hei_nnn = params.J2 * ham_hei_nn;
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
 
@@ -92,7 +61,7 @@ int main(int argc, char **argv) {
   }
   if (params.J2 == 0) {
     auto su_exe = new qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
-                                                                                  ham_hei_nn);
+                                                                                 ham_hei_nn);
     su_exe->Execute();
     auto tps = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
     for (auto &tensor : tps) {
@@ -102,8 +71,8 @@ int main(int argc, char **argv) {
     su_exe->DumpResult(peps_path, true);
   } else {
     auto su_exe = new qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
-                                                                                   ham_hei_nn,
-                                                                                   ham_hei_tri);
+                                                                                  ham_hei_nn,
+                                                                                  ham_hei_nnn);
     su_exe->Execute();
     auto tps = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
     //TODO: if the first step vmc behave better, move into VMC package

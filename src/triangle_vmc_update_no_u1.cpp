@@ -42,13 +42,13 @@ int main(int argc, char **argv) {
       ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
 
   if (params.J2 == 0) {
-    using Model = SpinOneHalfTriHeisenbergSqrPEPS<TenElemT, U1QN>;
+    using Model = SpinOneHalfTriHeisenbergSqrPEPS;
     VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
     Model triangle_hei_solver;
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {
       executor = new VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model>(optimize_para,
                                                                       params.Ly, params.Lx,
-                                                                      world, triangle_hei_solver);
+                                                                      comm, triangle_hei_solver);
     } else {
       TPS<TenElemT, QNT> tps = TPS<TenElemT, QNT>(params.Ly, params.Lx);
       if (!tps.Load()) {
@@ -56,19 +56,19 @@ int main(int argc, char **argv) {
         exit(-2);
       };
       executor = new VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model>(optimize_para, tps,
-                                                                      world, triangle_hei_solver);
+                                                                      comm, triangle_hei_solver);
     }
     executor->Execute();
     delete executor;
   } else {
-    using Model = SpinOneHalfTriJ1J2HeisenbergSqrPEPS<TenElemT, QNT>;
+    using Model = SpinOneHalfTriJ1J2HeisenbergSqrPEPS;
     VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
     double j2 = params.J2;
     Model trij1j2solver(j2);
     if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) { //actually almostly do the same thing
       executor = new VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model>(optimize_para,
                                                                       params.Ly, params.Lx,
-                                                                      world, trij1j2solver);
+                                                                      comm, trij1j2solver);
     } else {
       TPS<TenElemT, QNT> tps = TPS<TenElemT, QNT>(params.Ly, params.Lx);
       if (!tps.Load()) {
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
         exit(-2);
       };
       executor = new VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model>(optimize_para, tps,
-                                                                      world, trij1j2solver);
+                                                                      comm, trij1j2solver);
     }
     executor->Execute();
     delete executor;
