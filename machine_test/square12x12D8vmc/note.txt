@@ -1,0 +1,2 @@
+User can simply run VMC as in batch.sh, but the script should change to fit the environment.
+energy may ~ -91.35
