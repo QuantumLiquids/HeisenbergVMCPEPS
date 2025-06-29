@@ -4,12 +4,12 @@
 #include <iostream>
 #include "qlmps/qlmps.h"
 #include "qlten/qlten.h"
-#include <time.h>
+#include <ctime>
 #include <vector>
-#include <stdlib.h>     // system
-#include "params_parser.h"
-#include "qldouble.h"
-#include "myutil.h"
+#include <cstdlib>     // system
+#include "../src/params_parser.h"
+#include "../src/qldouble.h"
+#include "../src/myutil.h"
 
 using namespace qlmps;
 using namespace qlten;
@@ -69,7 +69,7 @@ std::vector<Link> GenerateOBCTriangularJ2Link(const size_t Lx, const size_t Ly) 
     for (size_t y = 0; y < Ly - 2; y++) {
       size_t site0 = Ly * (x + 1) + y;
       size_t site1 = Ly * x + (y + 2);
-      res.push_back(make_pair(site0, site1));
+      res.push_back(make_pair(site1, site0));
     }
   }
   return res;
@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
     mpo_gen.AddTerm(0.5 * params.J2, sp, link.first, sm, link.second);
     mpo_gen.AddTerm(0.5 * params.J2, sm, link.first, sp, link.second);
   }
-  auto mpo = mpo_gen.Gen();
+  auto mro = mpo_gen.GenMatReprMPO(false);
 
   using FiniteMPST = qlmps::FiniteMPS<TenElemT, QNT>;
   FiniteMPST mps(sites);
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (!has_bond_dimension_parameter) {
-    e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, comm);
+    e0 = qlmps::FiniteDMRG(mps, mro, sweep_params, comm);
   } else {
     size_t DMRG_time = input_D_set.size();
     std::vector<size_t> MaxLanczIterSet(DMRG_time);
@@ -181,19 +181,18 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < DMRG_time; i++) {
       size_t D = input_D_set[i];
       std::cout << "D_max = " << D << std::endl;
-      qlmps::FiniteVMPSSweepParams sweep_params(
+      qlmps::FiniteVMPSSweepParams sweep_params_with_spec_D(
           params.Sweeps,
           D, D, params.CutOff,
           qlmps::LanczosParams(params.LanczErr, MaxLanczIterSet[i]),
           params.noise
       );
-      e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, comm);
+      e0 = qlmps::FiniteDMRG(mps, mro, sweep_params_with_spec_D, comm);
     }
   }
-  std::cout << "E0/site: " << e0 / N << std::endl;
+  std::cout << "E0/site: " << e0 / static_cast<double>(N) << std::endl;
 
   endTime = clock();
   cout << "CPU Time : " << (double) (endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;
-  MPI_Finalize();
   return 0;
 }

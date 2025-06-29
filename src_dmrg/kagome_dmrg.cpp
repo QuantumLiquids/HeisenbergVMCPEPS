@@ -1,15 +1,12 @@
-//
-// Created by haoxinwang on 28/12/2023.
-//
 #include <iostream>
 #include "qlmps/qlmps.h"
 #include "qlten/qlten.h"
-#include <ctime>
+#include <time.h>
 #include <vector>
-#include <cstdlib>     // system
-#include "params_parser.h"
-#include "qldouble.h"
-#include "myutil.h"
+#include <stdlib.h>     // system
+#include "../src/params_parser.h"
+#include "../src/qldouble.h"
+#include "../src/myutil.h"
 
 using namespace qlmps;
 using namespace qlten;
@@ -17,60 +14,73 @@ using namespace std;
 
 using Link = std::pair<size_t, size_t>;
 
-std::vector<Link> GenerateOBCTriangularNNLink(const size_t Lx, const size_t Ly) {
+std::vector<Link> GenerateOBCKagomeNNLinkWithCorner(const size_t Lx, const size_t Ly) {
   using std::make_pair;
-  size_t N = Lx * Ly;
+  size_t N = 3 * Lx * Ly;
   std::vector<Link> res;
-  res.reserve(3 * N);
-
+  res.reserve(2 * N);
   for (size_t x = 0; x < Lx; x++) {
     for (size_t y = 0; y < Ly; y++) {
-      size_t site0 = Ly * x + y;
+      size_t site0 = (3 * Ly) * x + 2 * y;
+      size_t site1 = site0 + 1;
+      size_t site2 = (3 * Ly) * x + 2 * Ly + y;
+      res.push_back(make_pair(site0, site1));
+      res.push_back(make_pair(site0, site2));
+      res.push_back(make_pair(site1, site2));
       if (y < Ly - 1) {
-        res.push_back(make_pair(site0, site0 + 1)); //vertical bond
-      } else {
-//        res.push_back(make_pair(site0 - (Ly - 1), site0)); //vertical winding bond, for cylinder
+        res.push_back(make_pair(site1, site1 + 1));
       }
-
       if (x < Lx - 1) {
-        res.push_back(make_pair(site0, site0 + Ly)); //horizontal bond
-        if (y < Ly - 1) {
-          res.push_back(make_pair(site0 + 1, site0 + Ly)); //diagonal bond
-        } else {
-//          res.push_back(make_pair(site0 - (Ly - 1), site0 + Ly)); //diagonal bond, for cylinder
-        }
+        res.push_back(make_pair(site2, (3 * Ly) * (x + 1) + 2 * y));
+      }
+      if (y > 0 && x < Lx - 1) {
+        res.push_back(make_pair(site2, (3 * Ly) * (x + 1) + 2 * y - 1));
       }
     }
   }
   return res;
 }
 
-std::vector<Link> GenerateOBCTriangularJ2Link(const size_t Lx, const size_t Ly) {
+std::vector<Link> GenerateOBCKagomeNNLinkSmoothBC(const size_t Lx, const size_t Ly) {
   using std::make_pair;
-  size_t N = Lx * Ly;
+  size_t N = 3 * Lx * Ly - Lx - Ly;
   std::vector<Link> res;
-  res.reserve(3 * N);
+  res.reserve(2 * N);
+  for (size_t x = 0; x < Lx - 1; x++) {
+    for (size_t y = 0; y < Ly - 1; y++) {
+      size_t site0 = x * (3 * Ly - 1) + 2 * y;
+      size_t site1 = site0 + 1;
+      size_t site2 = x * (3 * Ly - 1) + (2 * Ly - 1) + y;
+      res.push_back(make_pair(site0, site1));
+      res.push_back(make_pair(site0, site2));
+      res.push_back(make_pair(site1, site2));
+      res.push_back(make_pair(site1, site1 + 1));
+      res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y));
+      if (y > 0) {
+        res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y - 1));
+      }
+    }
+  }
 
+  //last row :
   for (size_t x = 0; x < Lx - 1; x++) {
-    for (size_t y = 0; y < Ly - 1; y++) {
-      size_t site0 = Ly * x + y;
-      size_t site1 = Ly * (x + 1) + (y + 1);
-      res.push_back(make_pair(site0, site1));
-    }
+    size_t y = Ly - 1;
+    size_t site0 = x * (3 * Ly - 1) + 2 * y;
+    size_t site2 = x * (3 * Ly - 1) + (2 * Ly - 1) + y;
+    res.push_back(make_pair(site0, site2));
+    res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y));
+    res.push_back(make_pair(site2, (x + 1) * (3 * Ly - 1) + 2 * y - 1));
   }
-  for (size_t x = 0; x < Lx - 2; x++) {
-    for (size_t y = 0; y < Ly - 1; y++) {
-      size_t site0 = Ly * x + (y + 1);
-      size_t site1 = Ly * (x + 2) + y;
-      res.push_back(make_pair(site0, site1));
-    }
+  //last column:
+  for (size_t y = 0; y < Ly - 1; y++) {
+    size_t x = Lx - 1;
+    size_t site0 = x * (3 * Ly - 1) + 2 * y;
+    size_t site1 = site0 + 1;
+    res.push_back(make_pair(site0, site1));
+    res.push_back(make_pair(site1, site1 + 1));
   }
-  for (size_t x = 0; x < Lx - 1; x++) {
-    for (size_t y = 0; y < Ly - 2; y++) {
-      size_t site0 = Ly * (x + 1) + y;
-      size_t site1 = Ly * x + (y + 2);
-      res.push_back(make_pair(site1, site0));
-    }
+  for (Link &link: res) {
+    std::cout << "[ " << link.first << ", " << link.second << " ]" << std::endl;
   }
   return res;
 }
@@ -85,7 +95,12 @@ int main(int argc, char *argv[]) {
   DMRGCaseParams params(argv[1]);
   const size_t Lx = params.Lx;
   const size_t Ly = params.Ly;
-  size_t N = Lx * Ly;
+  size_t N;
+  if (params.RemoveCorner) {
+    N = 3 * Lx * Ly - Lx - Ly;
+  } else {
+    N = 3 * Lx * Ly;
+  }
 
   cout << "The total number of sites: " << N << endl;
   clock_t startTime, endTime;
@@ -105,7 +120,16 @@ int main(int argc, char *argv[]) {
       params.noise
   );
 
+  bool noise_valid(false);
+  for (size_t i = 0; i < params.noise.size(); i++) {
+    if (params.noise[i] != 0) {
+      noise_valid = true;
+      break;
+    }
+  }
+
   double e0(0.0); //energy
+
 
   const SiteVec<TenElemT, U1QN> sites(N, pb_out);
   qlmps::MPOGenerator<TenElemT, U1QN> mpo_gen(sites, qn0);
@@ -117,20 +141,18 @@ int main(int argc, char *argv[]) {
   sz({1, 1}) = -0.5;
   sp({0, 1}) = 1.0;
   sm({1, 0}) = 1.0;
-  std::vector<Link> links = GenerateOBCTriangularNNLink(Lx, Ly);
-  std::vector<Link> links_j2 = GenerateOBCTriangularJ2Link(Lx, Ly);
-
-  for (auto &link : links) {
+  std::vector<Link> links;
+  if (params.RemoveCorner) {
+    links = GenerateOBCKagomeNNLinkSmoothBC(Lx, Ly);
+  } else {
+    links = GenerateOBCKagomeNNLinkWithCorner(Lx, Ly);
+  }
+  for (auto &link: links) {
     mpo_gen.AddTerm(1.0, sz, link.first, sz, link.second);
     mpo_gen.AddTerm(0.5, sp, link.first, sm, link.second);
     mpo_gen.AddTerm(0.5, sm, link.first, sp, link.second);
   }
-  for (auto &link : links_j2) {
-    mpo_gen.AddTerm(1.0 * params.J2, sz, link.first, sz, link.second);
-    mpo_gen.AddTerm(0.5 * params.J2, sp, link.first, sm, link.second);
-    mpo_gen.AddTerm(0.5 * params.J2, sm, link.first, sp, link.second);
-  }
-  auto mro = mpo_gen.GenMatReprMPO(false);
+  auto mpo = mpo_gen.Gen();
 
   using FiniteMPST = qlmps::FiniteMPS<TenElemT, U1QN>;
   FiniteMPST mps(sites);
@@ -140,6 +162,7 @@ int main(int argc, char *argv[]) {
   for (size_t i = 0; i < N; ++i) {
     stat_labs[i] = i % 2;
   }
+
 
   if (rank == 0) {
     if (IsPathExist(kMpsPath)) {
@@ -159,7 +182,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (!has_bond_dimension_parameter) {
-    e0 = qlmps::FiniteDMRG(mps, mro, sweep_params, world);
+    e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, world);
   } else {
     size_t DMRG_time = input_D_set.size();
     std::vector<size_t> MaxLanczIterSet(DMRG_time);
@@ -178,19 +201,20 @@ int main(int argc, char *argv[]) {
       std::cout << "Setting MaxLanczIter as : [" << MaxLanczIterSet[0] << "]" << std::endl;
     }
 
+
     for (size_t i = 0; i < DMRG_time; i++) {
       size_t D = input_D_set[i];
       std::cout << "D_max = " << D << std::endl;
-      qlmps::FiniteVMPSSweepParams sweep_params_with_spec_D(
+      qlmps::FiniteVMPSSweepParams sweep_params(
           params.Sweeps,
           D, D, params.CutOff,
           qlmps::LanczosParams(params.LanczErr, MaxLanczIterSet[i]),
           params.noise
       );
-      e0 = qlmps::FiniteDMRG(mps, mro, sweep_params_with_spec_D, world);
+      e0 = qlmps::TwoSiteFiniteVMPS(mps, mpo, sweep_params, world);
     }
   }
-  std::cout << "E0/site: " << e0 / static_cast<double>(N) << std::endl;
+  std::cout << "E0/site: " << e0 / N << std::endl;
 
   endTime = clock();
   cout << "CPU Time : " << (double) (endTime - startTime) / CLOCKS_PER_SEC << "s" << endl;

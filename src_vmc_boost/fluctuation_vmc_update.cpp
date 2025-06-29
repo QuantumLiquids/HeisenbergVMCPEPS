@@ -18,7 +18,7 @@ using namespace qlpeps;
 using MCUpdater = MCUpdateSquareTNN3SiteExchange;
 
 int main(int argc, char **argv) {
- MPI_Init(nullptr, nullptr);
+  MPI_Init(nullptr, nullptr);
   MPI_Comm comm = MPI_COMM_WORLD;
   int rank, mpi_size;
   MPI_Comm_rank(comm, &rank);
@@ -42,21 +42,21 @@ int main(int argc, char **argv) {
       params.update_scheme,
       ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
 
-  using Model = SpinOneHalfWaveFunctionFluctuationSqrPEPS<TenElemT, U1QN>;
-  VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model> *executor(nullptr);
+  using Model = SpinOneHalfWaveFunctionFluctuationSqrPEPS<TenElemT, QNT>;
+  VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);
   Model triangle_hei_solver;
   if (IsFileExist(optimize_para.wavefunction_path + "/tps_ten0_0_0.qlten")) {
-    executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para,
-                                                                      params.Ly, params.Lx,
-                                                                      world, triangle_hei_solver);
+    executor = new VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model>(optimize_para,
+                                                                    params.Ly, params.Lx,
+                                                                    comm, triangle_hei_solver);
   } else {
-    TPS<TenElemT, U1QN> tps = TPS<TenElemT, U1QN>(params.Ly, params.Lx);
+    TPS<TenElemT, QNT> tps = TPS<TenElemT, QNT>(params.Ly, params.Lx);
     if (!tps.Load()) {
       std::cout << "Loading simple updated TPS files is broken." << std::endl;
       exit(-2);
     };
-    executor = new VMCPEPSExecutor<TenElemT, U1QN, MCUpdater, Model>(optimize_para, tps,
-                                                                      world, triangle_hei_solver);
+    executor = new VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model>(optimize_para, tps,
+                                                                    comm, triangle_hei_solver);
   }
   executor->Execute();
   delete executor;

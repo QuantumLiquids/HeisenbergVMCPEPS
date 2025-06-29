@@ -9,9 +9,9 @@
 
 #include "qlten/qlten.h"
 #include <ctime>
-#include "qldouble.h"
-#include "params_parser.h"
-#include "myutil.h"
+#include "../src/qldouble.h"
+#include "../src/params_parser.h"
+#include "../src/myutil.h"
 #include "dmrg_my_measure.h"
 
 using namespace qlmps;

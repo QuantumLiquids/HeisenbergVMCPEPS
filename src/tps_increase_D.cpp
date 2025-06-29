@@ -1,9 +1,10 @@
 //
 // Created by haoxinwang on 04/12/2023.
 //
+// extend the bond dimension of PEPS
+
 #include "./qldouble.h"
 #include "qlpeps/algorithm/vmc_update/vmc_peps.h"
-#include "spin_onehalf_heisenberg_kagome_model_sqrpeps_solver.h"
 #include "./params_parser.h"
 #include "myutil.h"
 
@@ -18,7 +19,7 @@ int main(int argc, char **argv) {
   }
   VMCUpdateParams params(argv[1]);
   double magnitude = std::strtod(argv[2], nullptr);
-  SplitIndexTPS<TenElemT, U1QN> split_index_tps(params.Ly, params.Lx);
+  SplitIndexTPS<TenElemT, QNT> split_index_tps(params.Ly, params.Lx);
   bool is_load = split_index_tps.Load();
   if (!is_load) {
     std::cout << "Loading TPS files fails." << std::endl;
@@ -45,7 +46,7 @@ int main(int argc, char **argv) {
         for (size_t a = 0; a < 4; a++) {
           //we assume peps D >= 2
           size_t increased_dims = (vb_dims[a] == 1 ? 1 : vb_dims[a] + 1);
-          index_vec[a] = IndexT({QNSctT(U1QN(0), increased_dims)},
+          index_vec[a] = IndexT({QNSctT(qn0, increased_dims)},
                                 local_ten.GetIndex(a).GetDir()
           );
           std::cout << " " << increased_dims;

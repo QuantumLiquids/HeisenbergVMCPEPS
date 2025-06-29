@@ -1,6 +1,10 @@
 //
 // Created by haoxinwang on 02/01/2024.
+// Duplicate the tensors in finite-size PEPS to extend the size of PEPS along one direction.
+// Usage: ./extend <vmc params json file> <r or c> <start line> <increase width>";
+// r or c means row or column, <vmc params json file> should give original size of PEPS,
 //
+// This program especially work for tensor without U1 case because for U1 it may induce the problem of indices dismatch.
 
 #include "./qldouble.h"
 #include "qlpeps/two_dim_tn/tps/split_index_tps.h"
@@ -9,7 +13,7 @@
 
 using namespace qlpeps;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   if (argc < 5) {
     std::cout << "Usage: ./extend <vmc params json file> <r or c> <start line> <increase width>\n";
     return 1;
@@ -21,16 +25,16 @@ int main(int argc, char** argv) {
   size_t start_line = std::atoi(argv[3]);
   size_t increase_width = std::atoi(argv[4]);
 
-  SplitIndexTPS<TenElemT, U1QN> original_tps(params.Ly, params.Lx);
-  if(original_tps.Load()){
+  SplitIndexTPS<TenElemT, QNT> original_tps(params.Ly, params.Lx);
+  if (original_tps.Load()) {
     std::cout << "Loaded Original TPS." << std::endl;
-  } else{
+  } else {
     std::cout << "Loading Original TPS fails!" << std::endl;
     exit(1);
   }
 
   if (direction == 'c') {
-    SplitIndexTPS<TenElemT, U1QN> extended_tps(params.Ly, params.Lx + increase_width);
+    SplitIndexTPS<TenElemT, QNT> extended_tps(params.Ly, params.Lx + increase_width);
     for (size_t row = 0; row < params.Ly; row++) {
       for (size_t col = 0; col < start_line; col++) {
         extended_tps({row, col}) = original_tps({row, col});
@@ -44,7 +48,7 @@ int main(int argc, char** argv) {
     }
     extended_tps.Dump();
   } else if (direction == 'r') {
-    SplitIndexTPS<TenElemT, U1QN> extended_tps(params.Ly + increase_width, params.Lx);
+    SplitIndexTPS<TenElemT, QNT> extended_tps(params.Ly + increase_width, params.Lx);
     for (size_t row = 0; row < start_line; row++) {
       for (size_t col = 0; col < params.Lx; col++) {
         extended_tps({row, col}) = original_tps({row, col});

@@ -1,6 +1,6 @@
 //
 // Created by haoxinwang on 03/11/2023.
-//  No symmetry tensor
+//  No symmetry tensor, Transfer Kagome iPEPS data to finite-size PEPS initial state for SR.
 
 #include <iostream>
 #include <fstream>
