@@ -1,0 +1,14 @@
+{
+  "CaseParams": {
+    "Ly": 12,
+    "Lx": 12,
+    "RemoveCorner": true,
+    "J2": 0.0,
+    "TruncErr": 1e-15,
+    "Dmin": 8,
+    "Dmax": 8,
+    "Tau": 0.001,
+    "Step": 200,
+    "ThreadNum": 1
+  }
+}
