@@ -107,6 +107,7 @@ add_library(myutil_obj OBJECT src/myutil.cpp)
 
 add_executable(square_simple_update src/square_simple_update.cpp)
 add_executable(square_vmc_update src/square_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(square_vmc_update_migrated src/square_vmc_update_migrated.cpp $<TARGET_OBJECTS:myutil_obj>)
 add_executable(square_mc_measure src/square_mc_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
 
 add_executable(square_planar_simple_update src/square_planar_simple_update.cpp)

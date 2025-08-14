@@ -66,6 +66,15 @@ For the triangle model calculation by PEPS, we use square-lattice PEPS as ansatz
 | **extend**      | System size extension for TPS.                                                       |
 | **zero_evolve** | Imaginary time evolution for square lattice PEPS with $\tau=0$ to canonicalize PEPS. |
 
+---
+
+## Machine Test
+
+### Square 12x12 D8 VMC Test
+
+To run the machine test located in `machine_test/square12x12D8vmc/`, use code compiled **without U1 symmetric**. This means:
+
+ Set `-DU1SYM=0` or leave the U1SYM option unset during CMake configuration
 
 ---
 

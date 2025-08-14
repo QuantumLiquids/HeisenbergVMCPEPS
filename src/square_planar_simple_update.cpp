@@ -54,29 +54,22 @@ int main(int argc, char **argv) {
     }
     peps0.Initial(activates);
   }
+  qlpeps::SimpleUpdateExecutor<TenElemT, QNT> *su_exe;
   if (params.J2 == 0) {
-    auto su_exe = new qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
-                                                                                 ham_hei_nn);
-    su_exe->Execute();
-    auto tps = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
-    for (auto &tensor : tps) {
-      tensor.Normalize();
-    }
-    tps.Dump();
-    su_exe->DumpResult(peps_path, true);
+    su_exe = new qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
+                                                                            ham_hei_nn);
   } else {
-    auto su_exe = new qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
-                                                                                  ham_hei_nn,
-                                                                                  ham_hei_nnn);
-    su_exe->Execute();
-    auto tps = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
-    //TODO: if the first step vmc behave better, move into VMC package
-    for (auto &tensor : tps) {
-      tensor.Normalize();
-    }
-    tps.Dump();
-    su_exe->DumpResult(peps_path, true);
+    su_exe = new qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
+                                                                             ham_hei_nn,
+                                                                             ham_hei_nnn);
   }
-
+  su_exe->Execute();
+  auto tps = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
+  for (auto &tensor : tps) {
+    tensor.Normalize();
+  }
+  tps.Dump();
+  su_exe->DumpResult(peps_path, true);
+  delete su_exe;
   return 0;
 }
