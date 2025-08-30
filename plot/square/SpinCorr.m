@@ -1,9 +1,9 @@
 clear;
-Ly = 12;
+Ly = 10;
 Lx = 28;
 J2 = 0.5;
 Dpeps = 8;
-Db = 8;
+Db = 25;
 
 auto_correlation_data_len=20;
 site_num = Ly * Lx ;

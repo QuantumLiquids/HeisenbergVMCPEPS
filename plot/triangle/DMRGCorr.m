@@ -1,8 +1,8 @@
 Ly = 8;
-Lx = 16;
+Lx = 15;
 N = Lx * Ly;
-J2 = 0.125;
-D = 15000;
+J2 = 0;
+D = 16000;
 mark_energy_value = 0;
 energy_text_size = 10;
 
