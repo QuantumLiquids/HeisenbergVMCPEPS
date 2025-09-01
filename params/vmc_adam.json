@@ -1,0 +1,26 @@
+{
+  "CaseParams": {
+    "TruncErr": 1e-10,
+    "ThreadNum": 2,
+
+    "MC_samples": 1000,
+    "WarmUp": 200,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+
+    "Dbmps_max": 4,
+    "MPSCompressScheme": 1,
+
+    "OptimizerType": "Adam",
+    "MaxIterations": 10,
+    "LearningRate": 0.01,
+    "Beta1": 0.9,
+    "Beta2": 0.999,
+    "Epsilon": 1e-8,
+    "WeightDecay": 0.0,
+
+    "LRScheduler": "CosineAnnealing",
+    "MinLearningRate": 1e-4
+  }
+}
+
+

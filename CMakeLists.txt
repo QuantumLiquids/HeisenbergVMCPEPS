@@ -78,7 +78,8 @@ endif ()
 FIND_PACKAGE(BLAS REQUIRED)
 FIND_PACKAGE(LAPACK REQUIRED)
 find_package(MPI REQUIRED)
-find_package(OpenMP REQUIRED) # link necessary
+# Prefer CXX-only OpenMP to avoid requiring OpenMP_C on some platforms
+find_package(OpenMP COMPONENTS CXX REQUIRED)
 
 
 find_path(TENSOR_HEADER_PATH "qlten")
@@ -105,20 +106,23 @@ link_libraries(
 
 add_library(myutil_obj OBJECT src/myutil.cpp)
 
-add_executable(square_simple_update src/square_simple_update.cpp)
-add_executable(square_vmc_update src/square_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
-add_executable(square_vmc_update_migrated src/square_vmc_update_migrated.cpp $<TARGET_OBJECTS:myutil_obj>)
-add_executable(square_mc_measure src/square_mc_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(simple_update src/simple_update.cpp)
+add_executable(vmc_optimize src/vmc_optimize.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(mc_measure src/mc_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
 
-add_executable(square_planar_simple_update src/square_planar_simple_update.cpp)
-add_executable(square_planar_vmc_update src/square_planar_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
+## Removed deprecated per-model entries; use unified simple_update/vmc_optimize/mc_measure
 
 
-add_executable(triangle_simple_update src/triangle_simple_update.cpp)
-add_executable(triangle_loop_update src/triangle_loop_update.cpp)
-add_executable(triangle_vmc_update src/triangle_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
-add_executable(triangle_vmc_update_no_u1 src/triangle_vmc_update_no_u1.cpp $<TARGET_OBJECTS:myutil_obj>)
-add_executable(triangle_mc_measure src/triangle_mc_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
+## NOTE: Deprecated; triangle now handled by unified simple_update (ModelType="TriangleHeisenberg").
+option(BUILD_TRIANGLE_LOOP_UPDATE "Build triangle loop update tool (legacy)" OFF)
+if (BUILD_TRIANGLE_LOOP_UPDATE)
+    add_executable(triangle_loop_update src/triangle_loop_update.cpp)
+endif ()
+
+option(BUILD_TRIANGLE_VMC_NO_U1 "Build triangle VMC no-U1 tool (legacy API)" OFF)
+if (BUILD_TRIANGLE_VMC_NO_U1)
+    add_executable(triangle_vmc_update_no_u1 src/triangle_vmc_update_no_u1.cpp $<TARGET_OBJECTS:myutil_obj>)
+endif ()
 add_executable(triangle_vmps src_dmrg/triangle_vmps.cpp $<TARGET_OBJECTS:myutil_obj>)
 add_executable(triangle_dmrg src_dmrg/triangle_dmrg.cpp $<TARGET_OBJECTS:myutil_obj>)
 add_executable(triangle_dmrg_measure src_dmrg/triangle_dmrg_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
@@ -137,5 +141,14 @@ if (NOT DEFINED U1SYM)
     add_executable(increaseD src/tps_increase_D.cpp $<TARGET_OBJECTS:myutil_obj>)
     add_executable(extend src/sitps_space_extension.cpp $<TARGET_OBJECTS:myutil_obj>)
 endif ()
-add_executable(zero_evolve src/square_peps_zero_evolve.cpp)
+option(BUILD_ZERO_EVOLVE "Build zero-evolve tool (legacy)" OFF)
+if (BUILD_ZERO_EVOLVE)
+    add_executable(zero_evolve src/square_peps_zero_evolve.cpp)
+endif ()
 #add_executable(fluctuation src_vmc_boost/fluctuation_vmc_update.cpp $<TARGET_OBJECTS:myutil_obj>)
+
+# Optional (temporary) tools — build only when needed
+option(BUILD_CONVERTER "Build TPS->SplitIndexTPS converter (temporary tool)" OFF)
+if (BUILD_CONVERTER)
+    add_executable(convert_tps_to_sitps src/convert_tps_to_sitps.cpp $<TARGET_OBJECTS:myutil_obj>)
+endif ()

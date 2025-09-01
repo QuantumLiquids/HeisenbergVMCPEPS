@@ -37,6 +37,6 @@ executabledir="${rootdir}/build/"
 #ulimit -c unlimited
 #ulimit -a
 #export I_MPI_DEBUG=5
-#${executabledir}/simple_update simple_update_params.json
-mpirun -np ${SLURM_NTASKS} ${executabledir}/square_vmc_update vmc_params.json >> ${rundir}/${SLURM_JOB_NAME}.log
+# New interface: physics + vmc algo params
+mpirun -np ${SLURM_NTASKS} ${executabledir}/vmc_optimize physics_params.json vmc_algorithm_params.json >> ${rundir}/${SLURM_JOB_NAME}.log
 

@@ -1,0 +1,21 @@
+{
+  "CaseParams": {
+    "TruncErr": 1e-10,
+    "ThreadNum": 2,
+
+    "MC_samples": 1000,
+    "WarmUp": 200,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+
+    "Dbmps_max": 4,
+    "MPSCompressScheme": 1,
+
+    "OptimizerType": "AdaGrad",
+    "MaxIterations": 10,
+    "LearningRate": 0.05,
+    "Epsilon": 1e-8,
+    "InitialAccumulator": 0.0
+  }
+}
+
+

@@ -1,0 +1,12 @@
+{
+  "CaseParams": {
+    "Lx": 4,
+    "Ly": 4,
+    "J2": 0.0,
+    "RemoveCorner": true,
+    "ModelType": "SquareXY",
+    "MCRestrictU1": true
+  }
+}
+
+

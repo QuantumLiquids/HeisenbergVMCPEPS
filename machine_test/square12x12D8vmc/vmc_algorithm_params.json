@@ -1,0 +1,29 @@
+{
+  "CaseParams": {
+    "TruncErr": 1e-15,
+    "ThreadNum": 1,
+
+    "MC_samples": 50,
+    "WarmUp": 300,
+    "MCLocalUpdateSweepsBetweenSample": 2,
+
+    "Dbmps_min": 8,
+    "Dbmps_max": 16,
+    "MPSCompressScheme": 1,
+
+    "OptimizerType": "SR",
+    "MaxIterations": 10,
+    "LearningRate": 0.1,
+
+    "CGMaxIter": 600,
+    "CGTol": 1e-5,
+    "CGResidueRestart": 20,
+    "CGDiagShift": 0.01,
+
+    "WavefunctionBase": "tps",
+    "ConfigurationLoadDir": "configs",
+    "ConfigurationDumpDir": "configs"
+  }
+}
+
+

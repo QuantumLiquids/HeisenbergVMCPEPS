@@ -1,0 +1,23 @@
+{
+  "CaseParams": {
+    "TruncErr": 1e-10,
+    "ThreadNum": 2,
+
+    "MC_samples": 1000,
+    "WarmUp": 200,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+
+    "Dbmps_max": 4,
+    "MPSCompressScheme": 1,
+
+    "OptimizerType": "SGD",
+    "MaxIterations": 10,
+    "LearningRate": 0.05,
+    "Momentum": 0.9,
+    "Nesterov": true,
+
+    "ClipNorm": 1.0
+  }
+}
+
+

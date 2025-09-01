@@ -1,0 +1,17 @@
+---
+alwaysApply: false
+---
+Build should perform in `build` directory. 
+If make file and you need run cmake, Please follow the following pattern:
+
+cmake .. -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++  
+and other options
+
+If meet error like when run `cmake`:
+
+CMake Error at /opt/homebrew/share/cmake/Modules/FindPackageHandleStandardArgs.cmake:233 (message):
+  Could NOT find OpenMP_CXX (missing: OpenMP_CXX_FLAGS OpenMP_CXX_LIB_NAMES)
+
+rerun exactly same command `cmake .. -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ `  once again.
+
+对了可以开debug模式，能探测到更多问题。但是会慢
