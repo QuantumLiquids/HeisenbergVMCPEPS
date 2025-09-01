@@ -14,10 +14,10 @@
 - Dbmps_min/Dbmps_max, MPSCompressScheme
 - CGMaxIter, CGTol, CGResidueRestart, CGDiagShift
 - ReplicaTest
-- StepLengthFirst, StepLengthDecrease, UpdateNum, UpdateScheme
+- OptimizerType, MaxIterations, LearningRate
  - WavefunctionBase (e.g. "tps" -> `tpsfinal/`, `tpslowest/`)
  - ConfigurationLoadDir, ConfigurationDumpDir (目录，文件名按 `configuration{rank}`)
-  - OptimizerType/MaxIterations/LearningRate 等见: [Optimizer Examples](05-optimizer-examples.md)
+  - 详见: [Optimizer Examples](05-optimizer-examples.md)
 
 ### simple_update_algorithm_params.json
 - Tau, Step

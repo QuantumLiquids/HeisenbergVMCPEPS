@@ -16,10 +16,9 @@
     "ReplicaTest": false,
     "RemoveCorner": true,
     "MPSCompressScheme": 1,
-    "StepLengthFirst": 0.1,
-    "StepLengthDecrease": 0.0,
-    "UpdateNum": 10,
-    "UpdateScheme": 2,
+    "OptimizerType": "SR",
+    "MaxIterations": 10,
+    "LearningRate": 0.1,
     "ThreadNum": 1
   }
 }

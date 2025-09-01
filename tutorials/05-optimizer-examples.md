@@ -1,6 +1,6 @@
 ## Optimizer parameter examples
 
-These snippets plug directly into your VMC algorithm JSON (e.g., `debug/vmc_quick.json` under `CaseParams`). Only set the keys you need – unspecified fields use sensible defaults, parsed by `EnhancedVMCUpdateParams`.
+These snippets plug directly into your VMC algorithm JSON (e.g., `debug/vmc_quick.json` under `CaseParams`). Only set the keys you need – unspecified fields use sensible defaults, parsed by `EnhancedVMCUpdateParams`. Legacy keys (e.g., `UpdateNum`, `StepLengthFirst`, `UpdateScheme`) are not supported anymore.
 
 ### Common fields
 - OptimizerType: "StochasticReconfiguration" (或简写 "SR") | "SGD" | "Adam" | "AdaGrad"

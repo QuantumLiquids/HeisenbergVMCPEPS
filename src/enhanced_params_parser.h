@@ -24,57 +24,61 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       mc_params(algorithm_file),
       bmps_params(algorithm_file) {
     
-    // Parse optimizer configuration (backward-compatible defaults)
-    optimizer_type = ParseStringDefault("OptimizerType", "StochasticReconfiguration");
+    // Parse optimizer configuration with default values
+    optimizer_type = this->ParseStrOr("OptimizerType", "StochasticReconfiguration");
     // Aliases: allow short names
     if (optimizer_type == "SR" || optimizer_type == "sr") {
       optimizer_type = "StochasticReconfiguration";
     }
-    max_iterations = ParseIntDefault("MaxIterations", ParseIntDefault("UpdateNum", 10));
-    learning_rate = ParseDoubleDefault("LearningRate", ParseDoubleDefault("StepLengthFirst", 0.01));
+    max_iterations = static_cast<size_t>(this->ParseIntOr("MaxIterations", 10));
+    learning_rate = this->ParseDoubleOr("LearningRate", 0.01);
     
     // Parse convergence criteria (optional)
-    energy_tolerance = ParseDoubleDefault("EnergyTolerance", 0.0);
-    gradient_tolerance = ParseDoubleDefault("GradientTolerance", 0.0);
-    plateau_patience = ParseIntDefault("PlateauPatience", max_iterations);
+    // Convergence criteria (optional)
+    energy_tolerance = this->ParseDoubleOr("EnergyTolerance", 0.0);
+    gradient_tolerance = this->ParseDoubleOr("GradientTolerance", 0.0);
+    plateau_patience = static_cast<size_t>(this->ParseIntOr("PlateauPatience", static_cast<int>(max_iterations)));
     
     // Parse algorithm-specific parameters
     if (optimizer_type == "SGD") {
-      momentum = ParseDoubleDefault("Momentum", 0.0);
-      nesterov = ParseBoolDefault("Nesterov", false);
-      weight_decay = ParseDoubleDefault("WeightDecay", 0.0);
+      momentum = this->ParseDoubleOr("Momentum", 0.0);
+      nesterov = this->ParseBoolOr("Nesterov", false);
+      weight_decay = this->ParseDoubleOr("WeightDecay", 0.0);
     } else if (optimizer_type == "Adam") {
-      beta1 = ParseDoubleDefault("Beta1", 0.9);
-      beta2 = ParseDoubleDefault("Beta2", 0.999);
-      epsilon = ParseDoubleDefault("Epsilon", 1e-8);
-      weight_decay = ParseDoubleDefault("WeightDecay", 0.0);
+      beta1 = this->ParseDoubleOr("Beta1", 0.9);
+      beta2 = this->ParseDoubleOr("Beta2", 0.999);
+      epsilon = this->ParseDoubleOr("Epsilon", 1e-8);
+      weight_decay = this->ParseDoubleOr("WeightDecay", 0.0);
     } else if (optimizer_type == "AdaGrad") {
-      epsilon = ParseDoubleDefault("Epsilon", 1e-8);
-      initial_accumulator = ParseDoubleDefault("InitialAccumulator", 0.0);
+      epsilon = this->ParseDoubleOr("Epsilon", 1e-8);
+      initial_accumulator = this->ParseDoubleOr("InitialAccumulator", 0.0);
     } else if (optimizer_type == "StochasticReconfiguration") {
       // SR: require explicit CG params (no defaults) except Diagonal shift (defaults to 0.0)
       cg_max_iter = ParseInt("CGMaxIter");
       cg_tol = ParseDouble("CGTol");
       cg_residue_restart = ParseInt("CGResidueRestart");
-      cg_diag_shift = ParseDoubleDefault("CGDiagShift", 0.0);
-      normalize_update = ParseBoolDefault("NormalizeUpdate", false);
+      cg_diag_shift = this->ParseDoubleOr("CGDiagShift", 0.0);
+      normalize_update = this->ParseBoolOr("NormalizeUpdate", false);
     }
     
     // Parse learning rate scheduler (optional)
-    lr_scheduler_type = ParseStringDefault("LRScheduler", "");
+    // Learning rate scheduler (optional)
+    lr_scheduler_type = this->ParseStrOr("LRScheduler", "");
     if (lr_scheduler_type == "ExponentialDecay") {
       decay_rate = ParseDouble("DecayRate");
       decay_steps = ParseInt("DecaySteps");
     } else if (lr_scheduler_type == "CosineAnnealing") {
-      min_learning_rate = ParseDoubleDefault("MinLearningRate", 0.0);
+      min_learning_rate = this->ParseDoubleOr("MinLearningRate", 0.0);
     } else if (lr_scheduler_type == "Plateau") {
-      plateau_factor = ParseDoubleDefault("PlateauFactor", 0.5);
-      plateau_threshold = ParseDoubleDefault("PlateauThreshold", 1e-4);
+      plateau_factor = this->ParseDoubleOr("PlateauFactor", 0.5);
+      plateau_threshold = this->ParseDoubleOr("PlateauThreshold", 1e-4);
     }
     
     // Parse gradient clipping (optional)
-    clip_norm = ParseDoubleOptional("ClipNorm");
-    clip_value = ParseDoubleOptional("ClipValue");
+    // Gradient clipping (optional)
+    double tmp_val = 0.0;
+    if (this->TryParseDouble("ClipNorm", tmp_val)) clip_norm = tmp_val; else clip_norm.reset();
+    if (this->TryParseDouble("ClipValue", tmp_val)) clip_value = tmp_val; else clip_value.reset();
   }
 
   heisenberg_params::PhysicalParams physical_params;
@@ -130,9 +134,10 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
    * @brief Create qlpeps::VMCPEPSOptimizerParams with modern optimizer support
    */
   qlpeps::VMCPEPSOptimizerParams CreateVMCOptimizerParams(int rank = 0) {
-    wavefunction_base = ParseStringDefault("WavefunctionBase", wavefunction_base);
-    configuration_load_dir = ParseStringDefault("ConfigurationLoadDir", configuration_load_dir);
-    configuration_dump_dir = ParseStringDefault("ConfigurationDumpDir", configuration_dump_dir);
+    // IO defaults with overrides if provided
+    wavefunction_base = this->ParseStrOr("WavefunctionBase", wavefunction_base);
+    configuration_load_dir = this->ParseStrOr("ConfigurationLoadDir", configuration_load_dir);
+    configuration_dump_dir = this->ParseStrOr("ConfigurationDumpDir", configuration_dump_dir);
     // Default config dirs to base+"final" (e.g., tpsfinal/)
     if (configuration_load_dir.empty()) configuration_load_dir = wavefunction_base + "final";
     if (configuration_dump_dir.empty()) configuration_dump_dir = wavefunction_base + "final";
@@ -221,46 +226,7 @@ private:
     }
   }
   
-  // Helper methods for optional parameter parsing
-  std::string ParseStringDefault(const std::string& key, const std::string& default_val) {
-    try {
-      return ParseStr(key);
-    } catch (...) {
-      return default_val;
-    }
-  }
-  
-  double ParseDoubleDefault(const std::string& key, double default_val) {
-    try {
-      return ParseDouble(key);
-    } catch (...) {
-      return default_val;
-    }
-  }
-  
-  size_t ParseIntDefault(const std::string& key, size_t default_val) {
-    try {
-      return ParseInt(key);
-    } catch (...) {
-      return default_val;
-    }
-  }
-  
-  bool ParseBoolDefault(const std::string& key, bool default_val) {
-    try {
-      return ParseBool(key);
-    } catch (...) {
-      return default_val;
-    }
-  }
-  
-  std::optional<double> ParseDoubleOptional(const std::string& key) {
-    try {
-      return ParseDouble(key);
-    } catch (...) {
-      return std::nullopt;
-    }
-  }
+  // No local wrappers
 };
 
 #endif // HEISENBERGVMCPEPS_ENHANCED_PARAMS_PARSER_H

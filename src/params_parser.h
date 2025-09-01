@@ -38,6 +38,8 @@ struct VMCUpdateParams : public qlmps::CaseParamsParserBasic {
   bool ReplicaTest;                                   ///< Whether to perform replica test
   int update_scheme;   ///< Wave function update scheme (legacy, now handled by OptimizerParams factory)
   std::vector<double> step_len;                       ///< Step lengths for optimization
+  size_t max_iterations;                              ///< Number of optimization iterations (modern)
+  double learning_rate;                               ///< Learning rate (modern)
 
   VMCUpdateParams(const char *physics_file, const char *algorithm_file) : 
       qlmps::CaseParamsParserBasic(algorithm_file),
@@ -50,16 +52,12 @@ struct VMCUpdateParams : public qlmps::CaseParamsParserBasic {
     CGDiagShift = ParseDouble("CGDiagShift");
     ReplicaTest = ParseBool("ReplicaTest");
     
-    size_t update_times = ParseInt("UpdateNum");
-    step_len = std::vector<double>(update_times);
-    if (update_times > 0) {
-      step_len[0] = ParseDouble("StepLengthFirst");
-      double step_len_change = ParseDouble("StepLengthDecrease");
-      for (size_t i = 1; i < update_times; i++) {
-        step_len[i] = step_len[0] - i * step_len_change;
-      }
-    }
-    update_scheme = ParseInt("UpdateScheme");
+    // Modern keys (no legacy fallbacks)
+    max_iterations = this->Has("MaxIterations") ? static_cast<size_t>(ParseInt("MaxIterations")) : 10;
+    learning_rate = this->Has("LearningRate") ? ParseDouble("LearningRate") : 0.01;
+    // Keep legacy fields initialized but unused
+    update_scheme = 0;
+    step_len.clear();
   }
   
   /**
@@ -92,9 +90,9 @@ struct VMCUpdateParams : public qlmps::CaseParamsParserBasic {
     
     // Create optimizer parameters using factory method for Stochastic Reconfiguration
     qlpeps::OptimizerParams opt_params = qlpeps::OptimizerFactory::CreateStochasticReconfiguration(
-      step_len.size(),  // max_iterations
+      max_iterations,
       qlpeps::ConjugateGradientParams(CGMaxIter, CGTol, CGResidueRestart, CGDiagShift),
-      !step_len.empty() ? step_len[0] : 0.01  // learning_rate
+      learning_rate
     );
     
     return qlpeps::VMCPEPSOptimizerParams(opt_params, mc_params_obj, peps_params_obj);

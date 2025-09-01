@@ -37,7 +37,7 @@ params/
     "Dbmps_min": 4, "Dbmps_max": 4, "MPSCompressScheme": 1,
     "CGMaxIter": 100, "CGTol": 1e-8, "CGResidueRestart": 20, "CGDiagShift": 0.01,
     "ReplicaTest": true,
-    "StepLengthFirst": 0.1, "StepLengthDecrease": 0.01, "UpdateNum": 2, "UpdateScheme": 0
+    "OptimizerType": "SR", "MaxIterations": 2, "LearningRate": 0.1
   }
 }
 ```
