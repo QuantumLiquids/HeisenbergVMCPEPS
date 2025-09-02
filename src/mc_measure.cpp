@@ -18,6 +18,24 @@ using namespace qlpeps;
 
 using MCUpdater = MCUpdateSquareTNN3SiteExchange;
 
+// Local helper: init/load half-up-half-down Configuration with U1 occupancy
+static inline std::pair<Configuration, bool> InitOrLoadConfigHalfU1(
+    const heisenberg_params::PhysicalParams &physical_params,
+    const std::string &configuration_load_dir,
+    int rank) {
+  const size_t N = physical_params.Lx * physical_params.Ly;
+  const size_t spin_up_sites = N / 2;
+  OccupancyNum occupancy(2, 0);
+  occupancy[1] = spin_up_sites;
+  occupancy[0] = N - spin_up_sites;
+  Configuration config(physical_params.Ly, physical_params.Lx, occupancy);
+  bool warmed_up = false;
+  if (!configuration_load_dir.empty()) {
+    warmed_up = config.Load(configuration_load_dir, static_cast<size_t>(rank));
+  }
+  return {config, warmed_up};
+}
+
 int main(int argc, char **argv) {
   MPI_Init(nullptr, nullptr);
   MPI_Comm comm = MPI_COMM_WORLD;
@@ -35,23 +53,10 @@ int main(int argc, char **argv) {
   qlten::hp_numeric::SetTensorManipulationThreads(params.bmps_params.ThreadNum);
 
   // Build MC measurement params (new API)
-  const size_t N = params.physical_params.Lx * params.physical_params.Ly;
-  Configuration init_config(params.physical_params.Ly, params.physical_params.Lx);
-  bool warmed_up = false;
-  {
-    // Try to load warmed-up configuration (rank-aware) from tpsfinal/
-    std::string load_dir = "tpsfinal";
-    if (qlmps::IsPathExist(load_dir)) {
-      warmed_up = init_config.Load(load_dir, (size_t) rank);
-    }
-    if (!warmed_up) {
-      // Random initialization with U1 occupancy: half up, half down
-      OccupancyNum occupancy(2, 0);
-      occupancy[1] = N / 2;                 // spin up
-      occupancy[0] = N - occupancy[1];      // spin down
-      init_config.Random(occupancy);
-    }
-  }
+  auto [init_config, warmed_up] = InitOrLoadConfigHalfU1(
+      params.physical_params,
+      std::string("tpsfinal"),
+      rank);
 
   MonteCarloParams mc_params_obj(
       params.mc_params.MC_samples,

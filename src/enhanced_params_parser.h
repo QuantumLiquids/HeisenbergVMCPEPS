@@ -144,14 +144,9 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
 
     // Create Monte Carlo parameters
     size_t N = physical_params.Lx * physical_params.Ly;
-    qlpeps::Configuration config(physical_params.Ly, physical_params.Lx);
     size_t spin_up_sites = N / 2;
-    for (size_t row = 0; row < physical_params.Ly; row++) {
-      for (size_t col = 0; col < physical_params.Lx; col++) {
-        size_t site_idx = row * physical_params.Lx + col;
-        config({row, col}) = (site_idx < spin_up_sites) ? 1 : 0;
-      }
-    }
+    qlpeps::OccupancyNum occupancy = {spin_up_sites, N - spin_up_sites};
+    qlpeps::Configuration config(physical_params.Ly, physical_params.Lx, occupancy);
     bool warmed_up = false;
     // Try load configuration from directory if provided: configuration{rank}
     if (!configuration_load_dir.empty()) {
