@@ -58,6 +58,10 @@ params/
 }
 ```
 
+Note:
+- Measurement now supports `WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir` like VMC.
+- Defaults: `WavefunctionBase` = "tps"; empty `Configuration*Dir` fall back to `wavefunction_base+"final"` (i.e., `tpsfinal/`).
+
 ### Usage
 ```bash
 ./prog <physics_params.json> <algorithm_params.json>

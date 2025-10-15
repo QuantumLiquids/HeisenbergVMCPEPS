@@ -5,6 +5,7 @@
     "MC_samples": 4,
     "WarmUp": 1000,
     "MCLocalUpdateSweepsBetweenSample": 2,
+    "Dbmps_min": 4,
     "Dbmps_max": 4,
     "MPSCompressScheme": 1
   }

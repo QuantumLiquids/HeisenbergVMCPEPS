@@ -156,8 +156,8 @@ MeasuRes<TenElemT> MeasureTwoSiteOp(
     for (size_t i = 0; i < has_done_measure_event_num; i++) {
       avgs.push_back(measure_res[i].avg);
     }
-    hp_numeric::MPI_Send(has_done_measure_event_num, kMPIMasterRank, 0, comm);
-    hp_numeric::MPI_Send(avgs.data(), has_done_measure_event_num, kMPIMasterRank, 1, comm);
+    hp_numeric::MPI_Send(has_done_measure_event_num, qlten::hp_numeric::kMPIMasterRank, 0, comm);
+    hp_numeric::MPI_Send(avgs.data(), has_done_measure_event_num, qlten::hp_numeric::kMPIMasterRank, 1, comm);
   }
   return measure_res;
 }
@@ -269,8 +269,8 @@ inline MeasuRes<TenElemT> MeasureTwoSiteOp(
     for (size_t i = 0; i < has_done_measure_event_num; i++) {
       avgs.push_back(measure_res[i].avg);
     }
-    hp_numeric::MPI_Send(has_done_measure_event_num, kMPIMasterRank, 0, comm);
-    hp_numeric::MPI_Send(avgs.data(), has_done_measure_event_num, kMPIMasterRank, 1, comm);
+    hp_numeric::MPI_Send(has_done_measure_event_num, qlten::hp_numeric::kMPIMasterRank, 0, comm);
+    hp_numeric::MPI_Send(avgs.data(), has_done_measure_event_num, qlten::hp_numeric::kMPIMasterRank, 1, comm);
   }
   mps.clear();
   return measure_res;
@@ -525,6 +525,7 @@ inline MeasuRes<TenElemT> MeasureElectronPhonon4PointFunction(
       assert((*iter)[1] == site2);
       //TODO: check order: a. site1<site2<3<4 b. for every 3,4, ascending order
     }
+    (void)site1; (void)site2;
   }
   MeasuRes<TenElemT> measure_res;
   measure_res.reserve(measure_event_num);
