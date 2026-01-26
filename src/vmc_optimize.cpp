@@ -11,13 +11,10 @@
 #include "enhanced_params_parser.h"
 #include "myutil.h"
 #include "qlpeps/qlpeps.h"
-#include "qlpeps/api/vmc_api.h"
 #include "model_updater_factory.h"
 #include <fstream>
 
 using namespace qlpeps;
-
-using Model = SquareSpinOneHalfXXZModel;
 
 int main(int argc, char **argv) {
   if (argc != 3) {
@@ -88,22 +85,13 @@ int main(int argc, char **argv) {
     return -2;
   }
 
-  // Create and run VMC optimizer via high-level API wrapper
-  // Backend-aware updater selection:
-  // - OBC: keep the legacy 3-site exchange updater (BMPS).
-  // - PBC: use NN exchange updater (TRG trial/commit).
-  //
+  // Create and run VMC optimizer (backend-consistent dispatch).
   // TODO(MCRestrictU1): dispatch updater by params.physical_params.MCRestrictU1 as well.
   LogSamplerChoice(params.physical_params);
   if (rank == 0) {
     std::cout << "Starting " << params.optimizer_type << " optimization..." << std::endl;
   }
-  // Dispatch by model (SquareHeisenberg default; SquareHeisenbergJ1J2 fallback until wired)
-  if (params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
-    RunVmcByModel<TenElemT, QNT, qlpeps::MCUpdateSquareNNExchangePBC>(params, sitps, comm, rank);
-  } else {
-    RunVmcByModel<TenElemT, QNT, qlpeps::MCUpdateSquareTNN3SiteExchange>(params, sitps, comm, rank);
-  }
+  RunVmcByModel<TenElemT, QNT>(params, sitps, comm, rank);
   if (rank == 0) {
     std::cout << "Optimization completed!" << std::endl;
   }

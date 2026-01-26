@@ -1,26 +1,15 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-//
-// Monte Carlo measurement entry using the new PEPS API (qlpeps/api/vmc_api.h)
-// - No legacy MCMeasurementPara / Executor types
-// - Model dispatch by J2
-// - Prefer SplitIndexTPS from tpsfinal/; fallback to splitting TPS
-//
+// Monte Carlo measurement entry (backend-consistent dispatch).
+// - Prefer SplitIndexTPS from tpsfinal/; fallback to splitting TPS.
 
 #include "qlpeps/qlpeps.h"
-#include "qlpeps/api/vmc_api.h"
 #include "./qldouble.h"
 #include "enhanced_measure_params_parser.h"
 #include "model_updater_factory.h"
 #include "myutil.h"
 
 using namespace qlpeps;
-
-// Updater selection is backend dependent:
-// - OBC uses BMPS-based updaters
-// - PBC uses TRG trial/commit updaters
-using MCUpdaterOBC = MCUpdateSquareTNN3SiteExchange;
-using MCUpdaterPBC = MCUpdateSquareNNExchangePBC;
 
 // Local helper: init/load half-up-half-down Configuration with U1 occupancy
 static inline std::pair<Configuration, bool> InitOrLoadConfigHalfU1(
@@ -121,11 +110,7 @@ int main(int argc, char **argv) {
   }
 
   // Dispatch by model (same policy as VMC)
-  if (params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
-    RunMeasureByModel<TenElemT, QNT, MCUpdaterPBC>(params.physical_params, measurement_params, sitps, comm);
-  } else {
-    RunMeasureByModel<TenElemT, QNT, MCUpdaterOBC>(params.physical_params, measurement_params, sitps, comm);
-  }
+  RunMeasureByModel<TenElemT, QNT>(params.physical_params, measurement_params, sitps, comm);
 
   MPI_Finalize();
   return 0;
