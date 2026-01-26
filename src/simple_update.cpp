@@ -12,8 +12,8 @@
 #include "qlpeps/algorithm/simple_update/square_lattice_nn_simple_update.h"
 #include "qlpeps/algorithm/simple_update/square_lattice_nnn_simple_update.h"
 #include "qlpeps/algorithm/simple_update/triangle_nn_on_sqr_peps_simple_update.h"
-#include "qlpeps/two_dim_tn/tps/split_index_tps.h"
 #include "qlpeps/qlpeps.h"
+#include "qlpeps/api/conversions.h"
 #include "./qldouble.h"
 #include "./params_parser.h"
 #include <fstream>
@@ -30,6 +30,11 @@ int main(int argc, char **argv) {
   const std::string model = params.physical_params.ModelType;
   const bool is_triangle = (model.find("Triangle") != std::string::npos);
   const bool is_xy = (!is_triangle && (model == "SquareXY"));
+  const auto bc = params.physical_params.BoundaryCondition;
+  if (is_triangle && bc == qlpeps::BoundaryCondition::Periodic) {
+    std::cerr << "ERROR: Triangle simple update with PBC is not supported." << std::endl;
+    return -2;
+  }
 
   Tensor did = Tensor({pb_in, pb_out});
   Tensor dsz = Tensor({pb_in, pb_out});
@@ -101,7 +106,7 @@ int main(int argc, char **argv) {
                                        params.numerical_params.Dmin, params.numerical_params.Dmax,
                                        params.numerical_params.TruncErr);
 
-  qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.physical_params.Ly, params.physical_params.Lx);
+  qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.physical_params.Ly, params.physical_params.Lx, bc);
   if (qlmps::IsPathExist(peps_path)) {
     peps0.Load(peps_path);
   } else {
@@ -153,13 +158,13 @@ int main(int argc, char **argv) {
   
   // Convert to TPS (in-memory) and normalize, then generate SplitIndexTPS and save (TPS file not stored)
   auto peps = su_exe->GetPEPS();
-  auto tps = qlpeps::TPS<TenElemT, QNT>(peps);
+  auto tps = qlpeps::ToTPS<TenElemT, QNT>(peps);
   for (auto &tensor : tps) {
       tensor.Normalize();
   }
   
   // Convert TPS to SplitIndexTPS and save for VMC use under final/lowest convention
-  qlpeps::SplitIndexTPS<TenElemT, QNT> sitps(tps);
+  qlpeps::SplitIndexTPS<TenElemT, QNT> sitps = qlpeps::ToSplitIndexTPS<TenElemT, QNT>(tps);
   std::string sitps_final = "tpsfinal";
   sitps.Dump(sitps_final);
 
@@ -172,5 +177,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
-

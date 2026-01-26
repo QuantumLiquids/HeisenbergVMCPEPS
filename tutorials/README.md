@@ -1,26 +1,15 @@
-## User Guide and Project Plan
+## Tutorials (English-only)
 
-This directory is the single source of truth for how a user runs the code and what the project delivers. Keep it short, practical, and stable.
+These docs aim to answer, in order:
+1) What am I running and what should I expect to happen?
+2) Which parameters control which part of the computation?
+3) What are good minimal configs to start from?
+4) Where is the exact key-by-key reference?
 
-### What this project is
-- PEPS + VMC workflows for 2D Heisenberg-like models
-- Square lattice first-class; triangular/kagome supported by binaries where present
+Start here:
+- `tutorials/01-quick-start.md` (end-to-end, OBC)
+- `tutorials/02-concepts.md` (high-level view + parameter taxonomy)
+- `tutorials/03-recipes.md` (copy/paste configs)
+- `tutorials/04-parameter-reference.md` (key reference)
 
-### Deliverables (user-facing)
-- Simple Update to prepare a PEPS state
-- VMC optimization (stochastic reconfiguration via CG)
-- MC measurements producing basic observables
-
-### Minimal tutorial set (max 5 files)
-- [01-quick-start.md](01-quick-start.md)
-- [02-parameter-system.md](02-parameter-system.md)
-- [03-parameter-reference.md](03-parameter-reference.md)
-- [04-algorithm-workflows.md](04-algorithm-workflows.md)
-
-### Data artifacts (placeholders — verified by small runs)
-- `peps/` and `tpsfinal/`: serialized tensors
-- `energy/energy_trajectory.csv`: columns = [update_index, energy_per_site, stderr]
-- `data/energy.dat`: placeholder columns = [sample_index, energy_per_site]
-- `data/correlation.dat`: placeholder schema TBD (to be validated by measurement run)
-
-If an artifact format differs on real runs, update the exact schema in 04-algorithm-workflows.md.
+Older drafts and legacy snapshots are kept in `tutorials/deprecated/`.

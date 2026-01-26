@@ -1,2 +1,6 @@
 User can simply run VMC as in batch.sh, but the script should change to fit the environment.
 energy may ~ -91.35
+
+IMPORTANT (tensor symmetry / build):
+- The tensors in machine_test/square12x12D8vmc/tpsfinal/ are stored WITHOUT U1 symmetry.
+- Build this project without defining U1SYM (do not pass -DU1SYM=1 to CMake), otherwise tensor IO/types won't match.

@@ -16,7 +16,11 @@
 
 using namespace qlpeps;
 
-using MCUpdater = MCUpdateSquareTNN3SiteExchange;
+// Updater selection is backend dependent:
+// - OBC uses BMPS-based updaters
+// - PBC uses TRG trial/commit updaters
+using MCUpdaterOBC = MCUpdateSquareTNN3SiteExchange;
+using MCUpdaterPBC = MCUpdateSquareNNExchangePBC;
 
 // Local helper: init/load half-up-half-down Configuration with U1 occupancy
 static inline std::pair<Configuration, bool> InitOrLoadConfigHalfU1(
@@ -66,7 +70,7 @@ int main(int argc, char **argv) {
       warmed_up,              // warmed-up if loaded
       params.configuration_dump_dir
   );
-  PEPSParams peps_params_obj(params.CreateBMPSPara());
+  PEPSParams peps_params_obj(params.CreatePEPSParams());
   MCMeasurementParams measurement_params(mc_params_obj, peps_params_obj, "./");
 
   // TODO(MCRestrictU1): dispatch MCUpdater by params.physical_params.MCRestrictU1
@@ -79,9 +83,22 @@ int main(int argc, char **argv) {
     if (rank == 0) std::cout << "Loading SplitIndexTPS from: " << tps_final_dir << std::endl;
     sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx);
     sitps.Load(tps_final_dir);
+    if (sitps.GetBoundaryCondition() != params.physical_params.BoundaryCondition) {
+      if (rank == 0) {
+        std::cerr << "ERROR: BoundaryCondition mismatch between physics_params.json and loaded SplitIndexTPS.\n"
+                  << "  physics BoundaryCondition = "
+                  << ((params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
+                  << "\n  SITPS BoundaryCondition   = "
+                  << ((sitps.GetBoundaryCondition() == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
+                  << "\nPlease regenerate tpsfinal/ with the correct boundary condition." << std::endl;
+      }
+      MPI_Finalize();
+      return -3;
+    }
   } else {
     if (rank == 0) std::cout << "SplitIndexTPS not found. Loading TPS and splitting indices..." << std::endl;
-    TPS<QLTEN_Double, QNT> tps(params.physical_params.Ly, params.physical_params.Lx);
+    TPS<QLTEN_Double, QNT> tps(params.physical_params.Ly, params.physical_params.Lx,
+                               params.physical_params.BoundaryCondition);
     if (!tps.Load()) {
       if (rank == 0) std::cerr << "ERROR: Failed to load TPS from current directory." << std::endl;
       MPI_Finalize();
@@ -89,12 +106,27 @@ int main(int argc, char **argv) {
     }
     // Prefer modern conversion helper if available
     sitps = qlpeps::ToSplitIndexTPS(tps);
+    if (sitps.GetBoundaryCondition() != params.physical_params.BoundaryCondition) {
+      if (rank == 0) {
+        std::cerr << "ERROR: BoundaryCondition mismatch after TPS->SITPS conversion.\n"
+                  << "  physics BoundaryCondition = "
+                  << ((params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
+                  << "\n  SITPS BoundaryCondition   = "
+                  << ((sitps.GetBoundaryCondition() == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
+                  << "\nIf you want PBC, generate TPS/SITPS with PBC and TRG params." << std::endl;
+      }
+      MPI_Finalize();
+      return -3;
+    }
   }
 
   // Dispatch by model (same policy as VMC)
-  RunMeasureByModel<TenElemT, QNT, MCUpdater>(params.physical_params, measurement_params, sitps, comm);
+  if (params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
+    RunMeasureByModel<TenElemT, QNT, MCUpdaterPBC>(params.physical_params, measurement_params, sitps, comm);
+  } else {
+    RunMeasureByModel<TenElemT, QNT, MCUpdaterOBC>(params.physical_params, measurement_params, sitps, comm);
+  }
 
   MPI_Finalize();
   return 0;
 }
-

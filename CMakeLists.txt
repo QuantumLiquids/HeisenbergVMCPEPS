@@ -80,7 +80,7 @@ find_package(hptt)
 
 include_directories(
         ${MPI_CXX_HEADER_DIR}
-        ${BLAS_INCLUDE_DIR}
+        ${BLAS_INCLUDE_DIRS}
         ${hptt_INCLUDE_DIR}
         ${TENSOR_HEADER_PATH}
         ${MPS_HEADER_PATH}

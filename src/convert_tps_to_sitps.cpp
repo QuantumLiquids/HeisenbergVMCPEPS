@@ -15,8 +15,8 @@
 #include "./qldouble.h"
 #include "./params_parser.h"
 #include "qlpeps/qlpeps.h"
+#include "qlpeps/api/conversions.h"
 #include "qlpeps/two_dim_tn/tps/tps.h"
-#include "qlpeps/two_dim_tn/tps/split_index_tps.h"
 #include <iostream>
 #include <string>
 
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     qlten::hp_numeric::SetTensorManipulationThreads(1);
 
     // Load legacy TPS from current working directory using standard naming
-    qlpeps::TPS<TenElemT, QNT> tps(phys.Ly, phys.Lx);
+    qlpeps::TPS<TenElemT, QNT> tps(phys.Ly, phys.Lx, phys.BoundaryCondition);
     bool ok = tps.Load();
     if (!ok) {
       std::cerr << "ERROR: Failed to load TPS files in current directory."
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     }
 
     // Convert to SplitIndexTPS and dump
-    qlpeps::SplitIndexTPS<TenElemT, QNT> sitps(tps);
+    qlpeps::SplitIndexTPS<TenElemT, QNT> sitps = qlpeps::ToSplitIndexTPS<TenElemT, QNT>(tps);
     sitps.Dump(output_dir);
 
     std::cout << "Converted TPS (" << phys.Ly << "x" << phys.Lx
@@ -62,5 +62,4 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
 

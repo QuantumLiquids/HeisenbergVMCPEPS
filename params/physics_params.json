@@ -3,8 +3,8 @@
     "Lx": 4,
     "Ly": 4,
     "J2": 0.0,
-    "RemoveCorner": true
+    "RemoveCorner": true,
+    "ModelType": "SquareHeisenberg",
+    "BoundaryCondition": "Open"
   }
 }
-
-

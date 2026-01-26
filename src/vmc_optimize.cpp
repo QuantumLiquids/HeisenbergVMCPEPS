@@ -17,7 +17,6 @@
 
 using namespace qlpeps;
 
-using MCUpdater = MCUpdateSquareTNN3SiteExchange;
 using Model = SquareSpinOneHalfXXZModel;
 
 int main(int argc, char **argv) {
@@ -54,9 +53,6 @@ int main(int argc, char **argv) {
     std::cout << "=================================" << std::endl;
   }
 
-  // Create VMC optimizer parameters (rank-aware config IO)
-  auto vmc_params = params.CreateVMCOptimizerParams(rank);
-  
   // Initialize or load TPS/SITPS with unified basename
   std::string base = params.wavefunction_base; // default "tps"
   std::string tps_final = base + "final";
@@ -69,6 +65,18 @@ int main(int argc, char **argv) {
     // Debug-only probe: try load single-site tensor (0,0) first
     sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx);
     sitps.Load(tps_final);
+    if (sitps.GetBoundaryCondition() != params.physical_params.BoundaryCondition) {
+      if (rank == 0) {
+        std::cerr << "ERROR: BoundaryCondition mismatch between physics_params.json and loaded SplitIndexTPS.\n"
+                  << "  physics BoundaryCondition = "
+                  << ((params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
+                  << "\n  SITPS BoundaryCondition   = "
+                  << ((sitps.GetBoundaryCondition() == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
+                  << "\nPlease regenerate tpsfinal/ with the correct boundary condition." << std::endl;
+      }
+      MPI_Finalize();
+      return -3;
+    }
     if (rank == 0) std::cout << "Loaded SplitIndexTPS." << std::endl;
   } else {
     if (rank == 0) {
@@ -81,13 +89,21 @@ int main(int argc, char **argv) {
   }
 
   // Create and run VMC optimizer via high-level API wrapper
-  // TODO(MCRestrictU1): dispatch MCUpdater by params.physical_params.MCRestrictU1
+  // Backend-aware updater selection:
+  // - OBC: keep the legacy 3-site exchange updater (BMPS).
+  // - PBC: use NN exchange updater (TRG trial/commit).
+  //
+  // TODO(MCRestrictU1): dispatch updater by params.physical_params.MCRestrictU1 as well.
   LogSamplerChoice(params.physical_params);
   if (rank == 0) {
     std::cout << "Starting " << params.optimizer_type << " optimization..." << std::endl;
   }
   // Dispatch by model (SquareHeisenberg default; SquareHeisenbergJ1J2 fallback until wired)
-  RunVmcByModel<TenElemT, QNT, MCUpdater>(params, sitps, comm);
+  if (params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
+    RunVmcByModel<TenElemT, QNT, qlpeps::MCUpdateSquareNNExchangePBC>(params, sitps, comm, rank);
+  } else {
+    RunVmcByModel<TenElemT, QNT, qlpeps::MCUpdateSquareTNN3SiteExchange>(params, sitps, comm, rank);
+  }
   if (rank == 0) {
     std::cout << "Optimization completed!" << std::endl;
   }
@@ -95,5 +111,3 @@ int main(int argc, char **argv) {
   MPI_Finalize();
   return 0;
 }
-
-

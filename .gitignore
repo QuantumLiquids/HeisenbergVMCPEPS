@@ -54,3 +54,5 @@ run/
 .DS_Store
 .ycm_extra_conf.py
 
+AGENTS.md
+# Local benchmark logs (do not commit)

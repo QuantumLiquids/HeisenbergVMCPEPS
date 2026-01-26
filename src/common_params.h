@@ -13,8 +13,51 @@
 #include "qlmps/case_params_parser.h"
 #include "qlpeps/ond_dim_tn/boundary_mps/bmps.h"
 #include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
+#include "qlpeps/two_dim_tn/common/boundary_condition.h"
+#include <algorithm>
+#include <cctype>
+#include <optional>
+#include <stdexcept>
 
 namespace heisenberg_params {
+
+inline std::string TrimAsciiWhitespace(std::string s) {
+  auto is_space = [](unsigned char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+  };
+  while (!s.empty() && is_space(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
+  while (!s.empty() && is_space(static_cast<unsigned char>(s.back()))) s.pop_back();
+  return s;
+}
+
+inline qlpeps::BoundaryCondition ParseBoundaryCondition(const std::string &value) {
+  std::string key = TrimAsciiWhitespace(value);
+  std::transform(key.begin(), key.end(), key.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if (key == "open" || key == "obc") return qlpeps::BoundaryCondition::Open;
+  if (key == "periodic" || key == "pbc") return qlpeps::BoundaryCondition::Periodic;
+  throw std::invalid_argument("BoundaryCondition must be Open/OBC or Periodic/PBC.");
+}
+
+inline qlpeps::CompressMPSScheme ParseCompressMPSScheme(const std::string &value) {
+  std::string key = value;
+  std::transform(key.begin(), key.end(), key.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+  if (key == "0" || key == "svd" || key == "svd_compress" || key == "svdcompression" ||
+      key == "svd compression") {
+    return qlpeps::CompressMPSScheme::SVD_COMPRESS;
+  }
+  if (key == "1" || key == "var2" || key == "variational2site" || key == "variation2site" ||
+      key == "two-site variational compression" || key == "two_site_variational") {
+    return qlpeps::CompressMPSScheme::VARIATION2Site;
+  }
+  if (key == "2" || key == "var1" || key == "variational1site" || key == "variation1site" ||
+      key == "single-site variational compression" || key == "one_site_variational") {
+    return qlpeps::CompressMPSScheme::VARIATION1Site;
+  }
+  throw std::invalid_argument("MPSCompressScheme must be 0/1/2 or one of: SVD, Variational2Site, Variational1Site.");
+}
 
 /**
  * @brief Common physical parameters for lattice models
@@ -25,9 +68,23 @@ struct PhysicalParams : public qlmps::CaseParamsParserBasic {
     Ly = ParseInt("Ly");
     J2 = ParseDouble("J2");
     RemoveCorner = ParseBool("RemoveCorner");
-    // Optional, with sensible defaults documented in tutorials
-    try { ModelType = ParseStr("ModelType"); } catch (...) { ModelType = "SquareHeisenberg"; }
+    // Required: avoid ambiguous defaults in scientific runs.
+    // Make users specify explicitly what they simulate.
+    try {
+      ModelType = ParseStr("ModelType");
+    } catch (...) {
+      throw std::invalid_argument(
+          "Missing required key 'ModelType' in physics params. "
+          "Example values: SquareHeisenberg, SquareXY, TriangleHeisenberg.");
+    }
     try { MCRestrictU1 = ParseBool("MCRestrictU1"); } catch (...) { MCRestrictU1 = true; }
+    // BoundaryCondition is optional, but must not silently fall back on invalid values.
+    // If the key exists and parsing fails, throw to avoid accidental OBC simulations.
+    if (this->Has("BoundaryCondition")) {
+      BoundaryCondition = ParseBoundaryCondition(ParseStr("BoundaryCondition"));
+    } else {
+      BoundaryCondition = qlpeps::BoundaryCondition::Open;
+    }
   }
 
   size_t Lx;          ///< Lattice size in x direction
@@ -36,6 +93,7 @@ struct PhysicalParams : public qlmps::CaseParamsParserBasic {
   bool RemoveCorner;  ///< Whether to remove corner sites (for specific geometries)
   std::string ModelType; ///< Physics model identifier (e.g., SquareHeisenberg, SquareXY, TriangleHeisenberg)
   bool MCRestrictU1;     ///< Whether MC sampler restricts U1 (true by default)
+  qlpeps::BoundaryCondition BoundaryCondition; ///< Open or Periodic
 };
 
 /**
@@ -76,12 +134,48 @@ struct MonteCarloNumericalParams : public qlmps::CaseParamsParserBasic {
 struct BMPSParams : public qlmps::CaseParamsParserBasic {
   BMPSParams(const char *f) : CaseParamsParserBasic(f) {
     // Boundary MPS bond dimensions
-    Db_max = ParseInt("Dbmps_max");
-    try { Db_min = ParseInt("Dbmps_min"); } catch (...) { Db_min = Db_max; }
-    MPSCompressScheme = static_cast<qlpeps::CompressMPSScheme>(ParseInt("MPSCompressScheme"));
-    // Numerical controls specific to BMPS
-    TruncErr = ParseDouble("TruncErr");
-    ThreadNum = ParseInt("ThreadNum");
+    // NOTE:
+    // These keys are required for OBC(BMPS), but not required for PBC(TRG).
+    // We parse them opportunistically here and validate later in the driver based on boundary condition.
+    Db_max = this->Has("Dbmps_max") ? static_cast<size_t>(ParseInt("Dbmps_max")) : 0;
+    if (this->Has("Dbmps_min")) {
+      Db_min = static_cast<size_t>(ParseInt("Dbmps_min"));
+    } else {
+      Db_min = Db_max;
+    }
+    if (this->Has("MPSCompressScheme")) {
+      // Allow either int (0/1/2) or string ("SVD", "Variational2Site", ...).
+      try {
+        MPSCompressScheme = ParseCompressMPSScheme(ParseStr("MPSCompressScheme"));
+      } catch (...) {
+        MPSCompressScheme = static_cast<qlpeps::CompressMPSScheme>(ParseInt("MPSCompressScheme"));
+      }
+      has_mps_compress_scheme_ = true;
+    } else {
+      has_mps_compress_scheme_ = false;
+      MPSCompressScheme = qlpeps::CompressMPSScheme::SVD_COMPRESS;
+    }
+    // Numerical controls specific to BMPS.
+    //
+    // Naming:
+    // - Prefer "BMPSTruncErr" to avoid confusion with other truncation tolerances (TRG/SU).
+    // - Keep "TruncErr" as backward-compatible fallback.
+    // Default behavior if omitted: trunc_err = 0 (no truncation-by-error).
+    if (this->Has("BMPSTruncErr")) {
+      TruncErr = ParseDouble("BMPSTruncErr");
+    } else {
+      TruncErr = ParseDoubleOr("TruncErr", 0.0);
+    }
+    ThreadNum = static_cast<size_t>(ParseIntOr("ThreadNum", 1));
+
+    // Variational compression controls (only used when MPSCompressScheme is variational).
+    // Defaults keep current behavior (iter_max=10, convergence_tol=TruncErr).
+    if (this->Has("BMPSConvergenceTol")) {
+      bmps_convergence_tol_ = ParseDouble("BMPSConvergenceTol");
+    }
+    if (this->Has("BMPSIterMax")) {
+      bmps_iter_max_ = static_cast<size_t>(ParseInt("BMPSIterMax"));
+    }
   }
 
   size_t Db_min;                              ///< Minimum boundary MPS bond dimension
@@ -89,23 +183,44 @@ struct BMPSParams : public qlmps::CaseParamsParserBasic {
   qlpeps::CompressMPSScheme MPSCompressScheme; ///< MPS compression scheme
   double TruncErr;                             ///< Truncation error threshold for boundary MPS
   size_t ThreadNum;                            ///< Number of threads for tensor operations
+  bool HasBMPSRequiredKeys() const { return (Db_max > 0); }
 
   /**
    * @brief Create BMPSTruncatePara from these parameters
    */
-  qlpeps::BMPSTruncatePara CreateTruncatePara(double trunc_err) const {
-    return qlpeps::BMPSTruncatePara(Db_min, Db_max, trunc_err, MPSCompressScheme,
-                                   std::make_optional<double>(trunc_err),
-                                   std::make_optional<size_t>(10));
+  qlpeps::BMPSTruncateParams<qlten::QLTEN_Double> CreateTruncatePara(double trunc_err) const {
+    return CreateTruncateParamsImpl_(trunc_err);
   }
 
   /**
    * @brief Create BMPSTruncatePara using internal TruncErr
    */
-  qlpeps::BMPSTruncatePara CreateTruncatePara() const {
-    return qlpeps::BMPSTruncatePara(Db_min, Db_max, TruncErr, MPSCompressScheme,
-                                   std::make_optional<double>(TruncErr),
-                                   std::make_optional<size_t>(10));
+  qlpeps::BMPSTruncateParams<qlten::QLTEN_Double> CreateTruncatePara() const {
+    return CreateTruncateParamsImpl_(TruncErr);
+  }
+
+ private:
+  bool has_mps_compress_scheme_ = false;
+  std::optional<double> bmps_convergence_tol_;
+  std::optional<size_t> bmps_iter_max_;
+
+  qlpeps::BMPSTruncateParams<qlten::QLTEN_Double> CreateTruncateParamsImpl_(double trunc_err) const {
+    // Convergence tolerance is an algorithmic knob; don't make it "accidentally zero" when trunc_err=0.
+    const double default_tol = (trunc_err > 0.0) ? trunc_err : 1e-12;
+    const double tol = bmps_convergence_tol_.value_or(default_tol);
+    const size_t it = bmps_iter_max_.value_or(static_cast<size_t>(10));
+
+    switch (MPSCompressScheme) {
+      case qlpeps::CompressMPSScheme::SVD_COMPRESS:
+        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::SVD(Db_min, Db_max, trunc_err);
+      case qlpeps::CompressMPSScheme::VARIATION2Site:
+        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::Variational2Site(Db_min, Db_max, trunc_err, tol, it);
+      case qlpeps::CompressMPSScheme::VARIATION1Site:
+        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::Variational1Site(Db_min, Db_max, trunc_err, tol, it);
+      default:
+        // Fall back to SVD semantics to avoid undefined behavior if enum extends.
+        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::SVD(Db_min, Db_max, trunc_err);
+    }
   }
 };
 

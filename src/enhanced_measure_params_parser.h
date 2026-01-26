@@ -5,6 +5,7 @@
 
 #include "qlmps/case_params_parser.h"
 #include "qlpeps/ond_dim_tn/boundary_mps/bmps.h"
+#include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
 #include "common_params.h"
 
 /**
@@ -35,13 +36,29 @@ struct EnhancedMCMeasureParams : public qlmps::CaseParamsParserBasic {
   std::string configuration_dump_dir = "tpsfinal";      ///< directory to dump MC configuration{rank}
 
   /**
-   * @brief Create truncate para for BMPS using current numeric settings.
+   * @brief Create PEPSParams (BMPS for OBC, TRG for PBC).
    */
-  qlpeps::BMPSTruncatePara CreateBMPSPara() const {
-    return bmps_params.CreateTruncatePara();
+  qlpeps::PEPSParams CreatePEPSParams() {
+    if (physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
+      // Enforce TRG parameter presence for PBC runs.
+      if (!(this->Has("TRGDmin") && this->Has("TRGDmax") && this->Has("TRGTruncErr"))) {
+        throw std::invalid_argument(
+            "PBC requested but TRG params are missing in algorithm JSON. "
+            "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
+      }
+      const size_t d_min = static_cast<size_t>(ParseInt("TRGDmin"));
+      const size_t d_max = static_cast<size_t>(ParseInt("TRGDmax"));
+      const double trunc_err = ParseDouble("TRGTruncErr");
+      const double inv_eps = this->ParseDoubleOr("TRGInvRelativeEps", 1e-12);
+      return qlpeps::PEPSParams(qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
+    }
+    if (!bmps_params.HasBMPSRequiredKeys()) {
+      throw std::invalid_argument(
+          "OBC requested but BMPS params are missing in algorithm JSON. "
+          "Require: Dbmps_max (Dbmps_min optional; MPSCompressScheme optional, default=SVD).");
+    }
+    return qlpeps::PEPSParams(bmps_params.CreateTruncatePara());
   }
 };
 
 #endif // HEISENBERGVMCPEPS_ENHANCED_MEASURE_PARAMS_PARSER_H
-
-

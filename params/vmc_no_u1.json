@@ -1,6 +1,6 @@
 {
   "CaseParams": {
-    "TruncErr": 1e-10,
+    "BMPSTruncErr": 0.0,
     "ThreadNum": 2,
     "MC_samples": 200,
     "WarmUp": 50,
@@ -12,5 +12,4 @@
     "LearningRate": 0.1
   }
 }
-
 

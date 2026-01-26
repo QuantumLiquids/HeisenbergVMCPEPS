@@ -5,8 +5,8 @@
     "J2": 0.0,
     "RemoveCorner": true,
     "ModelType": "SquareXY",
-    "MCRestrictU1": true
+    "MCRestrictU1": true,
+    "BoundaryCondition": "Open"
   }
 }
-
 

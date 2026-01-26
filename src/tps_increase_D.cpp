@@ -4,8 +4,8 @@
 // extend the bond dimension of PEPS
 
 #include "./qldouble.h"
-#include "qlpeps/algorithm/vmc_update/vmc_peps.h"
-#include "./params_parser.h"
+#include "qlpeps/qlpeps.h"
+#include "./common_params.h"
 #include "myutil.h"
 
 using namespace qlpeps;
@@ -14,12 +14,12 @@ using namespace std;
 int main(int argc, char **argv) {
   if (argc < 3) {
     std::string program_name = argv[0];
-    std::cout << "Usage: " << program_name << "<vmc_params.json> <double magnitude>" << std::endl;
+    std::cout << "Usage: " << program_name << " <physics_params.json> <double magnitude>" << std::endl;
     return 1;
   }
-  VMCUpdateParams params(argv[1]);
+  heisenberg_params::PhysicalParams phys(argv[1]);
   double magnitude = std::strtod(argv[2], nullptr);
-  SplitIndexTPS<TenElemT, QNT> split_index_tps(params.Ly, params.Lx);
+  SplitIndexTPS<TenElemT, QNT> split_index_tps(phys.Ly, phys.Lx);
   bool is_load = split_index_tps.Load();
   if (!is_load) {
     std::cout << "Loading TPS files fails." << std::endl;
@@ -29,8 +29,8 @@ int main(int argc, char **argv) {
     std::cout << "warning : D is not even." << std::endl;
   }
 
-  for (size_t row = 0; row < params.Ly; row++) {
-    for (size_t col = 0; col < params.Lx; col++) {
+  for (size_t row = 0; row < phys.Ly; row++) {
+    for (size_t col = 0; col < phys.Lx; col++) {
       size_t dim = split_index_tps({row, col}).size();
       std::cout << "[ " << row << ", " << col << "] :";
       std::vector<size_t> vb_dims = split_index_tps({row, col})[0].GetShape();
