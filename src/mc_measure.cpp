@@ -62,8 +62,8 @@ int main(int argc, char **argv) {
   PEPSParams peps_params_obj(params.CreatePEPSParams());
   MCMeasurementParams measurement_params(mc_params_obj, peps_params_obj, "./");
 
-  // TODO(MCRestrictU1): dispatch MCUpdater by params.physical_params.MCRestrictU1
-  LogSamplerChoice(params.physical_params);
+  // TODO(MCRestrictU1): dispatch MCUpdater by params.mc_params.MCRestrictU1
+  LogSamplerChoice(params.mc_params);
 
   // Load SplitIndexTPS from tpsfinal/ if exists; otherwise split from TPS
   SplitIndexTPS<TenElemT, QNT> sitps;

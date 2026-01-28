@@ -28,8 +28,8 @@ inline ModelKind DetectModelKind(const std::string &model_type) {
 // Current minimal mapping to avoid code bloat.
 // We keep the actual call sites in the drivers (e.g., square_vmc_update.cpp),
 // and use this helper only for detection/logging to keep dependencies localized.
-inline void LogSamplerChoice(const heisenberg_params::PhysicalParams &phys) {
-  if (!phys.MCRestrictU1) {
+inline void LogSamplerChoice(const heisenberg_params::MonteCarloNumericalParams &mc) {
+  if (!mc.MCRestrictU1) {
     std::cout << "[info] MCRestrictU1=false (no-U1 sampler requested)."
                  " Using U1 sampler temporarily; non-U1 variant will be wired in a later step."
               << std::endl;
@@ -78,7 +78,7 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
 
   if (model_type == "SquareHeisenberg") {
     if (std::abs(j2) < 1e-15) {
-      using Model = qlpeps::SquareSpinOneHalfXXZModel; // Heisenberg J2=0 (OBC)
+      using Model = qlpeps::SquareSpinOneHalfXXZModelOBC; // Heisenberg J2=0 (OBC)
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, Model{});
     } else {
       using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModel; // Heisenberg J2!=0 (OBC)
@@ -90,7 +90,7 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
 
   if (model_type == "SquareXY") {
     if (std::abs(j2) < 1e-15) {
-      using Model = qlpeps::SquareSpinOneHalfXXZModel; // XY J2=0 => jz=0, jxy=1
+      using Model = qlpeps::SquareSpinOneHalfXXZModelOBC; // XY J2=0 => jz=0, jxy=1
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*pinning=*/0.0);
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
     } else {
@@ -115,7 +115,7 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
 
   // Fallback: default to SquareHeisenberg semantics
   {
-    using Model = qlpeps::SquareSpinOneHalfXXZModel;
+    using Model = qlpeps::SquareSpinOneHalfXXZModelOBC;
     heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, Model{});
   }
 }
@@ -163,7 +163,7 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
 
   if (model_type == "SquareHeisenberg") {
     if (std::abs(j2) < 1e-15) {
-      using Model = qlpeps::SquareSpinOneHalfXXZModel;
+      using Model = qlpeps::SquareSpinOneHalfXXZModelOBC;
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, Model{});
     } else {
       using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModel;
@@ -175,7 +175,7 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
 
   if (model_type == "SquareXY") {
     if (std::abs(j2) < 1e-15) {
-      using Model = qlpeps::SquareSpinOneHalfXXZModel; // XY: jz=0, jxy=1
+      using Model = qlpeps::SquareSpinOneHalfXXZModelOBC; // XY: jz=0, jxy=1
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*pinning=*/0.0);
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
     } else {
@@ -200,7 +200,7 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
 
   // Fallback
   {
-    using Model = qlpeps::SquareSpinOneHalfXXZModel;
+    using Model = qlpeps::SquareSpinOneHalfXXZModelOBC;
     heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, Model{});
   }
 }

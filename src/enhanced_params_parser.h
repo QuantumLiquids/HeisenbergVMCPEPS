@@ -170,28 +170,29 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     // Backend selection:
     // - OBC uses BMPS truncation parameters.
     // - PBC uses TRG truncation parameters.
-    qlpeps::PEPSParams peps_params_obj;
-    if (physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
-      // Enforce TRG parameter presence for PBC runs. Do not silently fall back to BMPS knobs.
-      if (!(this->Has("TRGDmin") && this->Has("TRGDmax") && this->Has("TRGTruncErr"))) {
-        throw std::invalid_argument(
-            "PBC requested but TRG params are missing in algorithm JSON. "
-            "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
+    const qlpeps::PEPSParams peps_params_obj = [&]() -> qlpeps::PEPSParams {
+      if (physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
+        // Enforce TRG parameter presence for PBC runs. Do not silently fall back to BMPS knobs.
+        if (!(this->Has("TRGDmin") && this->Has("TRGDmax") && this->Has("TRGTruncErr"))) {
+          throw std::invalid_argument(
+              "PBC requested but TRG params are missing in algorithm JSON. "
+              "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
+        }
+        const size_t d_min = static_cast<size_t>(ParseInt("TRGDmin"));
+        const size_t d_max = static_cast<size_t>(ParseInt("TRGDmax"));
+        const double trunc_err = ParseDouble("TRGTruncErr");
+        const double inv_eps = this->ParseDoubleOr("TRGInvRelativeEps", 1e-12);
+        return qlpeps::PEPSParams(
+            qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
       }
-      const size_t d_min = static_cast<size_t>(ParseInt("TRGDmin"));
-      const size_t d_max = static_cast<size_t>(ParseInt("TRGDmax"));
-      const double trunc_err = ParseDouble("TRGTruncErr");
-      const double inv_eps = this->ParseDoubleOr("TRGInvRelativeEps", 1e-12);
-      peps_params_obj = qlpeps::PEPSParams(
-          qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
-    } else {
+
       if (!bmps_params.HasBMPSRequiredKeys()) {
         throw std::invalid_argument(
             "OBC requested but BMPS params are missing in algorithm JSON. "
             "Require: Dbmps_max (Dbmps_min optional; MPSCompressScheme optional, default=SVD).");
       }
-      peps_params_obj = qlpeps::PEPSParams(bmps_params.CreateTruncatePara());
-    }
+      return qlpeps::PEPSParams(bmps_params.CreateTruncatePara());
+    }();
     
     // Create optimizer parameters based on type
     qlpeps::OptimizerParams opt_params = CreateOptimizerParams();

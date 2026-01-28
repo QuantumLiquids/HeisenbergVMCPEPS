@@ -77,7 +77,6 @@ struct PhysicalParams : public qlmps::CaseParamsParserBasic {
           "Missing required key 'ModelType' in physics params. "
           "Example values: SquareHeisenberg, SquareXY, TriangleHeisenberg.");
     }
-    try { MCRestrictU1 = ParseBool("MCRestrictU1"); } catch (...) { MCRestrictU1 = true; }
     // BoundaryCondition is optional, but must not silently fall back on invalid values.
     // If the key exists and parsing fails, throw to avoid accidental OBC simulations.
     if (this->Has("BoundaryCondition")) {
@@ -92,7 +91,6 @@ struct PhysicalParams : public qlmps::CaseParamsParserBasic {
   double J2;          ///< J1-J2 model parameter (J1 = 1.0 by default)
   bool RemoveCorner;  ///< Whether to remove corner sites (for specific geometries)
   std::string ModelType; ///< Physics model identifier (e.g., SquareHeisenberg, SquareXY, TriangleHeisenberg)
-  bool MCRestrictU1;     ///< Whether MC sampler restricts U1 (true by default)
   qlpeps::BoundaryCondition BoundaryCondition; ///< Open or Periodic
 };
 
@@ -121,11 +119,13 @@ struct MonteCarloNumericalParams : public qlmps::CaseParamsParserBasic {
     MC_samples = ParseInt("MC_samples");
     WarmUp = ParseInt("WarmUp");
     MCLocalUpdateSweepsBetweenSample = ParseInt("MCLocalUpdateSweepsBetweenSample");
+    MCRestrictU1 = ParseBoolOr("MCRestrictU1", true);
   }
 
   size_t MC_samples;                        ///< Number of Monte Carlo samples
   size_t WarmUp;                           ///< Number of warm-up sweeps
   size_t MCLocalUpdateSweepsBetweenSample; ///< Sweeps between successive samples
+  bool MCRestrictU1;                       ///< Whether MC sampler restricts U1 (true by default)
 };
 
 /**

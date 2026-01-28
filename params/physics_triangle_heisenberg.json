@@ -5,8 +5,6 @@
     "J2": 0.0,
     "RemoveCorner": true,
     "ModelType": "TriangleHeisenberg",
-    "MCRestrictU1": true,
     "BoundaryCondition": "Open"
   }
 }
-

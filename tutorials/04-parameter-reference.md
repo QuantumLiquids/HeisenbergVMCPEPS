@@ -12,7 +12,6 @@ Required:
 - `RemoveCorner` (bool) (legacy; kept for compatibility)
 
 Optional:
-- `MCRestrictU1` (bool): default true (currently informational in unified drivers)
 - `BoundaryCondition` (string): `Open`/`OBC` (default) or `Periodic`/`PBC`
 
 ### Algorithm files (shared keys)
@@ -29,6 +28,7 @@ Monte Carlo:
 - `MC_samples` (int): required
 - `WarmUp` (int): required
 - `MCLocalUpdateSweepsBetweenSample` (int): required
+- `MCRestrictU1` (bool): optional, default true (currently informational in unified drivers)
 
 Optimizer (VMC only):
 - `OptimizerType` (string): `SR`/`StochasticReconfiguration`, `SGD`, `Adam`, `AdaGrad`

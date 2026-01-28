@@ -86,8 +86,8 @@ int main(int argc, char **argv) {
   }
 
   // Create and run VMC optimizer (backend-consistent dispatch).
-  // TODO(MCRestrictU1): dispatch updater by params.physical_params.MCRestrictU1 as well.
-  LogSamplerChoice(params.physical_params);
+  // TODO(MCRestrictU1): dispatch updater by params.mc_params.MCRestrictU1 as well.
+  LogSamplerChoice(params.mc_params);
   if (rank == 0) {
     std::cout << "Starting " << params.optimizer_type << " optimization..." << std::endl;
   }

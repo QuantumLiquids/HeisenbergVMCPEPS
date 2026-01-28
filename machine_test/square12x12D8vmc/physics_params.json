@@ -4,9 +4,7 @@
     "Lx": 12,
     "RemoveCorner": true,
     "J2": 0.0,
-    "ModelType": "SquareHeisenberg",
-    "MCRestrictU1": true
+    "ModelType": "SquareHeisenberg"
   }
 }
-
 
