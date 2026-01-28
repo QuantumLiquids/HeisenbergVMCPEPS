@@ -1,0 +1,250 @@
+=== VMC Optimization ===
+Optimizer: StochasticReconfiguration
+Learning Rate: 0.1
+Max Iterations: 10
+=================================
+Loading SplitIndexTPS from: tpsfinal
+Loaded SplitIndexTPS.
+Starting StochasticReconfiguration optimization...
+✓ Configuration validation: All 192 processes have valid configurations.
+
+Normalization TPS For Order 1 Amplitude info: 
+Overall scale factor: 4.58998e+56
+Scale factor on site: 2.47448
+TPS sample amplitude (rank 0): -1.67009e-23
+
+=====> VMC PEPS OPTIMIZER EXECUTOR <=====
+System size (lx, ly):                   (12, 12)
+PEPS bond dimension:                    8
+BMPS bond dimension:                    8/16
+BMPS Truncate Scheme:                   1
+Sampling numbers:                       50
+Monte Carlo sweep repeat times:         2
+PEPS update times:                      10
+PEPS update strategy:                   StochasticReconfiguration
+Conjugate gradient diagonal shift:      0.01
+
+=====> TECHNICAL PARAMETERS <=====
+The number of processors (including master):192
+The number of threads per processor:    1
+[timing] proc 4 warm up 975.95610
+[timing] proc 131 warm up 979.30502
+[timing] proc 150 warm up 982.42268
+[timing] proc 125 warm up 984.99118
+[timing] proc 24 warm up 987.48096
+[timing] proc 39 warm up 987.95600
+[timing] proc 26 warm up 988.82355
+[timing] proc 11 warm up 988.32601
+[timing] proc 154 warm up 988.94542
+[timing] proc 135 warm up 989.06013
+[timing] proc 119 warm up 989.39891
+[timing] proc 66 warm up 990.74564
+[timing] proc 17 warm up 991.10870
+[timing] proc 58 warm up 991.66031
+[timing] proc 55 warm up 991.45550
+[timing] proc 122 warm up 992.13155
+[timing] proc 37 warm up 991.86728
+[timing] proc 153 warm up 991.95860
+[timing] proc 42 warm up 992.55978
+[timing] proc 52 warm up 994.47955
+[timing] proc 127 warm up 994.66440
+[timing] proc 53 warm up 994.57603
+[timing] proc 21 warm up 995.40380
+[timing] proc 111 warm up 995.51127
+[timing] proc 105 warm up 995.78689
+[timing] proc 162 warm up 996.00103
+[timing] proc 57 warm up 995.99881
+[timing] proc 159 warm up 996.05710
+[timing] proc 97 warm up 996.56167
+[timing] proc 137 warm up 996.95182
+[timing] proc 155 warm up 997.29912
+[timing] proc 145 warm up 997.71419
+[timing] proc 48 warm up 998.00756
+[timing] proc 44 warm up 998.04125
+[timing] proc 146 warm up 997.89478
+[timing] proc 20 warm up 997.73541
+[timing] proc 157 warm up 998.20943
+[timing] proc 34 warm up 998.12032
+[timing] proc 132 warm up 998.36501
+[timing] proc 184 warm up 998.62740
+[timing] proc 167 warm up 998.97882
+[timing] proc 139 warm up 998.77747
+[timing] proc 15 warm up 998.63670
+[timing] proc 101 warm up 998.56432
+[timing] proc 50 warm up 999.08590
+[timing] proc 183 warm up 999.00167
+[timing] proc 118 warm up 999.20984
+[timing] proc 56 warm up 999.09644
+[timing] proc 175 warm up 999.90030
+[timing] proc 123 warm up 1000.07617
+[timing] proc 149 warm up 1000.43062
+[timing] proc 141 warm up 1000.28812
+[timing] proc 106 warm up 1000.50018
+[timing] proc 47 warm up 1000.85312
+[timing] proc 121 warm up 1000.77481
+[timing] proc 109 warm up 1001.05628
+[timing] proc 51 warm up 1000.99743
+[timing] proc 25 warm up 1001.40685
+[timing] proc 117 warm up 1001.64545
+[timing] proc 110 warm up 1001.47940
+[timing] proc 12 warm up 1002.04553
+[timing] proc 129 warm up 1001.65710
+[timing] proc 28 warm up 1002.01766
+[timing] proc 107 warm up 1001.86833
+[timing] proc 163 warm up 1001.73380
+[timing] proc 126 warm up 1001.97907
+[timing] proc 81 warm up 1002.39634
+[timing] proc 113 warm up 1002.59546
+[timing] proc 104 warm up 1002.53440
+[timing] proc 89 warm up 1002.48000
+[timing] proc 138 warm up 1002.66572
+[timing] proc 14 warm up 1002.93244
+[timing] proc 7 warm up 1002.75351
+[timing] proc 147 warm up 1003.58088
+[timing] proc 186 warm up 1003.91331
+[timing] proc 78 warm up 1003.84470
+[timing] proc 108 warm up 1003.87752
+[timing] proc 49 warm up 1003.66979
+[timing] proc 10 warm up 1004.42822
+[timing] proc 128 warm up 1004.01050
+[timing] proc 115 warm up 1004.09992
+[timing] proc 161 warm up 1004.42379
+[timing] proc 77 warm up 1004.60204
+[timing] proc 120 warm up 1004.13623
+[timing] proc 13 warm up 1004.28037
+[timing] proc 134 warm up 1004.84048
+[timing] proc 64 warm up 1004.79092
+[timing] proc 3 warm up 1005.11286
+[timing] proc 174 warm up 1005.03963
+[timing] proc 76 warm up 1005.51288
+[timing] proc 5 warm up 1005.55996
+[timing] proc 61 warm up 1005.35094
+[timing] proc 148 warm up 1005.78708
+[timing] proc 142 warm up 1006.07179
+[timing] proc 46 warm up 1005.95373
+[timing] proc 188 warm up 1006.03936
+[timing] proc 164 warm up 1006.25898
+[timing] proc 29 warm up 1005.98397
+[timing] proc 98 warm up 1006.39709
+[timing] proc 140 warm up 1006.21221
+[timing] proc 86 warm up 1006.28935
+[timing] proc 23 warm up 1006.76719
+[timing] proc 124 warm up 1006.73132
+[timing] proc 156 warm up 1006.96012
+[timing] proc 96 warm up 1006.47923
+[timing] proc 36 warm up 1006.57424
+[timing] proc 133 warm up 1007.24602
+[timing] proc 114 warm up 1006.79224
+[timing] proc 1 warm up 1007.34163
+[timing] proc 40 warm up 1007.35069
+[timing] proc 45 warm up 1007.18134
+[timing] proc 144 warm up 1007.62125
+[timing] proc 152 warm up 1007.79273
+[timing] proc 35 warm up 1007.95957
+[timing] proc 33 warm up 1007.42136
+[timing] proc 177 warm up 1007.53678
+[timing] proc 85 warm up 1008.13302
+[timing] proc 102 warm up 1008.32947
+[timing] proc 41 warm up 1008.15053
+[timing] proc 169 warm up 1008.03210
+[timing] proc 79 warm up 1008.27601
+[timing] proc 185 warm up 1008.61761
+[timing] proc 91 warm up 1008.68446
+[timing] proc 2 warm up 1008.79209
+[timing] proc 82 warm up 1008.80256
+[timing] proc 100 warm up 1009.00833
+[timing] proc 71 warm up 1008.87687
+[timing] proc 59 warm up 1009.45602
+[timing] proc 54 warm up 1010.09396
+[timing] proc 87 warm up 1009.86810
+[timing] proc 38 warm up 1009.83401
+[timing] proc 187 warm up 1009.96559
+[timing] proc 160 warm up 1009.68456
+[timing] proc 80 warm up 1010.15534
+[timing] proc 67 warm up 1010.63993
+[timing] proc 179 warm up 1010.33230
+[timing] proc 136 warm up 1010.34941
+[timing] proc 158 warm up 1010.74307
+[timing] proc 182 warm up 1010.69122
+[timing] proc 92 warm up 1010.67678
+[timing] proc 27 warm up 1010.98728
+[timing] proc 112 warm up 1011.20478
+[timing] proc 130 warm up 1011.59385
+[timing] proc 172 warm up 1011.53022
+[timing] proc 190 warm up 1011.86641
+[timing] proc 8 warm up 1011.88531
+[timing] proc 6 warm up 1012.12525
+[timing] proc 180 warm up 1012.21194
+[timing] proc 116 warm up 1012.50561
+[timing] proc 176 warm up 1012.52492
+[timing] proc 16 warm up 1011.89087
+[timing] proc 62 warm up 1012.69075
+[timing] proc 68 warm up 1013.12415
+[timing] proc 93 warm up 1012.65869
+[timing] proc 69 warm up 1013.30394
+[timing] proc 143 warm up 1013.54674
+[timing] proc 73 warm up 1013.42484
+[timing] proc 99 warm up 1013.84230
+[timing] proc 43 warm up 1013.42796
+[timing] proc 18 warm up 1013.97455
+[timing] proc 9 warm up 1013.62469
+[timing] proc 181 warm up 1014.19785
+[timing] proc 166 warm up 1014.09085
+[timing] proc 170 warm up 1014.74514
+[timing] proc 173 warm up 1014.71616
+[timing] proc 88 warm up 1014.91368
+[timing] proc 90 warm up 1014.28706
+[timing] proc 74 warm up 1015.16018
+[timing] proc 19 warm up 1014.77592
+[timing] proc 189 warm up 1015.50143
+[timing] proc 30 warm up 1015.93900
+[timing] proc 32 warm up 1016.26014
+[timing] proc 72 warm up 1015.92954
+[timing] proc 103 warm up 1016.71182
+[timing] proc 22 warm up 1017.19661
+[timing] proc 94 warm up 1016.96357
+[timing] proc 165 warm up 1017.65601
+[timing] proc 65 warm up 1017.80911
+[timing] proc 70 warm up 1017.63446
+[timing] proc 171 warm up 1018.20256
+[timing] proc 60 warm up 1018.14265
+[timing] proc 0 warm up 1018.77151
+[timing] proc 178 warm up 1019.28807
+[timing] proc 63 warm up 1018.93061
+[timing] proc 75 warm up 1019.09547
+[timing] proc 84 warm up 1019.68032
+[timing] proc 168 warm up 1019.38304
+[timing] proc 95 warm up 1019.80111
+[timing] proc 83 warm up 1020.25018
+[timing] proc 191 warm up 1030.88386
+[timing] proc 31 warm up 1032.20238
+[timing] proc 151 warm up 1258.27639
+
+Normalization TPS For Order 1 Amplitude info: 
+Overall scale factor: 0.00000
+Scale factor on site: 0.62469
+TPS sample amplitude (rank 0): -0.00004
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+Iter 0   LR = 1.0e-01  E0 = -89.629338     ± 2.42e-02  Grad norm = 2.4e+03  SRSolver Iter = 12  NGrad norm = 1.2e-03   EvalT = 640.86  s UpdateT = 15.13   s TotT = 655.99  s
+inconsistent wave function amplitudes : (0.00000, 0.00000)
+Iter 1   LR = 1.0e-01  E0 = -89.654958     ± 1.64e-02  Grad norm = 2.0e+03  SRSolver Iter = 5   NGrad norm = 1.9e+01   EvalT = 474.09  s UpdateT = 6.94    s TotT = 481.02  s
+Iter 2   LR = 1.0e-01  E0 = -89.664450     ± 1.50e-02  Grad norm = 1.1e+00  SRSolver Iter = 14  NGrad norm = 2.5e+00   EvalT = 474.74  s UpdateT = 17.24   s TotT = 491.98  s
+Iter 3   LR = 1.0e-01  E0 = -90.006998     ± 1.23e-02  Grad norm = 9.3e-01  SRSolver Iter = 14  NGrad norm = 2.4e+00   EvalT = 498.82  s UpdateT = 17.23   s TotT = 516.05  s
+Iter 4   LR = 1.0e-01  E0 = -90.234415     ± 1.04e-02  Grad norm = 8.3e-01  SRSolver Iter = 17  NGrad norm = 3.2e+00   EvalT = 503.24  s UpdateT = 20.73   s TotT = 523.97  s
+Iter 5   LR = 1.0e-01  E0 = -90.441533     ± 9.13e-03  Grad norm = 7.7e-01  SRSolver Iter = 18  NGrad norm = 3.5e+00   EvalT = 528.45  s UpdateT = 21.99   s TotT = 550.45  s
+
+Here we manually kill
+
