@@ -11,7 +11,7 @@
 #define HEISENBERGVMCPEPS_COMMON_PARAMS_H
 
 #include "qlmps/case_params_parser.h"
-#include "qlpeps/ond_dim_tn/boundary_mps/bmps.h"
+#include "qlpeps/one_dim_tn/boundary_mps/bmps.h"
 #include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
 #include "qlpeps/two_dim_tn/common/boundary_condition.h"
 #include <algorithm>
