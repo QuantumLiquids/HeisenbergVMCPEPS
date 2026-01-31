@@ -150,12 +150,7 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     bool warmed_up = false;
     // Try load configuration from directory if provided: configuration{rank}
     if (!configuration_load_dir.empty()) {
-      std::string load_dir = configuration_load_dir;
-      if (!load_dir.empty() && load_dir.back() != '/') load_dir.push_back('/');
-      std::string cfg_file = load_dir + "configuration" + std::to_string(rank);
-      if (config.Load(cfg_file, 0)) {
-        warmed_up = true;
-      }
+      warmed_up = config.Load(configuration_load_dir, static_cast<size_t>(rank));
     }
     
     qlpeps::MonteCarloParams mc_params_obj(

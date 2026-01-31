@@ -78,6 +78,47 @@ Monte Carlo:
 Optimizer (VMC only):
 - `OptimizerType`, `MaxIterations`, `LearningRate`, and SR/Adam/SGD specifics
 
+### Monte Carlo configuration (warm start vs cold start)
+
+During VMC optimization and measurement, each MPI rank maintains a Monte Carlo
+*configuration* — an assignment of spin-up / spin-down to every lattice site.
+The quality of this configuration matters: a good configuration (one that is
+already typical for the current wavefunction) lets the sampler produce useful
+samples immediately, while a random configuration needs many "warmup" sweeps
+before the Markov chain equilibrates.
+
+**How load-from-disk works.** Both `vmc_optimize` and `mc_measure` try to
+load a previously saved configuration before they start sampling:
+
+1. Look for the file `ConfigurationLoadDir/configuration{rank}`
+   (e.g. `tpsfinal/configuration0` for MPI rank 0).
+2. If the file exists and its shape matches the lattice, load it and
+   mark this rank as **warmed up** — warmup sweeps are skipped.
+3. If the file is missing (e.g. first run, or you added new MPI ranks),
+   initialize with a half-up / half-down occupancy and run the full
+   `WarmUp` sweeps specified in the algorithm JSON.
+
+After a run finishes, each rank saves its final configuration to
+`ConfigurationDumpDir/configuration{rank}`, so the next run can pick up
+where this one left off.
+
+**Default directories.** If you do not set `ConfigurationLoadDir` /
+`ConfigurationDumpDir` in the algorithm JSON, both default to
+`WavefunctionBase + "final"` — which is normally `tpsfinal/`. This means
+configurations live alongside the wavefunction tensors, and a simple
+re-run of `vmc_optimize` or `mc_measure` automatically reuses them.
+
+**Scaling to more ranks.** If you restart a job with more MPI ranks than
+before, the existing ranks load their saved configurations (warm start),
+while the new ranks start from random (cold start with warmup). This is
+handled automatically — no manual intervention needed.
+
+**Resuming from the lowest-energy snapshot.** The optimizer may save a
+`tpslowest/` snapshot. To resume from it, copy `tpslowest/*` into
+`tpsfinal/` (including any `configuration{rank}` files that are there).
+The programs only look in `tpsfinal/` by default; they never auto-fallback
+to `tpslowest/`.
+
 ### Boundary condition is a branch, but not the only branch
 
 Boundary condition is one important branch because it selects a different contraction backend:
