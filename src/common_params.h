@@ -116,13 +116,13 @@ struct NumericalParams : public qlmps::CaseParamsParserBasic {
  */
 struct MonteCarloNumericalParams : public qlmps::CaseParamsParserBasic {
   MonteCarloNumericalParams(const char *f) : CaseParamsParserBasic(f) {
-    MC_samples = ParseInt("MC_samples");
+    MC_total_samples = ParseInt("MC_total_samples");
     WarmUp = ParseInt("WarmUp");
     MCLocalUpdateSweepsBetweenSample = ParseInt("MCLocalUpdateSweepsBetweenSample");
     MCRestrictU1 = ParseBoolOr("MCRestrictU1", true);
   }
 
-  size_t MC_samples;                        ///< Number of Monte Carlo samples
+  size_t MC_total_samples;                  ///< Total Monte Carlo samples across all MPI ranks
   size_t WarmUp;                           ///< Number of warm-up sweeps
   size_t MCLocalUpdateSweepsBetweenSample; ///< Sweeps between successive samples
   bool MCRestrictU1;                       ///< Whether MC sampler restricts U1 (true by default)

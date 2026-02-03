@@ -32,7 +32,7 @@ params/
 ```json
 {
   "CaseParams": {
-    "MC_samples": 1000, "WarmUp": 100,
+    "MC_total_samples": 1000, "WarmUp": 100,
     "MCLocalUpdateSweepsBetweenSample": 1,
     "Dbmps_min": 4, "Dbmps_max": 4, "MPSCompressScheme": 1,
     "CGMaxIter": 100, "CGTol": 1e-8, "CGResidueRestart": 20, "CGDiagShift": 0.01,
@@ -51,7 +51,7 @@ params/
 ```json
 {
   "CaseParams": {
-    "MC_samples": 2000, "WarmUp": 1000,
+    "MC_total_samples": 2000, "WarmUp": 1000,
     "MCLocalUpdateSweepsBetweenSample": 2,
     "Dbmps_min": 4, "Dbmps_max": 4, "MPSCompressScheme": 1
   }

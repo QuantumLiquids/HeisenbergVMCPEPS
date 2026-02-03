@@ -77,7 +77,7 @@ struct VMCUpdateParams : public qlmps::CaseParamsParserBasic {
     }
     
     qlpeps::MonteCarloParams mc_params_obj(
-      mc_params.MC_samples,
+      mc_params.MC_total_samples,
       mc_params.WarmUp,
       mc_params.MCLocalUpdateSweepsBetweenSample,
       config,
@@ -133,7 +133,7 @@ struct MCMeasurementParams : public qlmps::CaseParamsParserBasic {
     }
     
     qlpeps::MonteCarloParams mc_params_obj(
-      mc_params.MC_samples,
+      mc_params.MC_total_samples,
       mc_params.WarmUp,
       mc_params.MCLocalUpdateSweepsBetweenSample,
       config,

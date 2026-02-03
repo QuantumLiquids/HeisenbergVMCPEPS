@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
                          params.MPSCompressScheme,
                          std::make_optional<double>(params.TruncErr),
                          std::make_optional<size_t>(10)),
-        params.MC_samples, params.WarmUp,
+        params.MC_total_samples, params.WarmUp,
         params.MCLocalUpdateSweepsBetweenSample,
         init_config);
   } else {
@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
                          params.MPSCompressScheme,
                          std::make_optional<double>(params.TruncErr),
                          std::make_optional<size_t>(10)),
-        params.MC_samples, params.WarmUp,
+        params.MC_total_samples, params.WarmUp,
         params.MCLocalUpdateSweepsBetweenSample,
         occupation_num,
         params.Ly, params.Lx);

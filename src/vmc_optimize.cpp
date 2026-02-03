@@ -47,6 +47,14 @@ int main(int argc, char **argv) {
       if (params.clip_value) std::cout << "value=" << *params.clip_value << " ";
       std::cout << std::endl;
     }
+    if (params.spike_auto_recover) {
+      std::cout << "Spike Recovery: enabled (max_retries=" << params.spike_max_retries << ")" << std::endl;
+      if (params.spike_enable_rollback) {
+        std::cout << "  Rollback: enabled (sigma_k=" << params.spike_sigma_k << ")" << std::endl;
+      }
+    } else {
+      std::cout << "Spike Recovery: disabled" << std::endl;
+    }
     std::cout << "=================================" << std::endl;
   }
 

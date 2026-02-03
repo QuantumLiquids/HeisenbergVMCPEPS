@@ -54,7 +54,7 @@ VMC algorithm (BMPS + SR):
     "Dbmps_max": 8,
     "MPSCompressScheme": "SVD",
 
-    "MC_samples": 20,
+    "MC_total_samples": 20,
     "WarmUp": 10,
     "MCLocalUpdateSweepsBetweenSample": 1,
 
@@ -81,7 +81,7 @@ Measure algorithm (BMPS):
     "Dbmps_max": 8,
     "MPSCompressScheme": "SVD",
 
-    "MC_samples": 50,
+    "MC_total_samples": 50,
     "WarmUp": 20,
     "MCLocalUpdateSweepsBetweenSample": 1
   }
@@ -122,7 +122,7 @@ VMC algorithm (TRG + SR):
     "TRGTruncErr": 0.0,
     "TRGInvRelativeEps": 1e-12,
 
-    "MC_samples": 20,
+    "MC_total_samples": 20,
     "WarmUp": 10,
     "MCLocalUpdateSweepsBetweenSample": 1,
 
@@ -149,7 +149,7 @@ Measure algorithm (TRG):
     "TRGTruncErr": 0.0,
     "TRGInvRelativeEps": 1e-12,
 
-    "MC_samples": 50,
+    "MC_total_samples": 50,
     "WarmUp": 20,
     "MCLocalUpdateSweepsBetweenSample": 1
   }

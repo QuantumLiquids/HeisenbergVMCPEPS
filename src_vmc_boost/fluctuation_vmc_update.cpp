@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
                        params.MPSCompressScheme,
                        std::make_optional<double>(params.TruncErr),
                        std::make_optional<size_t>(10)),
-      params.MC_samples, params.WarmUp,
+      params.MC_total_samples, params.WarmUp,
       params.MCLocalUpdateSweepsBetweenSample,
       std::vector<size_t>{N / 2, N / 2},
       params.Ly, params.Lx,

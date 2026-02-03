@@ -3,7 +3,7 @@
     "BMPSTruncErr": 0.0,
     "ThreadNum": 2,
 
-    "MC_samples": 1000,
+    "MC_total_samples": 10000,
     "WarmUp": 200,
     "MCLocalUpdateSweepsBetweenSample": 1,
 

@@ -3,7 +3,7 @@
     "TruncErr": 1e-15,
     "ThreadNum": 1,
 
-    "MC_samples": 50,
+    "MC_total_samples": 10000,
     "WarmUp": 300,
     "MCLocalUpdateSweepsBetweenSample": 2,
 

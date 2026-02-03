@@ -25,7 +25,7 @@ IO (VMC / measurement):
 - `ConfigurationDumpDir` (string): directory to write per-rank `configuration{rank}`
 
 Monte Carlo:
-- `MC_samples` (int): required
+- `MC_total_samples` (int): required
 - `WarmUp` (int): required
 - `MCLocalUpdateSweepsBetweenSample` (int): required
 - `MCRestrictU1` (bool): optional, default true (currently informational in unified drivers)

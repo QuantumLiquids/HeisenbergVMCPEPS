@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
       rank);
 
   MonteCarloParams mc_params_obj(
-      params.mc_params.MC_samples,
+      params.mc_params.MC_total_samples,
       params.mc_params.WarmUp,
       params.mc_params.MCLocalUpdateSweepsBetweenSample,
       init_config,

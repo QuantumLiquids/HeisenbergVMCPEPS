@@ -13,7 +13,7 @@
 - 必填：Dbmps_max
 - 可选（有默认值）：
   - Dbmps_min（默认等于 Dbmps_max）
-  - MC_samples, WarmUp, MCLocalUpdateSweepsBetweenSample（无默认值，需提供，否则程序会报错）
+  - MC_total_samples, WarmUp, MCLocalUpdateSweepsBetweenSample（无默认值，需提供，否则程序会报错）
   - MPSCompressScheme（无默认则需提供）
   - WavefunctionBase（默认 "tps" → 目录 `tpsfinal/`, `tpslowest/`）
   - ConfigurationLoadDir, ConfigurationDumpDir（默认均为 `wavefunction_base+"final"`，即 `tpsfinal/`）
@@ -33,7 +33,7 @@
 ### measure_algorithm_params.json
 - 必填：
   - Dbmps_max
-  - MC_samples, WarmUp, MCLocalUpdateSweepsBetweenSample
+  - MC_total_samples, WarmUp, MCLocalUpdateSweepsBetweenSample
   - MPSCompressScheme
 - 可选（有默认值）：
   - Dbmps_min（默认等于 Dbmps_max）

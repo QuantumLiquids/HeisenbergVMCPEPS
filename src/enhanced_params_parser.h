@@ -79,6 +79,18 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     double tmp_val = 0.0;
     if (this->TryParseDouble("ClipNorm", tmp_val)) clip_norm = tmp_val; else clip_norm.reset();
     if (this->TryParseDouble("ClipValue", tmp_val)) clip_value = tmp_val; else clip_value.reset();
+
+    // Spike recovery (optional; default: disabled to preserve prior behavior)
+    spike_auto_recover = this->ParseBoolOr("SpikeAutoRecover", false);
+    spike_max_retries = static_cast<size_t>(this->ParseIntOr("SpikeMaxRetries", 2));
+    spike_factor_err = this->ParseDoubleOr("SpikeFactorErr", 100.0);
+    spike_factor_grad = this->ParseDoubleOr("SpikeFactorGrad", 1e10);
+    spike_factor_ngrad = this->ParseDoubleOr("SpikeFactorNGrad", 10.0);
+    spike_sr_min_iters_suspicious = static_cast<size_t>(this->ParseIntOr("SpikeSRMinItersSuspicious", 1));
+    spike_enable_rollback = this->ParseBoolOr("SpikeEnableRollback", false);
+    spike_ema_window = static_cast<size_t>(this->ParseIntOr("SpikeEMAWindow", 50));
+    spike_sigma_k = this->ParseDoubleOr("SpikeSigmaK", 10.0);
+    spike_log_csv = this->ParseStrOr("SpikeLogCSV", "");
   }
 
   heisenberg_params::PhysicalParams physical_params;
@@ -129,7 +141,19 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   // Gradient clipping
   std::optional<double> clip_norm;
   std::optional<double> clip_value;
-  
+
+  // Spike recovery
+  bool spike_auto_recover = false;
+  size_t spike_max_retries = 2;
+  double spike_factor_err = 100.0;
+  double spike_factor_grad = 1e10;
+  double spike_factor_ngrad = 10.0;
+  size_t spike_sr_min_iters_suspicious = 1;
+  bool spike_enable_rollback = false;
+  size_t spike_ema_window = 50;
+  double spike_sigma_k = 10.0;
+  std::string spike_log_csv;
+
   /**
    * @brief Create qlpeps::VMCPEPSOptimizerParams with modern optimizer support
    */
@@ -154,7 +178,7 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     }
     
     qlpeps::MonteCarloParams mc_params_obj(
-      mc_params.MC_samples,
+      mc_params.MC_total_samples,
       mc_params.WarmUp,
       mc_params.MCLocalUpdateSweepsBetweenSample,
       config,
@@ -221,25 +245,41 @@ private:
     if (clip_value) base_params.clip_value = *clip_value;
     
     // Create algorithm-specific parameters
+    qlpeps::CheckpointParams ckpt_params{};
+    qlpeps::SpikeRecoveryParams spike_params = CreateSpikeRecoveryParams();
+
     if (optimizer_type == "SGD") {
       qlpeps::SGDParams sgd_params(momentum, nesterov, weight_decay);
-      return qlpeps::OptimizerParams(base_params, sgd_params);
+      return qlpeps::OptimizerParams(base_params, sgd_params, ckpt_params, spike_params);
     } else if (optimizer_type == "Adam") {
       qlpeps::AdamParams adam_params(beta1, beta2, epsilon, weight_decay);
-      return qlpeps::OptimizerParams(base_params, adam_params);
+      return qlpeps::OptimizerParams(base_params, adam_params, ckpt_params, spike_params);
     } else if (optimizer_type == "AdaGrad") {
       qlpeps::AdaGradParams adagrad_params(epsilon, initial_accumulator);
-      return qlpeps::OptimizerParams(base_params, adagrad_params);
+      return qlpeps::OptimizerParams(base_params, adagrad_params, ckpt_params, spike_params);
     } else if (optimizer_type == "StochasticReconfiguration") {
       qlpeps::ConjugateGradientParams cg_params(cg_max_iter, cg_tol, cg_residue_restart, cg_diag_shift);
       qlpeps::StochasticReconfigurationParams sr_params(cg_params, normalize_update);
-      return qlpeps::OptimizerParams(base_params, sr_params);
+      return qlpeps::OptimizerParams(base_params, sr_params, ckpt_params, spike_params);
     } else {
       throw std::invalid_argument("Unknown optimizer type: " + optimizer_type);
     }
   }
-  
-  // No local wrappers
+
+  qlpeps::SpikeRecoveryParams CreateSpikeRecoveryParams() {
+    qlpeps::SpikeRecoveryParams p;
+    p.enable_auto_recover = spike_auto_recover;
+    p.redo_mc_max_retries = spike_max_retries;
+    p.factor_err = spike_factor_err;
+    p.factor_grad = spike_factor_grad;
+    p.factor_ngrad = spike_factor_ngrad;
+    p.sr_min_iters_suspicious = spike_sr_min_iters_suspicious;
+    p.enable_rollback = spike_enable_rollback;
+    p.ema_window = spike_ema_window;
+    p.sigma_k = spike_sigma_k;
+    p.log_trigger_csv_path = spike_log_csv;
+    return p;
+  }
 };
 
 #endif // HEISENBERGVMCPEPS_ENHANCED_PARAMS_PARSER_H

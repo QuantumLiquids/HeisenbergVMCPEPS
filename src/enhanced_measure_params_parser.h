@@ -27,7 +27,7 @@ struct EnhancedMCMeasureParams : public qlmps::CaseParamsParserBasic {
   }
 
   heisenberg_params::PhysicalParams physical_params;        // Lx, Ly, J2, RemoveCorner, ModelType
-  heisenberg_params::MonteCarloNumericalParams mc_params;   // MC_samples, WarmUp, MCLocalUpdateSweepsBetweenSample, MCRestrictU1
+  heisenberg_params::MonteCarloNumericalParams mc_params;   // MC_total_samples, WarmUp, MCLocalUpdateSweepsBetweenSample, MCRestrictU1
   heisenberg_params::BMPSParams bmps_params;                // Dbmps_min/max, MPSCompressScheme, TruncErr, ThreadNum
 
   // IO configuration (aligned with VMC)

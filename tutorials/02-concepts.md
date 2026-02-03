@@ -43,14 +43,14 @@ VMC (`vmc_algorithm_params.json`):
 - Contraction backend params (selected by `BoundaryCondition`):
   - OBC/BMPS: `Dbmps_*`, `MPSCompressScheme`, optional BMPS variational knobs
   - PBC/TRG: `TRG*`
-- Monte Carlo params: `MC_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
+- Monte Carlo params: `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
 - Optimizer params: `OptimizerType`, `MaxIterations`, `LearningRate`, and method-specific keys (SR/Adam/SGD/AdaGrad)
 - Optional IO overrides: `WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`
 
 Measurement (`measure_algorithm_params.json`):
 - Threads: `ThreadNum`
 - Contraction backend params (BMPS or TRG, same rule as VMC)
-- Monte Carlo params: `MC_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
+- Monte Carlo params: `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
 - Optional IO overrides: `WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`
 - No optimizer parameters.
 
@@ -73,7 +73,7 @@ Contraction backend (chosen by physics boundary condition):
 - PBC (square only) -> TRG contraction parameters (`TRG*`)
 
 Monte Carlo:
-- `MC_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
+- `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
 
 Optimizer (VMC only):
 - `OptimizerType`, `MaxIterations`, `LearningRate`, and SR/Adam/SGD specifics

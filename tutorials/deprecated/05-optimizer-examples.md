@@ -96,7 +96,7 @@ These snippets plug directly into your VMC algorithm JSON (e.g., `debug/vmc_quic
 {
   "TruncErr": 1e-10,
   "ThreadNum": 1,
-  "MC_samples": 10,
+  "MC_total_samples": 10,
   "WarmUp": 5,
   "MCLocalUpdateSweepsBetweenSample": 1,
   "Dbmps_min": 4,

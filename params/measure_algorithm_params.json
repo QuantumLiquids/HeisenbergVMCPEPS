@@ -2,7 +2,7 @@
   "CaseParams": {
     "BMPSTruncErr": 1e-15,
     "ThreadNum": 2,
-    "MC_samples": 4,
+    "MC_total_samples": 1000,
     "WarmUp": 1000,
     "MCLocalUpdateSweepsBetweenSample": 2,
     "Dbmps_min": 4,
