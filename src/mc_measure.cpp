@@ -7,7 +7,6 @@
 #include "./qldouble.h"
 #include "enhanced_measure_params_parser.h"
 #include "model_updater_factory.h"
-#include "myutil.h"
 
 using namespace qlpeps;
 
@@ -48,7 +47,7 @@ int main(int argc, char **argv) {
   // Build MC measurement params (new API)
   auto [init_config, warmed_up] = InitOrLoadConfigHalfU1(
       params.physical_params,
-      params.configuration_load_dir,
+      params.io_params.configuration_load_dir,
       rank);
 
   MonteCarloParams mc_params_obj(
@@ -56,8 +55,8 @@ int main(int argc, char **argv) {
       params.mc_params.WarmUp,
       params.mc_params.MCLocalUpdateSweepsBetweenSample,
       init_config,
-      warmed_up,              // warmed-up if loaded
-      params.configuration_dump_dir
+      warmed_up,
+      params.io_params.configuration_dump_dir
   );
   PEPSParams peps_params_obj(params.CreatePEPSParams());
   MCMeasurementParams measurement_params(mc_params_obj, peps_params_obj, "./");
@@ -67,7 +66,7 @@ int main(int argc, char **argv) {
 
   // Load SplitIndexTPS from tpsfinal/ if exists; otherwise split from TPS
   SplitIndexTPS<TenElemT, QNT> sitps;
-  const std::string tps_final_dir = params.wavefunction_base + "final";
+  const std::string tps_final_dir = params.io_params.wavefunction_base + "final";
   if (qlmps::IsPathExist(tps_final_dir)) {
     if (rank == 0) std::cout << "Loading SplitIndexTPS from: " << tps_final_dir << std::endl;
     sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx);

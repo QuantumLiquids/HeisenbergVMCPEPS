@@ -7,7 +7,7 @@
     "MCLocalUpdateSweepsBetweenSample": 1,
     "MCRestrictU1": false,
     "Dbmps_max": 4,
-    "MPSCompressScheme": 1,
+    "MPSCompressScheme": "Variational2Site",
     "OptimizerType": "SR",
     "MaxIterations": 1,
     "LearningRate": 0.1

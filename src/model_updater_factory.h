@@ -9,23 +9,7 @@
 #include <stdexcept>
 #include "enhanced_params_parser.h"
 #include "qlpeps/qlpeps.h"
-// Future: include no-U1 updater types when available
 
-enum class ModelKind {
-  SquareHeisenberg,
-  SquareXY,
-  TriangleHeisenberg,
-  Unknown
-};
-
-inline ModelKind DetectModelKind(const std::string &model_type) {
-  if (model_type == "SquareHeisenberg") return ModelKind::SquareHeisenberg;
-  if (model_type == "SquareXY") return ModelKind::SquareXY;
-  if (model_type == "TriangleHeisenberg") return ModelKind::TriangleHeisenberg;
-  return ModelKind::Unknown;
-}
-
-// Current minimal mapping to avoid code bloat.
 // We keep the actual call sites in the drivers (e.g., square_vmc_update.cpp),
 // and use this helper only for detection/logging to keep dependencies localized.
 inline void LogSamplerChoice(const heisenberg_params::MonteCarloNumericalParams &mc) {

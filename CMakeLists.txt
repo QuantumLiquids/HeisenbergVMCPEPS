@@ -97,8 +97,8 @@ link_libraries(
 add_library(myutil_obj OBJECT src/myutil.cpp)
 
 add_executable(simple_update src/simple_update.cpp)
-add_executable(vmc_optimize src/vmc_optimize.cpp $<TARGET_OBJECTS:myutil_obj>)
-add_executable(mc_measure src/mc_measure.cpp $<TARGET_OBJECTS:myutil_obj>)
+add_executable(vmc_optimize src/vmc_optimize.cpp)
+add_executable(mc_measure src/mc_measure.cpp)
 
 ## Removed deprecated per-model entries; use unified simple_update/vmc_optimize/mc_measure
 

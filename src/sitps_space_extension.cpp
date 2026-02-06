@@ -8,8 +8,7 @@
 
 #include "./qldouble.h"
 #include "qlpeps/two_dim_tn/tps/split_index_tps.h"
-#include "params_parser.h"
-#include "myutil.h"
+#include "common_params.h"
 
 using namespace qlpeps;
 

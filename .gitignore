@@ -58,3 +58,4 @@ run/
 AGENTS.md
 # Local benchmark logs (do not commit)
 CLAUDE.md
+/.cache

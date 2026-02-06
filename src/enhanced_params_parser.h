@@ -33,7 +33,6 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     max_iterations = static_cast<size_t>(this->ParseIntOr("MaxIterations", 10));
     learning_rate = this->ParseDoubleOr("LearningRate", 0.01);
     
-    // Parse convergence criteria (optional)
     // Convergence criteria (optional)
     energy_tolerance = this->ParseDoubleOr("EnergyTolerance", 0.0);
     gradient_tolerance = this->ParseDoubleOr("GradientTolerance", 0.0);
@@ -61,7 +60,6 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       normalize_update = this->ParseBoolOr("NormalizeUpdate", false);
     }
     
-    // Parse learning rate scheduler (optional)
     // Learning rate scheduler (optional)
     lr_scheduler_type = this->ParseStrOr("LRScheduler", "");
     if (lr_scheduler_type == "ExponentialDecay") {
@@ -74,7 +72,6 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       plateau_threshold = this->ParseDoubleOr("PlateauThreshold", 1e-4);
     }
     
-    // Parse gradient clipping (optional)
     // Gradient clipping (optional)
     double tmp_val = 0.0;
     if (this->TryParseDouble("ClipNorm", tmp_val)) clip_norm = tmp_val; else clip_norm.reset();
@@ -91,6 +88,9 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     spike_ema_window = static_cast<size_t>(this->ParseIntOr("SpikeEMAWindow", 50));
     spike_sigma_k = this->ParseDoubleOr("SpikeSigmaK", 10.0);
     spike_log_csv = this->ParseStrOr("SpikeLogCSV", "");
+
+    // Parse IO configuration
+    io_params.Parse(*this);
   }
 
   heisenberg_params::PhysicalParams physical_params;
@@ -106,9 +106,7 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   size_t plateau_patience;
   
   // IO configuration
-  std::string wavefunction_base = "tps";        ///< basename for split-index TPS IO: base+"final", base+"lowest"
-  std::string configuration_load_dir = "tpsfinal";      ///< directory to load MC configuration{rank}; 
-  std::string configuration_dump_dir = "tpsfinal";      ///< directory to dump MC configuration{rank}; 
+  heisenberg_params::IOParams io_params; 
   
   // SGD parameters
   double momentum = 0.0;
@@ -158,64 +156,30 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
    * @brief Create qlpeps::VMCPEPSOptimizerParams with modern optimizer support
    */
   qlpeps::VMCPEPSOptimizerParams CreateVMCOptimizerParams(int rank = 0) {
-    // IO defaults with overrides if provided
-    wavefunction_base = this->ParseStrOr("WavefunctionBase", wavefunction_base);
-    configuration_load_dir = this->ParseStrOr("ConfigurationLoadDir", configuration_load_dir);
-    configuration_dump_dir = this->ParseStrOr("ConfigurationDumpDir", configuration_dump_dir);
-    // Default config dirs to base+"final" (e.g., tpsfinal/)
-    if (configuration_load_dir.empty()) configuration_load_dir = wavefunction_base + "final";
-    if (configuration_dump_dir.empty()) configuration_dump_dir = wavefunction_base + "final";
-
     // Create Monte Carlo parameters
     size_t N = physical_params.Lx * physical_params.Ly;
     size_t spin_up_sites = N / 2;
     qlpeps::OccupancyNum occupancy = {spin_up_sites, N - spin_up_sites};
     qlpeps::Configuration config(physical_params.Ly, physical_params.Lx, occupancy);
     bool warmed_up = false;
-    // Try load configuration from directory if provided: configuration{rank}
-    if (!configuration_load_dir.empty()) {
-      warmed_up = config.Load(configuration_load_dir, static_cast<size_t>(rank));
+    if (!io_params.configuration_load_dir.empty()) {
+      warmed_up = config.Load(io_params.configuration_load_dir, static_cast<size_t>(rank));
     }
-    
+
     qlpeps::MonteCarloParams mc_params_obj(
       mc_params.MC_total_samples,
       mc_params.WarmUp,
       mc_params.MCLocalUpdateSweepsBetweenSample,
       config,
       warmed_up,
-      configuration_dump_dir
+      io_params.configuration_dump_dir
     );
-    
-    // Backend selection:
-    // - OBC uses BMPS truncation parameters.
-    // - PBC uses TRG truncation parameters.
-    const qlpeps::PEPSParams peps_params_obj = [&]() -> qlpeps::PEPSParams {
-      if (physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) {
-        // Enforce TRG parameter presence for PBC runs. Do not silently fall back to BMPS knobs.
-        if (!(this->Has("TRGDmin") && this->Has("TRGDmax") && this->Has("TRGTruncErr"))) {
-          throw std::invalid_argument(
-              "PBC requested but TRG params are missing in algorithm JSON. "
-              "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
-        }
-        const size_t d_min = static_cast<size_t>(ParseInt("TRGDmin"));
-        const size_t d_max = static_cast<size_t>(ParseInt("TRGDmax"));
-        const double trunc_err = ParseDouble("TRGTruncErr");
-        const double inv_eps = this->ParseDoubleOr("TRGInvRelativeEps", 1e-12);
-        return qlpeps::PEPSParams(
-            qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
-      }
 
-      if (!bmps_params.HasBMPSRequiredKeys()) {
-        throw std::invalid_argument(
-            "OBC requested but BMPS params are missing in algorithm JSON. "
-            "Require: Dbmps_max (Dbmps_min optional; MPSCompressScheme optional, default=SVD).");
-      }
-      return qlpeps::PEPSParams(bmps_params.CreateTruncatePara());
-    }();
-    
-    // Create optimizer parameters based on type
+    const qlpeps::PEPSParams peps_params_obj = heisenberg_params::CreatePEPSParams(
+        physical_params.BoundaryCondition, bmps_params, *this);
+
     qlpeps::OptimizerParams opt_params = CreateOptimizerParams();
-    
+
     return qlpeps::VMCPEPSOptimizerParams(opt_params, mc_params_obj, peps_params_obj);
   }
 

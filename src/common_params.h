@@ -14,6 +14,7 @@
 #include "qlpeps/one_dim_tn/boundary_mps/bmps.h"
 #include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
 #include "qlpeps/two_dim_tn/common/boundary_condition.h"
+#include "qlpeps/two_dim_tn/tensor_network_2d/trg/trg_contractor.h"
 #include <algorithm>
 #include <cctype>
 #include <optional>
@@ -44,19 +45,19 @@ inline qlpeps::CompressMPSScheme ParseCompressMPSScheme(const std::string &value
   std::transform(key.begin(), key.end(), key.begin(),
                  [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-  if (key == "0" || key == "svd" || key == "svd_compress" || key == "svdcompression" ||
+  if (key == "svd" || key == "svd_compress" || key == "svdcompression" ||
       key == "svd compression") {
     return qlpeps::CompressMPSScheme::SVD_COMPRESS;
   }
-  if (key == "1" || key == "var2" || key == "variational2site" || key == "variation2site" ||
+  if (key == "var2" || key == "variational2site" || key == "variation2site" ||
       key == "two-site variational compression" || key == "two_site_variational") {
     return qlpeps::CompressMPSScheme::VARIATION2Site;
   }
-  if (key == "2" || key == "var1" || key == "variational1site" || key == "variation1site" ||
+  if (key == "var1" || key == "variational1site" || key == "variation1site" ||
       key == "single-site variational compression" || key == "one_site_variational") {
     return qlpeps::CompressMPSScheme::VARIATION1Site;
   }
-  throw std::invalid_argument("MPSCompressScheme must be 0/1/2 or one of: SVD, Variational2Site, Variational1Site.");
+  throw std::invalid_argument("MPSCompressScheme must be one of: SVD, Variational2Site, Variational1Site.");
 }
 
 /**
@@ -144,28 +145,15 @@ struct BMPSParams : public qlmps::CaseParamsParserBasic {
       Db_min = Db_max;
     }
     if (this->Has("MPSCompressScheme")) {
-      // Allow either int (0/1/2) or string ("SVD", "Variational2Site", ...).
-      try {
-        MPSCompressScheme = ParseCompressMPSScheme(ParseStr("MPSCompressScheme"));
-      } catch (...) {
-        MPSCompressScheme = static_cast<qlpeps::CompressMPSScheme>(ParseInt("MPSCompressScheme"));
-      }
+      MPSCompressScheme = ParseCompressMPSScheme(ParseStr("MPSCompressScheme"));
       has_mps_compress_scheme_ = true;
     } else {
       has_mps_compress_scheme_ = false;
       MPSCompressScheme = qlpeps::CompressMPSScheme::SVD_COMPRESS;
     }
     // Numerical controls specific to BMPS.
-    //
-    // Naming:
-    // - Prefer "BMPSTruncErr" to avoid confusion with other truncation tolerances (TRG/SU).
-    // - Keep "TruncErr" as backward-compatible fallback.
     // Default behavior if omitted: trunc_err = 0 (no truncation-by-error).
-    if (this->Has("BMPSTruncErr")) {
-      TruncErr = ParseDouble("BMPSTruncErr");
-    } else {
-      TruncErr = ParseDoubleOr("TruncErr", 0.0);
-    }
+    TruncErr = ParseDoubleOr("BMPSTruncErr", 0.0);
     ThreadNum = static_cast<size_t>(ParseIntOr("ThreadNum", 1));
 
     // Variational compression controls (only used when MPSCompressScheme is variational).
@@ -221,6 +209,74 @@ struct BMPSParams : public qlmps::CaseParamsParserBasic {
         // Fall back to SVD semantics to avoid undefined behavior if enum extends.
         return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::SVD(Db_min, Db_max, trunc_err);
     }
+  }
+};
+
+/**
+ * @brief IO configuration for wavefunction and MC configuration paths
+ */
+struct IOParams {
+  std::string wavefunction_base = "tps";
+  std::string configuration_load_dir;
+  std::string configuration_dump_dir;
+
+  void Parse(qlmps::CaseParamsParserBasic &parser) {
+    wavefunction_base = parser.ParseStrOr("WavefunctionBase", wavefunction_base);
+    configuration_load_dir = parser.ParseStrOr("ConfigurationLoadDir", "");
+    configuration_dump_dir = parser.ParseStrOr("ConfigurationDumpDir", "");
+    if (configuration_load_dir.empty()) configuration_load_dir = wavefunction_base + "final";
+    if (configuration_dump_dir.empty()) configuration_dump_dir = wavefunction_base + "final";
+  }
+};
+
+/**
+ * @brief Create PEPSParams selecting TRG (PBC) or BMPS (OBC) backend.
+ *
+ * For PBC, requires TRGDmin, TRGDmax, TRGTruncErr in the algorithm_parser.
+ * For OBC, requires BMPSParams to have valid Dbmps_max.
+ */
+inline qlpeps::PEPSParams CreatePEPSParams(
+    qlpeps::BoundaryCondition bc,
+    const BMPSParams &bmps,
+    qlmps::CaseParamsParserBasic &algorithm_parser) {
+  if (bc == qlpeps::BoundaryCondition::Periodic) {
+    if (!(algorithm_parser.Has("TRGDmin") && algorithm_parser.Has("TRGDmax") &&
+          algorithm_parser.Has("TRGTruncErr"))) {
+      throw std::invalid_argument(
+          "PBC requested but TRG params are missing in algorithm JSON. "
+          "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
+    }
+    const size_t d_min = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmin"));
+    const size_t d_max = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmax"));
+    const double trunc_err = algorithm_parser.ParseDouble("TRGTruncErr");
+    const double inv_eps = algorithm_parser.ParseDoubleOr("TRGInvRelativeEps", 1e-12);
+    return qlpeps::PEPSParams(
+        qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
+  }
+
+  if (!bmps.HasBMPSRequiredKeys()) {
+    throw std::invalid_argument(
+        "OBC requested but BMPS params are missing in algorithm JSON. "
+        "Require: Dbmps_max (Dbmps_min optional; MPSCompressScheme optional, default=SVD).");
+  }
+  return qlpeps::PEPSParams(bmps.CreateTruncatePara());
+}
+
+/**
+ * @brief Parameters for Simple Update (imaginary time evolution)
+ */
+struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
+  PhysicalParams physical_params;
+  NumericalParams numerical_params;
+  double Tau;    ///< Time step for imaginary time evolution
+  size_t Step;   ///< Number of simple update steps
+
+  SimpleUpdateParams(const char *physics_file, const char *algorithm_file)
+      : qlmps::CaseParamsParserBasic(algorithm_file),
+        physical_params(physics_file),
+        numerical_params(algorithm_file) {
+    Tau = ParseDouble("Tau");
+    Step = ParseInt("Step");
   }
 };
 

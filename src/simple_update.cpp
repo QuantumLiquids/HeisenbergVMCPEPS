@@ -15,7 +15,7 @@
 #include "qlpeps/qlpeps.h"
 #include "qlpeps/api/conversions.h"
 #include "./qldouble.h"
-#include "./params_parser.h"
+#include "./common_params.h"
 #include <fstream>
 
 int main(int argc, char **argv) {
@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     return -1;
   }
   
-  SimpleUpdateParams params(argv[1], argv[2]);
+  heisenberg_params::SimpleUpdateParams params(argv[1], argv[2]);
 
   // Model/data dispatch hints (Square XY handled by separate gate below)
   const std::string model = params.physical_params.ModelType;

@@ -9,7 +9,6 @@
 
 #include "./qldouble.h"
 #include "enhanced_params_parser.h"
-#include "myutil.h"
 #include "qlpeps/qlpeps.h"
 #include "model_updater_factory.h"
 #include <fstream>
@@ -59,7 +58,7 @@ int main(int argc, char **argv) {
   }
 
   // Initialize or load TPS/SITPS with unified basename
-  std::string base = params.wavefunction_base; // default "tps"
+  std::string base = params.io_params.wavefunction_base; // default "tps"
   std::string tps_final = base + "final";
   // Note: we do not auto-fallback to lowest; user may manually copy lowest → final
 
