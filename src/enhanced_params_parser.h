@@ -115,6 +115,10 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     spike_sigma_k = this->ParseDoubleOr("SpikeSigmaK", 10.0);
     spike_log_csv = this->ParseStrOr("SpikeLogCSV", "");
 
+    // Checkpointing (optional; default: disabled)
+    checkpoint_every_n_steps = static_cast<size_t>(this->ParseIntOr("CheckpointEveryNSteps", 0));
+    checkpoint_base_path = this->ParseStrOr("CheckpointBasePath", "");
+
     ValidateOptimizerConfig_();
 
     // Parse IO configuration
@@ -205,6 +209,10 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   double spike_sigma_k = 10.0;
   std::string spike_log_csv;
 
+  // Checkpointing
+  size_t checkpoint_every_n_steps = 0;
+  std::string checkpoint_base_path;
+
   /**
    * @brief Create qlpeps::VMCPEPSOptimizerParams with modern optimizer support
    */
@@ -281,7 +289,10 @@ private:
     };
     
     // Create algorithm-specific parameters
-    qlpeps::CheckpointParams ckpt_params{};
+    qlpeps::CheckpointParams ckpt_params{
+      checkpoint_every_n_steps,
+      checkpoint_base_path
+    };
     qlpeps::SpikeRecoveryParams spike_params = CreateSpikeRecoveryParams();
 
     if (optimizer_type == "SGD") {
