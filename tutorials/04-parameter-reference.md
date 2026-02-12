@@ -31,7 +31,7 @@ Monte Carlo:
 - `MCRestrictU1` (bool): optional, default true (currently informational in unified drivers)
 
 Optimizer (VMC only):
-- `OptimizerType` (string): `SR`/`StochasticReconfiguration`, `SGD`, `Adam`, `AdaGrad`
+- `OptimizerType` (string): `SR`/`StochasticReconfiguration`, `SGD`, `Adam`, `AdaGrad`, `LBFGS` (`L-BFGS` alias accepted)
 - `MaxIterations` (int)
 - `LearningRate` (double)
 
@@ -56,6 +56,42 @@ SR-only:
 - `CGResidueRestart` (int)
 - `CGDiagShift` (double, default 0.0)
 - `NormalizeUpdate` (bool, default false)
+
+LBFGS-only:
+- `LBFGSHistorySize` (int, default 10)
+- `LBFGSToleranceGrad` (double, default 1e-5)
+- `LBFGSToleranceChange` (double, default 1e-9)
+- `LBFGSMaxEval` (int, default 20)
+- `LBFGSStepMode` (string, default `Fixed`; accepted `Fixed`, `StrongWolfe`, `kFixed`, `kStrongWolfe`)
+- `LBFGSWolfeC1` (double, default 1e-4)
+- `LBFGSWolfeC2` (double, default 0.9)
+- `LBFGSMinStep` (double, default 1e-8)
+- `LBFGSMaxStep` (double, default 1.0)
+- `LBFGSMinCurvature` (double, default 1e-12)
+- `LBFGSUseDamping` (bool, default true)
+- `LBFGSMaxDirectionNorm` (double, default 1e3)
+- `LBFGSAllowFallbackToFixedStep` (bool, default false)
+- `LBFGSFallbackFixedStepScale` (double, default 0.2)
+
+Iterative step selectors (SGD/SR only):
+- `InitialStepSelectorEnabled` (bool, default false)
+- `InitialStepSelectorMaxLineSearchSteps` (int, default 3)
+- `InitialStepSelectorEnableInDeterministic` (bool, default false)
+- `AutoStepSelectorEnabled` (bool, default false)
+- `AutoStepSelectorEveryNSteps` (int, default 10)
+- `AutoStepSelectorPhaseSwitchRatio` (double, default 0.3)
+- `AutoStepSelectorEnableInDeterministic` (bool, default false)
+
+Selector constraints:
+- Step selectors are only valid with `OptimizerType` = `SGD` or `SR`.
+- Step selectors cannot be used together with `LRScheduler`.
+- `LearningRate` must be positive when any selector is enabled.
+- `InitialStepSelectorMaxLineSearchSteps > 0` when `InitialStepSelectorEnabled=true`.
+- `AutoStepSelectorEveryNSteps > 0` and `AutoStepSelectorPhaseSwitchRatio in [0,1]` when `AutoStepSelectorEnabled=true`.
+
+StrongWolfe validation:
+- `LBFGSHistorySize > 0` always.
+- In `StrongWolfe` mode: `0 < LBFGSWolfeC1 < LBFGSWolfeC2 < 1`, `LBFGSMaxEval > 0`, `LBFGSToleranceGrad >= 0`.
 
 ### Simple update algorithm file: `simple_update_algorithm_params.json`
 

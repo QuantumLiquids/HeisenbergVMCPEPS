@@ -1,0 +1,24 @@
+{
+  "CaseParams": {
+    "BMPSTruncErr": 1e-15,
+    "ThreadNum": 2,
+
+    "MC_total_samples": 10000,
+    "WarmUp": 1000,
+    "MCLocalUpdateSweepsBetweenSample": 2,
+
+    "Dbmps_min": 4,
+    "Dbmps_max": 4,
+    "MPSCompressScheme": "Variational2Site",
+
+    "OptimizerType": "LBFGS",
+    "MaxIterations": 10,
+    "LearningRate": 0.05,
+
+    "LBFGSHistorySize": 10,
+    "LBFGSToleranceGrad": 1e-5,
+    "LBFGSToleranceChange": 1e-9,
+    "LBFGSMaxEval": 20,
+    "LBFGSStepMode": "Fixed"
+  }
+}

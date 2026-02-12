@@ -15,10 +15,22 @@
 
 using namespace qlpeps;
 
+namespace {
+const char* LBFGSStepModeToString(qlpeps::LBFGSStepMode mode) {
+  switch (mode) {
+    case qlpeps::LBFGSStepMode::kFixed:
+      return "Fixed";
+    case qlpeps::LBFGSStepMode::kStrongWolfe:
+      return "StrongWolfe";
+  }
+  return "Unknown";
+}
+}  // namespace
+
 int main(int argc, char **argv) {
   if (argc != 3) {
     std::cout << "Usage: " << argv[0] << " <physics_params.json> <vmc_algorithm_params.json>" << std::endl;
-    std::cout << "Supported optimizers: SGD, Adam, AdaGrad, StochasticReconfiguration" << std::endl;
+    std::cout << "Supported optimizers: SGD, Adam, AdaGrad, StochasticReconfiguration, LBFGS" << std::endl;
     return -1;
   }
   
@@ -45,6 +57,29 @@ int main(int argc, char **argv) {
       if (params.clip_norm) std::cout << "norm=" << *params.clip_norm << " ";
       if (params.clip_value) std::cout << "value=" << *params.clip_value << " ";
       std::cout << std::endl;
+    }
+    if (params.optimizer_type == "LBFGS") {
+      std::cout << "LBFGS Config: history=" << params.lbfgs_history_size
+                << ", step_mode=" << LBFGSStepModeToString(params.lbfgs_step_mode)
+                << ", max_eval=" << params.lbfgs_max_eval << std::endl;
+      if (params.lbfgs_step_mode == qlpeps::LBFGSStepMode::kStrongWolfe) {
+        std::cout << "  Strong-Wolfe: c1=" << params.lbfgs_wolfe_c1
+                  << ", c2=" << params.lbfgs_wolfe_c2
+                  << ", tol_grad=" << params.lbfgs_tolerance_grad
+                  << ", tol_change=" << params.lbfgs_tolerance_change << std::endl;
+      }
+    }
+    if (params.initial_step_selector_enabled || params.auto_step_selector_enabled) {
+      std::cout << "Step Selectors:" << std::endl;
+      std::cout << "  Initial: enabled=" << params.initial_step_selector_enabled
+                << ", max_line_search_steps=" << params.initial_step_selector_max_line_search_steps
+                << ", deterministic=" << params.initial_step_selector_enable_in_deterministic
+                << std::endl;
+      std::cout << "  Auto: enabled=" << params.auto_step_selector_enabled
+                << ", every_n_steps=" << params.auto_step_selector_every_n_steps
+                << ", phase_switch_ratio=" << params.auto_step_selector_phase_switch_ratio
+                << ", deterministic=" << params.auto_step_selector_enable_in_deterministic
+                << std::endl;
     }
     if (params.spike_auto_recover) {
       std::cout << "Spike Recovery: enabled (max_retries=" << params.spike_max_retries << ")" << std::endl;

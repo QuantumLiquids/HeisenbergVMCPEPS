@@ -1,0 +1,33 @@
+{
+  "CaseParams": {
+    "BMPSTruncErr": 1e-15,
+    "ThreadNum": 2,
+
+    "MC_total_samples": 10000,
+    "WarmUp": 1000,
+    "MCLocalUpdateSweepsBetweenSample": 2,
+
+    "Dbmps_min": 4,
+    "Dbmps_max": 4,
+    "MPSCompressScheme": "Variational2Site",
+
+    "OptimizerType": "LBFGS",
+    "MaxIterations": 10,
+    "LearningRate": 0.05,
+
+    "LBFGSHistorySize": 10,
+    "LBFGSToleranceGrad": 1e-8,
+    "LBFGSToleranceChange": 1e-12,
+    "LBFGSMaxEval": 32,
+    "LBFGSStepMode": "StrongWolfe",
+    "LBFGSWolfeC1": 1e-4,
+    "LBFGSWolfeC2": 0.9,
+    "LBFGSMinStep": 1e-8,
+    "LBFGSMaxStep": 1.0,
+    "LBFGSMinCurvature": 1e-12,
+    "LBFGSUseDamping": true,
+    "LBFGSMaxDirectionNorm": 1e3,
+    "LBFGSAllowFallbackToFixedStep": false,
+    "LBFGSFallbackFixedStepScale": 0.2
+  }
+}

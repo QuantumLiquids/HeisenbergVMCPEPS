@@ -44,7 +44,7 @@ VMC (`vmc_algorithm_params.json`):
   - OBC/BMPS: `Dbmps_*`, `MPSCompressScheme`, optional BMPS variational knobs
   - PBC/TRG: `TRG*`
 - Monte Carlo params: `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
-- Optimizer params: `OptimizerType`, `MaxIterations`, `LearningRate`, and method-specific keys (SR/Adam/SGD/AdaGrad)
+- Optimizer params: `OptimizerType`, `MaxIterations`, `LearningRate`, and method-specific keys (SR/Adam/SGD/AdaGrad/LBFGS)
 - Optional IO overrides: `WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`
 
 Measurement (`measure_algorithm_params.json`):
@@ -76,7 +76,8 @@ Monte Carlo:
 - `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
 
 Optimizer (VMC only):
-- `OptimizerType`, `MaxIterations`, `LearningRate`, and SR/Adam/SGD specifics
+- `OptimizerType`, `MaxIterations`, `LearningRate`, and SR/Adam/SGD/AdaGrad/LBFGS specifics
+- Optional iterative step selectors are available for SGD/SR (`InitialStepSelector*`, `AutoStepSelector*`) and are not used by LBFGS.
 
 ### Monte Carlo configuration (warm start vs cold start)
 

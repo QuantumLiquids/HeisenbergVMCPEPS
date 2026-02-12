@@ -11,6 +11,8 @@
 #include "qlpeps/optimizer/optimizer_params.h"
 #include "qlpeps/optimizer/lr_schedulers.h"
 #include "common_params.h"
+#include <algorithm>
+#include <cctype>
 #include <optional>
 #include <fstream>
 
@@ -25,11 +27,7 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       bmps_params(algorithm_file) {
     
     // Parse optimizer configuration with default values
-    optimizer_type = this->ParseStrOr("OptimizerType", "StochasticReconfiguration");
-    // Aliases: allow short names
-    if (optimizer_type == "SR" || optimizer_type == "sr") {
-      optimizer_type = "StochasticReconfiguration";
-    }
+    optimizer_type = NormalizeOptimizerType_(this->ParseStrOr("OptimizerType", "StochasticReconfiguration"));
     max_iterations = static_cast<size_t>(this->ParseIntOr("MaxIterations", 10));
     learning_rate = this->ParseDoubleOr("LearningRate", 0.01);
     
@@ -58,6 +56,21 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       cg_residue_restart = ParseInt("CGResidueRestart");
       cg_diag_shift = this->ParseDoubleOr("CGDiagShift", 0.0);
       normalize_update = this->ParseBoolOr("NormalizeUpdate", false);
+    } else if (optimizer_type == "LBFGS") {
+      lbfgs_history_size = ParseNonNegativeSizeTOr_("LBFGSHistorySize", 10);
+      lbfgs_tolerance_grad = this->ParseDoubleOr("LBFGSToleranceGrad", 1e-5);
+      lbfgs_tolerance_change = this->ParseDoubleOr("LBFGSToleranceChange", 1e-9);
+      lbfgs_max_eval = ParseNonNegativeSizeTOr_("LBFGSMaxEval", 20);
+      lbfgs_step_mode = ParseLBFGSStepMode_(this->ParseStrOr("LBFGSStepMode", "Fixed"));
+      lbfgs_wolfe_c1 = this->ParseDoubleOr("LBFGSWolfeC1", 1e-4);
+      lbfgs_wolfe_c2 = this->ParseDoubleOr("LBFGSWolfeC2", 0.9);
+      lbfgs_min_step = this->ParseDoubleOr("LBFGSMinStep", 1e-8);
+      lbfgs_max_step = this->ParseDoubleOr("LBFGSMaxStep", 1.0);
+      lbfgs_min_curvature = this->ParseDoubleOr("LBFGSMinCurvature", 1e-12);
+      lbfgs_use_damping = this->ParseBoolOr("LBFGSUseDamping", true);
+      lbfgs_max_direction_norm = this->ParseDoubleOr("LBFGSMaxDirectionNorm", 1e3);
+      lbfgs_allow_fallback_to_fixed_step = this->ParseBoolOr("LBFGSAllowFallbackToFixedStep", false);
+      lbfgs_fallback_fixed_step_scale = this->ParseDoubleOr("LBFGSFallbackFixedStepScale", 0.2);
     }
     
     // Learning rate scheduler (optional)
@@ -77,6 +90,19 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     if (this->TryParseDouble("ClipNorm", tmp_val)) clip_norm = tmp_val; else clip_norm.reset();
     if (this->TryParseDouble("ClipValue", tmp_val)) clip_value = tmp_val; else clip_value.reset();
 
+    // Step selector parameters (optional; default: disabled)
+    initial_step_selector_enabled = this->ParseBoolOr("InitialStepSelectorEnabled", false);
+    initial_step_selector_max_line_search_steps =
+        ParseNonNegativeSizeTOr_("InitialStepSelectorMaxLineSearchSteps", 3);
+    initial_step_selector_enable_in_deterministic =
+        this->ParseBoolOr("InitialStepSelectorEnableInDeterministic", false);
+    auto_step_selector_enabled = this->ParseBoolOr("AutoStepSelectorEnabled", false);
+    auto_step_selector_every_n_steps =
+        ParseNonNegativeSizeTOr_("AutoStepSelectorEveryNSteps", 10);
+    auto_step_selector_phase_switch_ratio = this->ParseDoubleOr("AutoStepSelectorPhaseSwitchRatio", 0.3);
+    auto_step_selector_enable_in_deterministic =
+        this->ParseBoolOr("AutoStepSelectorEnableInDeterministic", false);
+
     // Spike recovery (optional; default: disabled to preserve prior behavior)
     spike_auto_recover = this->ParseBoolOr("SpikeAutoRecover", false);
     spike_max_retries = static_cast<size_t>(this->ParseIntOr("SpikeMaxRetries", 2));
@@ -88,6 +114,8 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     spike_ema_window = static_cast<size_t>(this->ParseIntOr("SpikeEMAWindow", 50));
     spike_sigma_k = this->ParseDoubleOr("SpikeSigmaK", 10.0);
     spike_log_csv = this->ParseStrOr("SpikeLogCSV", "");
+
+    ValidateOptimizerConfig_();
 
     // Parse IO configuration
     io_params.Parse(*this);
@@ -127,6 +155,22 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   size_t cg_residue_restart = 20;
   double cg_diag_shift = 0.01;
   bool normalize_update = false;
+
+  // L-BFGS parameters
+  size_t lbfgs_history_size = 10;
+  double lbfgs_tolerance_grad = 1e-5;
+  double lbfgs_tolerance_change = 1e-9;
+  size_t lbfgs_max_eval = 20;
+  qlpeps::LBFGSStepMode lbfgs_step_mode = qlpeps::LBFGSStepMode::kFixed;
+  double lbfgs_wolfe_c1 = 1e-4;
+  double lbfgs_wolfe_c2 = 0.9;
+  double lbfgs_min_step = 1e-8;
+  double lbfgs_max_step = 1.0;
+  double lbfgs_min_curvature = 1e-12;
+  bool lbfgs_use_damping = true;
+  double lbfgs_max_direction_norm = 1e3;
+  bool lbfgs_allow_fallback_to_fixed_step = false;
+  double lbfgs_fallback_fixed_step_scale = 0.2;
   
   // Learning rate scheduler
   std::string lr_scheduler_type;
@@ -139,6 +183,15 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   // Gradient clipping
   std::optional<double> clip_norm;
   std::optional<double> clip_value;
+
+  // Step selectors
+  bool initial_step_selector_enabled = false;
+  size_t initial_step_selector_max_line_search_steps = 3;
+  bool initial_step_selector_enable_in_deterministic = false;
+  bool auto_step_selector_enabled = false;
+  size_t auto_step_selector_every_n_steps = 10;
+  double auto_step_selector_phase_switch_ratio = 0.3;
+  bool auto_step_selector_enable_in_deterministic = false;
 
   // Spike recovery
   bool spike_auto_recover = false;
@@ -184,6 +237,14 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   }
 
 private:
+  size_t ParseNonNegativeSizeTOr_(const std::string &key, int default_value) {
+    const int value = this->ParseIntOr(key, default_value);
+    if (value < 0) {
+      throw std::invalid_argument(key + " must be >= 0");
+    }
+    return static_cast<size_t>(value);
+  }
+
   /**
    * @brief Create type-specific optimizer parameters
    */
@@ -207,6 +268,17 @@ private:
     // Set gradient clipping if specified
     if (clip_norm) base_params.clip_norm = *clip_norm;
     if (clip_value) base_params.clip_value = *clip_value;
+    base_params.initial_step_selector = qlpeps::InitialStepSelectorParams{
+      initial_step_selector_enabled,
+      initial_step_selector_max_line_search_steps,
+      initial_step_selector_enable_in_deterministic
+    };
+    base_params.auto_step_selector = qlpeps::AutoStepSelectorParams{
+      auto_step_selector_enabled,
+      auto_step_selector_every_n_steps,
+      auto_step_selector_phase_switch_ratio,
+      auto_step_selector_enable_in_deterministic
+    };
     
     // Create algorithm-specific parameters
     qlpeps::CheckpointParams ckpt_params{};
@@ -225,8 +297,106 @@ private:
       qlpeps::ConjugateGradientParams cg_params(cg_max_iter, cg_tol, cg_residue_restart, cg_diag_shift);
       qlpeps::StochasticReconfigurationParams sr_params(cg_params, normalize_update);
       return qlpeps::OptimizerParams(base_params, sr_params, ckpt_params, spike_params);
+    } else if (optimizer_type == "LBFGS") {
+      qlpeps::LBFGSParams lbfgs_params(
+        lbfgs_history_size,
+        lbfgs_tolerance_grad,
+        lbfgs_tolerance_change,
+        lbfgs_max_eval,
+        lbfgs_step_mode,
+        lbfgs_wolfe_c1,
+        lbfgs_wolfe_c2,
+        lbfgs_min_step,
+        lbfgs_max_step,
+        lbfgs_min_curvature,
+        lbfgs_use_damping,
+        lbfgs_max_direction_norm,
+        lbfgs_allow_fallback_to_fixed_step,
+        lbfgs_fallback_fixed_step_scale
+      );
+      return qlpeps::OptimizerParams(base_params, lbfgs_params, ckpt_params, spike_params);
     } else {
       throw std::invalid_argument("Unknown optimizer type: " + optimizer_type);
+    }
+  }
+
+  static std::string ToLowerAscii_(std::string text) {
+    std::transform(text.begin(), text.end(), text.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return text;
+  }
+
+  static std::string NormalizeOptimizerType_(const std::string &value) {
+    const std::string key = ToLowerAscii_(heisenberg_params::TrimAsciiWhitespace(value));
+    if (key == "sr" || key == "stochasticreconfiguration") return "StochasticReconfiguration";
+    if (key == "sgd") return "SGD";
+    if (key == "adam") return "Adam";
+    if (key == "adagrad") return "AdaGrad";
+    if (key == "lbfgs" || key == "l-bfgs") return "LBFGS";
+    return heisenberg_params::TrimAsciiWhitespace(value);
+  }
+
+  static qlpeps::LBFGSStepMode ParseLBFGSStepMode_(const std::string &value) {
+    const std::string key = ToLowerAscii_(heisenberg_params::TrimAsciiWhitespace(value));
+    if (key == "fixed" || key == "kfixed") return qlpeps::LBFGSStepMode::kFixed;
+    if (key == "strongwolfe" || key == "kstrongwolfe") return qlpeps::LBFGSStepMode::kStrongWolfe;
+    throw std::invalid_argument("LBFGSStepMode must be one of: Fixed, StrongWolfe, kFixed, kStrongWolfe");
+  }
+
+  void ValidateOptimizerConfig_() const {
+    if (optimizer_type != "SGD" && optimizer_type != "Adam" &&
+        optimizer_type != "AdaGrad" && optimizer_type != "StochasticReconfiguration" &&
+        optimizer_type != "LBFGS") {
+      throw std::invalid_argument("Unknown optimizer type: " + optimizer_type);
+    }
+
+    const bool any_selector_enabled = initial_step_selector_enabled || auto_step_selector_enabled;
+    if (any_selector_enabled &&
+        !(optimizer_type == "SGD" || optimizer_type == "StochasticReconfiguration")) {
+      throw std::invalid_argument(
+          "Step selectors only support SGD and StochasticReconfiguration");
+    }
+    if (any_selector_enabled && !lr_scheduler_type.empty()) {
+      throw std::invalid_argument(
+          "Step selectors cannot be used together with LRScheduler");
+    }
+    if (any_selector_enabled && learning_rate <= 0.0) {
+      throw std::invalid_argument("Step selectors require a positive LearningRate");
+    }
+    if (initial_step_selector_enabled && initial_step_selector_max_line_search_steps == 0) {
+      throw std::invalid_argument(
+          "InitialStepSelectorMaxLineSearchSteps must be > 0 when InitialStepSelectorEnabled=true");
+    }
+    if (auto_step_selector_enabled) {
+      if (auto_step_selector_every_n_steps == 0) {
+        throw std::invalid_argument(
+            "AutoStepSelectorEveryNSteps must be > 0 when AutoStepSelectorEnabled=true");
+      }
+      if (auto_step_selector_phase_switch_ratio < 0.0 ||
+          auto_step_selector_phase_switch_ratio > 1.0) {
+        throw std::invalid_argument(
+            "AutoStepSelectorPhaseSwitchRatio must be within [0, 1]");
+      }
+    }
+
+    if (optimizer_type != "LBFGS") {
+      return;
+    }
+    if (lbfgs_history_size == 0) {
+      throw std::invalid_argument("LBFGSHistorySize must be > 0");
+    }
+    if (lbfgs_step_mode == qlpeps::LBFGSStepMode::kStrongWolfe) {
+      if (!(lbfgs_wolfe_c1 > 0.0 && lbfgs_wolfe_c1 < lbfgs_wolfe_c2 &&
+            lbfgs_wolfe_c2 < 1.0)) {
+        throw std::invalid_argument(
+            "Strong-Wolfe constants must satisfy 0 < LBFGSWolfeC1 < LBFGSWolfeC2 < 1");
+      }
+      if (lbfgs_max_eval == 0) {
+        throw std::invalid_argument("LBFGSMaxEval must be > 0 in StrongWolfe mode");
+      }
+      if (lbfgs_tolerance_grad < 0.0) {
+        throw std::invalid_argument("LBFGSToleranceGrad must be >= 0 in StrongWolfe mode");
+      }
     }
   }
 

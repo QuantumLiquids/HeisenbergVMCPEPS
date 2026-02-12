@@ -176,6 +176,39 @@ When `MPSCompressScheme` is variational, you can control convergence:
 }
 ```
 
+### Recipe D: LBFGS fixed-step (MC-friendly baseline)
+
+Use the provided sample:
+
+```bash
+cd build
+mpirun -n 1 ./vmc_optimize \
+  ../params/physics_params.json \
+  ../params/vmc_lbfgs_fixed.json
+```
+
+### Recipe E: LBFGS strong-Wolfe (deterministic-style tuning)
+
+Use the provided sample:
+
+```bash
+cd build
+mpirun -n 1 ./vmc_optimize \
+  ../params/physics_params.json \
+  ../params/vmc_lbfgs_strong_wolfe.json
+```
+
+### Recipe F: SR with initial + auto step selectors
+
+Use the provided sample:
+
+```bash
+cd build
+mpirun -n 1 ./vmc_optimize \
+  ../params/physics_params.json \
+  ../params/vmc_sr_step_selector.json
+```
+
 ### Benchmark recipe: square12x12D8vmc (machine_test)
 
 Run the provided benchmark case (two-file mode):
