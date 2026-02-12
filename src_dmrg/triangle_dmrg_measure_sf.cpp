@@ -10,7 +10,7 @@
 #include "qlten/qlten.h"
 #include <ctime>
 #include "../src/qldouble.h"
-#include "../src/params_parser.h"
+#include "dmrg_params.h"
 #include "../src/myutil.h"
 #include "dmrg_my_measure.h"
 

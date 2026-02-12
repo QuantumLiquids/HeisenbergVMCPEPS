@@ -7,7 +7,7 @@
 #include <time.h>
 #include <vector>
 #include <stdlib.h>     // system
-#include "../src/params_parser.h"
+#include "dmrg_params.h"
 #include "../src/qldouble.h"
 #include "../src/myutil.h"
 
