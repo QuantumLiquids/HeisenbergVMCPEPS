@@ -103,9 +103,23 @@ load a previously saved configuration before they start sampling:
 - `Random` (default): half-up / half-down random occupancy.
 - `Neel`: checkerboard AFM pattern with randomly selected phase (two
   sublattice-to-spin mappings are sampled uniformly).
+- `ThreeSublatticePolarizedSeed`: 3-sublattice polarized seed.
+  - A sublattice: all up.
+  - B/C sublattices: choose up spins to be as close as possible to each
+    sublattice's 1/4 occupation while enforcing exact total `Sz=0` (for even `Lx*Ly`).
 - This strategy is only used when `configuration{rank}` cannot be loaded.
 - `Neel` requires even `Lx*Ly` in this fallback path; odd site count throws
   an explicit runtime error.
+- For `Neel` with periodic boundary conditions, a true unfrustrated
+  checkerboard AFM requires both `Lx` and `Ly` even. If either is odd,
+  wrap bonds are frustrated; code prints a per-rank warning and still uses
+  the checkerboard seed.
+- `ThreeSublatticePolarizedSeed` also requires even `Lx*Ly` in this fallback
+  path; odd site count throws an explicit runtime error.
+- If `ThreeSublatticePolarizedSeed` is infeasible on a small-size lattice,
+  code falls back to `Random` and prints per-rank warning.
+- `ThreeSublatticePolarizedSeed` can be used with non-triangle models, but a
+  per-rank warning is printed.
 
 After a run finishes, each rank saves its final configuration to
 `ConfigurationDumpDir/configuration{rank}`, so the next run can pick up

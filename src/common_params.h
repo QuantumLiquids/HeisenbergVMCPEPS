@@ -17,6 +17,8 @@
 #include "qlpeps/two_dim_tn/tensor_network_2d/trg/trg_contractor.h"
 #include <algorithm>
 #include <cctype>
+#include <iostream>
+#include <limits>
 #include <optional>
 #include <random>
 #include <stdexcept>
@@ -64,7 +66,8 @@ inline qlpeps::CompressMPSScheme ParseCompressMPSScheme(const std::string &value
 
 enum class InitialConfigStrategy {
   Random,
-  Neel
+  Neel,
+  ThreeSublatticePolarizedSeed
 };
 
 inline InitialConfigStrategy ParseInitialConfigStrategy(const std::string &value) {
@@ -73,7 +76,11 @@ inline InitialConfigStrategy ParseInitialConfigStrategy(const std::string &value
                  [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   if (key == "random") return InitialConfigStrategy::Random;
   if (key == "neel") return InitialConfigStrategy::Neel;
-  throw std::invalid_argument("InitialConfigStrategy must be Random or Neel.");
+  if (key == "threesublatticepolarizedseed") {
+    return InitialConfigStrategy::ThreeSublatticePolarizedSeed;
+  }
+  throw std::invalid_argument(
+      "InitialConfigStrategy must be Random, Neel, or ThreeSublatticePolarizedSeed.");
 }
 
 /**
@@ -257,6 +264,8 @@ struct IOParams {
  * - If load fails, apply mc_params.initial_config_strategy:
  *   - Random: keep random config.
  *   - Neel: generate checkerboard state with random phase; requires even Lx*Ly.
+ *   - ThreeSublatticePolarizedSeed: A sublattice all-up, B/C as close as possible
+ *     to quarter-up under exact total Sz=0; requires even Lx*Ly.
  */
 inline std::pair<qlpeps::Configuration, bool> InitOrLoadConfigWithStrategy(
     const PhysicalParams &physical_params,
@@ -283,6 +292,16 @@ inline std::pair<qlpeps::Configuration, bool> InitOrLoadConfigWithStrategy(
       throw std::invalid_argument(
           "InitialConfigStrategy=Neel requires even Lx*Ly when no configuration is loaded.");
     }
+    const bool pbc_checkerboard_frustrated =
+        (physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) &&
+        (((physical_params.Lx & 1ULL) != 0ULL) || ((physical_params.Ly & 1ULL) != 0ULL));
+    if (pbc_checkerboard_frustrated) {
+      std::cerr << "[warn][rank " << rank
+                << "] InitialConfigStrategy=Neel with PBC and odd Lx or Ly cannot realize a "
+                   "true checkerboard AFM on wrap bonds. Proceeding with the checkerboard seed "
+                   "pattern anyway."
+                << std::endl;
+    }
     std::random_device rd;
     std::mt19937 rng(rd());
     std::uniform_int_distribution<int> phase_dist(0, 1);
@@ -292,6 +311,100 @@ inline std::pair<qlpeps::Configuration, bool> InitOrLoadConfigWithStrategy(
         config({row, col}) = (row + col + phase) & 1ULL;
       }
     }
+  }
+  if (mc_params.initial_config_strategy == InitialConfigStrategy::ThreeSublatticePolarizedSeed) {
+    if (physical_params.ModelType != "TriangleHeisenberg") {
+      std::cerr << "[warn][rank " << rank
+                << "] InitialConfigStrategy=ThreeSublatticePolarizedSeed is used with ModelType="
+                << physical_params.ModelType
+                << ". Proceeding with the same three-sublattice seed rule." << std::endl;
+    }
+    if ((total_sites & 1ULL) != 0ULL) {
+      throw std::invalid_argument(
+          "InitialConfigStrategy=ThreeSublatticePolarizedSeed requires even Lx*Ly when no configuration is loaded.");
+    }
+
+    auto sublattice_index = [](size_t row, size_t col) -> size_t {
+      return ((row % 3ULL) + 3ULL - (col % 3ULL)) % 3ULL;
+    };
+
+    std::vector<std::pair<size_t, size_t>> sub_a_sites;
+    std::vector<std::pair<size_t, size_t>> sub_b_sites;
+    std::vector<std::pair<size_t, size_t>> sub_c_sites;
+    sub_a_sites.reserve(total_sites / 3ULL + 2ULL);
+    sub_b_sites.reserve(total_sites / 3ULL + 2ULL);
+    sub_c_sites.reserve(total_sites / 3ULL + 2ULL);
+    for (size_t row = 0; row < physical_params.Ly; ++row) {
+      for (size_t col = 0; col < physical_params.Lx; ++col) {
+        const size_t sublattice = sublattice_index(row, col);
+        if (sublattice == 0ULL) {
+          sub_a_sites.emplace_back(row, col);
+        } else if (sublattice == 1ULL) {
+          sub_b_sites.emplace_back(row, col);
+        } else {
+          sub_c_sites.emplace_back(row, col);
+        }
+      }
+    }
+
+    const size_t target_up = total_sites / 2ULL;
+    const size_t up_a = sub_a_sites.size();
+    const long long remain_ll = static_cast<long long>(target_up) - static_cast<long long>(up_a);
+    if (remain_ll < 0 ||
+        remain_ll > static_cast<long long>(sub_b_sites.size() + sub_c_sites.size())) {
+      std::cerr << "[warn][rank " << rank
+                << "] ThreeSublatticePolarizedSeed is infeasible on this lattice; falling back to Random."
+                << std::endl;
+      return {config, false};
+    }
+
+    const size_t remain = static_cast<size_t>(remain_ll);
+    const size_t min_up_b = (remain > sub_c_sites.size()) ? (remain - sub_c_sites.size()) : 0ULL;
+    const size_t max_up_b = std::min(sub_b_sites.size(), remain);
+    if (min_up_b > max_up_b) {
+      std::cerr << "[warn][rank " << rank
+                << "] ThreeSublatticePolarizedSeed integer assignment failed; falling back to Random."
+                << std::endl;
+      return {config, false};
+    }
+
+    const double ideal_up_b = static_cast<double>(sub_b_sites.size()) * 0.25;
+    const double ideal_up_c = static_cast<double>(sub_c_sites.size()) * 0.25;
+    double best_cost = std::numeric_limits<double>::infinity();
+    size_t best_up_b = min_up_b;
+    size_t best_up_c = remain - best_up_b;
+    for (size_t up_b = min_up_b; up_b <= max_up_b; ++up_b) {
+      const size_t up_c = remain - up_b;
+      const double diff_b = static_cast<double>(up_b) - ideal_up_b;
+      const double diff_c = static_cast<double>(up_c) - ideal_up_c;
+      const double cost = diff_b * diff_b + diff_c * diff_c;
+      if (cost < best_cost) {
+        best_cost = cost;
+        best_up_b = up_b;
+        best_up_c = up_c;
+      }
+    }
+
+    for (size_t row = 0; row < physical_params.Ly; ++row) {
+      for (size_t col = 0; col < physical_params.Lx; ++col) {
+        config({row, col}) = 0ULL;
+      }
+    }
+    for (const auto &[row, col] : sub_a_sites) {
+      config({row, col}) = 1ULL;
+    }
+
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    auto assign_random_up = [&](std::vector<std::pair<size_t, size_t>> &sites, size_t up_count) {
+      std::shuffle(sites.begin(), sites.end(), rng);
+      for (size_t i = 0; i < up_count; ++i) {
+        const auto &[row, col] = sites[i];
+        config({row, col}) = 1ULL;
+      }
+    };
+    assign_random_up(sub_b_sites, best_up_b);
+    assign_random_up(sub_c_sites, best_up_c);
   }
   return {config, false};
 }

@@ -32,7 +32,10 @@ Monte Carlo:
 - `InitialConfigStrategy` (string): optional, default `Random`
   - `Random`: half-up / half-down random initial configuration when load fails
   - `Neel`: checkerboard AFM initial configuration with random phase when load fails
+  - `ThreeSublatticePolarizedSeed`: A sublattice all up; B/C sublattices approximately 1/4 up each with exact total `Sz=0` (fallback only)
   - Note: `Neel` requires even `Lx*Ly` when no per-rank configuration is loaded
+  - Note: with periodic BC, `Neel` is a true checkerboard AFM only when both `Lx` and `Ly` are even; otherwise wrap bonds are frustrated and code warns
+  - Note: `ThreeSublatticePolarizedSeed` requires even `Lx*Ly`; infeasible small-size layouts fall back to `Random` with warning
 
 Optimizer (VMC only):
 - `OptimizerType` (string): `SR`/`StochasticReconfiguration`, `SGD`, `Adam`, `AdaGrad`, `LBFGS` (`L-BFGS` alias accepted)
