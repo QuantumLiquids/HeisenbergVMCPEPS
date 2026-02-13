@@ -91,7 +91,7 @@ struct PhysicalParams : public qlmps::CaseParamsParserBasic {
     Lx = ParseInt("Lx");
     Ly = ParseInt("Ly");
     J2 = ParseDouble("J2");
-    RemoveCorner = ParseBool("RemoveCorner");
+    RemoveCorner = ParseBoolOr("RemoveCorner", false);
     // Required: avoid ambiguous defaults in scientific runs.
     // Make users specify explicitly what they simulate.
     try {
@@ -113,7 +113,7 @@ struct PhysicalParams : public qlmps::CaseParamsParserBasic {
   size_t Lx;          ///< Lattice size in x direction
   size_t Ly;          ///< Lattice size in y direction
   double J2;          ///< J1-J2 model parameter (J1 = 1.0 by default)
-  bool RemoveCorner;  ///< Whether to remove corner sites (for specific geometries)
+  bool RemoveCorner;  ///< Legacy compatibility key. Ignored by unified square/triangle drivers.
   std::string ModelType; ///< Physics model identifier (e.g., SquareHeisenberg, SquareXY, TriangleHeisenberg)
   qlpeps::BoundaryCondition BoundaryCondition; ///< Open or Periodic
 };

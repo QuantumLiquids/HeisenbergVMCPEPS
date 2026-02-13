@@ -2,9 +2,7 @@
   "CaseParams": {
     "Ly": 12,
     "Lx": 12,
-    "RemoveCorner": true,
     "J2": 0.0,
     "ModelType": "SquareHeisenberg"
   }
 }
-
