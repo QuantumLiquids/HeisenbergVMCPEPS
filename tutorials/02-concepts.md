@@ -96,8 +96,16 @@ load a previously saved configuration before they start sampling:
 2. If the file exists and its shape matches the lattice, load it and
    mark this rank as **warmed up** — warmup sweeps are skipped.
 3. If the file is missing (e.g. first run, or you added new MPI ranks),
-   initialize with a half-up / half-down occupancy and run the full
+   initialize according to `InitialConfigStrategy` and run the full
    `WarmUp` sweeps specified in the algorithm JSON.
+
+**InitialConfigStrategy (fallback only).**
+- `Random` (default): half-up / half-down random occupancy.
+- `Neel`: checkerboard AFM pattern with randomly selected phase (two
+  sublattice-to-spin mappings are sampled uniformly).
+- This strategy is only used when `configuration{rank}` cannot be loaded.
+- `Neel` requires even `Lx*Ly` in this fallback path; odd site count throws
+  an explicit runtime error.
 
 After a run finishes, each rank saves its final configuration to
 `ConfigurationDumpDir/configuration{rank}`, so the next run can pick up

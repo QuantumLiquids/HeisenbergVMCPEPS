@@ -10,24 +10,6 @@
 
 using namespace qlpeps;
 
-// Local helper: init/load half-up-half-down Configuration with U1 occupancy
-static inline std::pair<Configuration, bool> InitOrLoadConfigHalfU1(
-    const heisenberg_params::PhysicalParams &physical_params,
-    const std::string &configuration_load_dir,
-    int rank) {
-  const size_t N = physical_params.Lx * physical_params.Ly;
-  const size_t spin_up_sites = N / 2;
-  OccupancyNum occupancy(2, 0);
-  occupancy[1] = spin_up_sites;
-  occupancy[0] = N - spin_up_sites;
-  Configuration config(physical_params.Ly, physical_params.Lx, occupancy);
-  bool warmed_up = false;
-  if (!configuration_load_dir.empty()) {
-    warmed_up = config.Load(configuration_load_dir, static_cast<size_t>(rank));
-  }
-  return {config, warmed_up};
-}
-
 int main(int argc, char **argv) {
   MPI_Init(nullptr, nullptr);
   MPI_Comm comm = MPI_COMM_WORLD;
@@ -45,8 +27,9 @@ int main(int argc, char **argv) {
   qlten::hp_numeric::SetTensorManipulationThreads(params.bmps_params.ThreadNum);
 
   // Build MC measurement params (new API)
-  auto [init_config, warmed_up] = InitOrLoadConfigHalfU1(
+  auto [init_config, warmed_up] = heisenberg_params::InitOrLoadConfigWithStrategy(
       params.physical_params,
+      params.mc_params,
       params.io_params.configuration_load_dir,
       rank);
 

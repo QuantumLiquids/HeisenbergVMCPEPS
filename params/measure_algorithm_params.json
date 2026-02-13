@@ -5,9 +5,9 @@
     "MC_total_samples": 1000,
     "WarmUp": 1000,
     "MCLocalUpdateSweepsBetweenSample": 2,
+    "InitialConfigStrategy": "Random",
     "Dbmps_min": 4,
     "Dbmps_max": 4,
     "MPSCompressScheme": "Variational2Site"
   }
 }
-

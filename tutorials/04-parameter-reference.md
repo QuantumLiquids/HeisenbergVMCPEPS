@@ -29,6 +29,10 @@ Monte Carlo:
 - `WarmUp` (int): required
 - `MCLocalUpdateSweepsBetweenSample` (int): required
 - `MCRestrictU1` (bool): optional, default true (currently informational in unified drivers)
+- `InitialConfigStrategy` (string): optional, default `Random`
+  - `Random`: half-up / half-down random initial configuration when load fails
+  - `Neel`: checkerboard AFM initial configuration with random phase when load fails
+  - Note: `Neel` requires even `Lx*Ly` when no per-rank configuration is loaded
 
 Optimizer (VMC only):
 - `OptimizerType` (string): `SR`/`StochasticReconfiguration`, `SGD`, `Adam`, `AdaGrad`, `LBFGS` (`L-BFGS` alias accepted)

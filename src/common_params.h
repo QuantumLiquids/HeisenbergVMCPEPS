@@ -18,7 +18,9 @@
 #include <algorithm>
 #include <cctype>
 #include <optional>
+#include <random>
 #include <stdexcept>
+#include <utility>
 
 namespace heisenberg_params {
 
@@ -58,6 +60,20 @@ inline qlpeps::CompressMPSScheme ParseCompressMPSScheme(const std::string &value
     return qlpeps::CompressMPSScheme::VARIATION1Site;
   }
   throw std::invalid_argument("MPSCompressScheme must be one of: SVD, Variational2Site, Variational1Site.");
+}
+
+enum class InitialConfigStrategy {
+  Random,
+  Neel
+};
+
+inline InitialConfigStrategy ParseInitialConfigStrategy(const std::string &value) {
+  std::string key = TrimAsciiWhitespace(value);
+  std::transform(key.begin(), key.end(), key.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if (key == "random") return InitialConfigStrategy::Random;
+  if (key == "neel") return InitialConfigStrategy::Neel;
+  throw std::invalid_argument("InitialConfigStrategy must be Random or Neel.");
 }
 
 /**
@@ -121,12 +137,15 @@ struct MonteCarloNumericalParams : public qlmps::CaseParamsParserBasic {
     WarmUp = ParseInt("WarmUp");
     MCLocalUpdateSweepsBetweenSample = ParseInt("MCLocalUpdateSweepsBetweenSample");
     MCRestrictU1 = ParseBoolOr("MCRestrictU1", true);
+    initial_config_strategy = ParseInitialConfigStrategy(
+        ParseStrOr("InitialConfigStrategy", "Random"));
   }
 
   size_t MC_total_samples;                  ///< Total Monte Carlo samples across all MPI ranks
   size_t WarmUp;                           ///< Number of warm-up sweeps
   size_t MCLocalUpdateSweepsBetweenSample; ///< Sweeps between successive samples
   bool MCRestrictU1;                       ///< Whether MC sampler restricts U1 (true by default)
+  InitialConfigStrategy initial_config_strategy; ///< Init strategy when configuration load fails
 };
 
 /**
@@ -228,6 +247,54 @@ struct IOParams {
     if (configuration_dump_dir.empty()) configuration_dump_dir = wavefunction_base + "final";
   }
 };
+
+/**
+ * @brief Create initial MC configuration (or load from disk) for half-up/half-down U1 setup.
+ *
+ * Behavior:
+ * - Always starts from a half-up/half-down random configuration.
+ * - If load succeeds from configuration_load_dir/configuration{rank}, loaded config wins and warmed_up=true.
+ * - If load fails, apply mc_params.initial_config_strategy:
+ *   - Random: keep random config.
+ *   - Neel: generate checkerboard state with random phase; requires even Lx*Ly.
+ */
+inline std::pair<qlpeps::Configuration, bool> InitOrLoadConfigWithStrategy(
+    const PhysicalParams &physical_params,
+    const MonteCarloNumericalParams &mc_params,
+    const std::string &configuration_load_dir,
+    int rank) {
+  const size_t total_sites = physical_params.Lx * physical_params.Ly;
+  const size_t spin_up_sites = total_sites / 2;
+  qlpeps::OccupancyNum occupancy(2, 0);
+  occupancy[1] = spin_up_sites;
+  occupancy[0] = total_sites - spin_up_sites;
+  qlpeps::Configuration config(physical_params.Ly, physical_params.Lx, occupancy);
+
+  bool warmed_up = false;
+  if (!configuration_load_dir.empty()) {
+    warmed_up = config.Load(configuration_load_dir, static_cast<size_t>(rank));
+  }
+  if (warmed_up) {
+    return {config, true};
+  }
+
+  if (mc_params.initial_config_strategy == InitialConfigStrategy::Neel) {
+    if ((total_sites & 1ULL) != 0ULL) {
+      throw std::invalid_argument(
+          "InitialConfigStrategy=Neel requires even Lx*Ly when no configuration is loaded.");
+    }
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_int_distribution<int> phase_dist(0, 1);
+    const size_t phase = static_cast<size_t>(phase_dist(rng));
+    for (size_t row = 0; row < physical_params.Ly; ++row) {
+      for (size_t col = 0; col < physical_params.Lx; ++col) {
+        config({row, col}) = (row + col + phase) & 1ULL;
+      }
+    }
+  }
+  return {config, false};
+}
 
 /**
  * @brief Create PEPSParams selecting TRG (PBC) or BMPS (OBC) backend.

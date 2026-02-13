@@ -218,14 +218,11 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
    */
   qlpeps::VMCPEPSOptimizerParams CreateVMCOptimizerParams(int rank = 0) {
     // Create Monte Carlo parameters
-    size_t N = physical_params.Lx * physical_params.Ly;
-    size_t spin_up_sites = N / 2;
-    qlpeps::OccupancyNum occupancy = {spin_up_sites, N - spin_up_sites};
-    qlpeps::Configuration config(physical_params.Ly, physical_params.Lx, occupancy);
-    bool warmed_up = false;
-    if (!io_params.configuration_load_dir.empty()) {
-      warmed_up = config.Load(io_params.configuration_load_dir, static_cast<size_t>(rank));
-    }
+    auto [config, warmed_up] = heisenberg_params::InitOrLoadConfigWithStrategy(
+        physical_params,
+        mc_params,
+        io_params.configuration_load_dir,
+        rank);
 
     qlpeps::MonteCarloParams mc_params_obj(
       mc_params.MC_total_samples,
