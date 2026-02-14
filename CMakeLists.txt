@@ -129,8 +129,8 @@ add_executable(triangle_dmrg_measure_sf src_dmrg/triangle_dmrg_measure_sf.cpp $<
 # Utility tools
 if (NOT DEFINED U1SYM)
     add_executable(increaseD src/tps_increase_D.cpp $<TARGET_OBJECTS:myutil_obj>)
-    add_executable(extend src/sitps_space_extension.cpp $<TARGET_OBJECTS:myutil_obj>)
 endif ()
+add_executable(sitps_tile src/sitps_tile.cpp $<TARGET_OBJECTS:myutil_obj>)
 option(BUILD_ZERO_EVOLVE "Build zero-evolve tool (legacy)" OFF)
 if (BUILD_ZERO_EVOLVE)
     add_executable(zero_evolve src/square_peps_zero_evolve.cpp)
