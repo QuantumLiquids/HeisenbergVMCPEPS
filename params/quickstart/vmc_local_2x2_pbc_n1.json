@@ -1,0 +1,23 @@
+{
+  "CaseParams": {
+    "ThreadNum": 1,
+    "TRGDmin": 2,
+    "TRGDmax": 4,
+    "TRGTruncErr": 1e-10,
+    "TRGInvRelativeEps": 1e-12,
+    "MC_total_samples": 1000,
+    "WarmUp": 20,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+    "OptimizerType": "SR",
+    "MaxIterations": 30,
+    "LearningRate": 0.05,
+    "CGMaxIter": 20,
+    "CGTol": 1e-6,
+    "CGResidueRestart": 10,
+    "CGDiagShift": 1e-4,
+    "NormalizeUpdate": false,
+    "WavefunctionBase": "tps",
+    "ConfigurationLoadDir": "tpsfinal",
+    "ConfigurationDumpDir": "tpsfinal"
+  }
+}

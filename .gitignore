@@ -43,6 +43,7 @@ build_doc/
 
 # Project
 data/
+!tutorials/data/
 tensors/
 run/
 
@@ -54,8 +55,16 @@ run/
 *swo
 .DS_Store
 .ycm_extra_conf.py
+*.pyc
+
+# Python cache
+__pycache__/
+.pytest_cache/
 
 AGENTS.md
 # Local benchmark logs (do not commit)
 CLAUDE.md
 /.cache
+
+# MCP run manager local artifacts
+artifacts/

@@ -1,0 +1,23 @@
+{
+  "CaseParams": {
+    "BMPSTruncErr": 1e-10,
+    "ThreadNum": 1,
+    "MC_total_samples": 3200,
+    "WarmUp": 100,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+    "Dbmps_min": 4,
+    "Dbmps_max": 8,
+    "MPSCompressScheme": "SVD",
+    "OptimizerType": "SR",
+    "MaxIterations": 30,
+    "LearningRate": 0.1,
+    "CGMaxIter": 20,
+    "CGTol": 1e-06,
+    "CGResidueRestart": 10,
+    "CGDiagShift": 0.0001,
+    "NormalizeUpdate": false,
+    "WavefunctionBase": "tps",
+    "ConfigurationLoadDir": "tpsfinal",
+    "ConfigurationDumpDir": "tpsfinal"
+  }
+}
