@@ -1,92 +1,80 @@
-# finite-size Spin Models: Projected entangled pair state
+# finite-size Spin Models: Projected Entangled Pair States
 
-___
+This repository provides user-facing drivers for finite-size PEPS workflows on top of `qlpeps`.
 
 ## Models
 
-- spin-$\frac{1}{2}$ square lattice $J_1$-$J_2$ Heisenberg and XY model
-- spin-$\frac{1}{2}$ triangle lattice $J_1$-$J_2$ Heisenberg model
+- Spin-1/2 square lattice `J1-J2` Heisenberg model
+- Spin-1/2 square lattice `J1-J2` XY model
+- Spin-1/2 triangle lattice `J1-J2` Heisenberg model
 
-### Hamiltonian
+## Binaries and Scope
 
-The general $J_1$-$J_2$ Heisenberg model on a lattice is given by:
-\[
-H = J_1 \sum_{\langle i,j \rangle} \mathbf{S}_i \cdot \mathbf{S}_j + J_2 \sum_{\langle\langle i,j \rangle\rangle} \mathbf{S}_i \cdot \mathbf{S}_j
-\]
-where $\langle i,j \rangle$ denotes nearest-neighbor pairs and $\langle\langle i,j \rangle\rangle$ denotes next-nearest-neighbor pairs. $\mathbf{S}_i$ is the spin-$\frac{1}{2}$ operator at site $i$.
+Main workflow binaries:
 
-The general $J_1$-$J_2$ XY model on a lattice is given by:
-\[
-H = J_1 \sum_{\langle i,j \rangle} (S_i^x S_j^x+S_i^y S_j^y) + J_2 \sum_{\langle\langle i,j \rangle\rangle} (S_i^x S_j^x+S_i^y S_j^y).
-\]
-
----
-
-## Binaries and Their Functionality
-
-After compiling (see Build), you obtain these binaries:
-
-### Unified entries
-
-| Binary | Function | Usage |
+| Binary | Purpose | Typical command |
 |---|---|---|
-| simple_update | PEPS simple update (Square Heisenberg/XY, Triangle) | `./simple_update params/physics_params.json params/simple_update_algorithm_params.json` |
-| vmc_optimize | VMC optimization | `mpirun -n 1 ./vmc_optimize params/physics_params.json params/vmc_algorithm_params.json` |
-| mc_measure | Monte Carlo measurement | `./mc_measure params/physics_params.json params/measure_algorithm_params.json` |
+| `simple_update` | Prepare initial PEPS/SITPS state | `./simple_update ../params/physics_params.json ../params/simple_update_algorithm_params.json` |
+| `vmc_optimize` | Optimize SITPS with VMC | `mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_algorithm_params.json` |
+| `mc_measure` | Run Monte Carlo measurement on SITPS | `mpirun -n 1 ./mc_measure ../params/physics_params.json ../params/measure_algorithm_params.json` |
+| `sitps_tile` | Tile/replicate SITPS to larger lattices with consistency checks | `./sitps_tile --input-dir tpsfinal --output-dir tpsfinal_8x8 --target-ly 8 --target-lx 8 --unit-ly 2 --unit-lx 2` |
 
-### Notes
+DMRG benchmark binaries (appendix scope):
 
-- Set `ModelType` in `physics_params.json` to dispatch: `SquareHeisenberg`, `SquareXY`, `TriangleHeisenberg`.
-- Triangle uses square-lattice PEPS as ansatz under the hood.
+- `triangle_vmps`
+- `triangle_dmrg`
+- `triangle_dmrg_measure`
+- `triangle_dmrg_measure_sf`
 
----
+Notes:
 
-## Dependence
+- `ModelType` controls solver dispatch: `SquareHeisenberg`, `SquareXY`, `TriangleHeisenberg`.
+- Triangle PBC is not supported in current PEPS backend.
+- `src/kagome*` code is deprecated and corresponding binaries are disabled in default CMake.
 
-- C++17+, CMake≥3.12
-- BLAS/LAPACK: Intel MKL or OpenBLAS
+## Dependencies
+
+- C++20 compiler
+- CMake >= 3.14
+- BLAS/LAPACK (Intel MKL or OpenBLAS)
 - MPI
-- Tensor: QuantumLiquids/TensorToolkit
-- DMRG: QuantumLiquids/UltraDMRG
-- PEPS: QuantumLiquids/PEPS
+- OpenMP (CXX)
+- QuantumLiquids/TensorToolkit
+- QuantumLiquids/UltraDMRG
+- QuantumLiquids/PEPS
 
----
+## Build
 
-## Build Instructions
+Generic:
 
 ```bash
-git clone https://github.com/QuantumLiquids/HeisenbergVMCPEPS.git
-cd HeisenbergVMCPEPS
-mkdir build && cd build
-cmake ..
-make -j4
+cd /Users/wanghaoxin/GitHub/HeisenbergVMCPEPS
+mkdir -p build
+cmake -S . -B build
+cmake --build build -j4
 ```
 
-Common options:
-- `-DU1SYM=1` enable U(1) symmetry; default off
-- `-DRealCode=ON` real tensors (default), OFF for complex
+macOS/Homebrew LLVM (recommended when you hit libc++ ABI mismatch):
 
-BLAS/LAPACK:
-- x86: oneAPI MKL (single-thread) by default
-- ARM: OpenBLAS by default
+```bash
+cd /Users/wanghaoxin/GitHub/HeisenbergVMCPEPS
+./scripts/configure_macos_llvm_sdk.sh build_llvm_sdk Release
+cmake --build build_llvm_sdk -j4
+```
 
----
+## Documentation (Read in Order)
 
-## Documentation
+Start here for the full user workflow:
 
-- [Tutorials](tutorials/) – short user guide and project plan
-- API docs: see `qlten`/`qlpeps` upstream references (local docs/ if available)
+1. `tutorials/01-quick-start.md` (run this)
+2. `tutorials/02-concepts.md` (understand this)
+3. `tutorials/03-recipes.md` (copy/tune this)
+4. `tutorials/04-parameter-reference.md` (reference this)
+5. `tutorials/05-troubleshooting.md` (debug this)
+6. `tutorials/06-plotting-workflow.md` (plot this)
+7. `tutorials/appendix-dmrg-benchmark.md` (benchmark appendix)
 
-## Quick Links
-
-- [Quick Start](tutorials/01-quick-start.md)
-- [Parameter System](tutorials/02-parameter-system.md)
-- [Parameter Reference](tutorials/03-parameter-reference.md)
-- [Workflows](tutorials/04-algorithm-workflows.md)
-- [Optimizer Examples](tutorials/05-optimizer-examples.md)
- - Machine test: [square12x12D8vmc](tutorials/06-square12x12D8vmc.md)
-
----
+Legacy snapshots remain under `tutorials/deprecated/`.
 
 ## Author
 
