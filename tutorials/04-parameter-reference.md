@@ -1,138 +1,212 @@
-## Parameter Reference
+## Parameter Reference (by Command)
 
-This is a compact reference. For runnable examples, use `03-recipes.md`.
+Use this page as the key-by-key contract.
 
-### Physics file: `physics_params.json`
+For runnable minimal examples, see `tutorials/03-recipes.md`.
 
-Required:
+### 1) Shared Physics File: `physics_params.json`
+
+Required keys:
+
 - `Lx` (int)
 - `Ly` (int)
+- `J2` (double)
 - `ModelType` (string): `SquareHeisenberg`, `SquareXY`, `TriangleHeisenberg`
-- `J2` (double) (square: NNN coupling; use 0.0 for J1-only)
-- `RemoveCorner` (bool) (legacy; kept for compatibility)
 
-Optional:
-- `BoundaryCondition` (string): `Open`/`OBC` (default) or `Periodic`/`PBC`
+Optional keys:
 
-### Algorithm files (shared keys)
+- `BoundaryCondition` (string): `Open`/`OBC`/`Periodic`/`PBC` (case-insensitive)
+  - default: `Open`
+- `RemoveCorner` (bool, legacy compatibility key)
+  - ignored by unified square/triangle drivers
 
-Common:
-- `ThreadNum` (int): tensor manipulation threads
+Runtime effects:
 
-IO (VMC / measurement):
-- `WavefunctionBase` (string): default `"tps"` (loads `tpsfinal/`)
-- `ConfigurationLoadDir` (string): directory containing per-rank `configuration{rank}`
-- `ConfigurationDumpDir` (string): directory to write per-rank `configuration{rank}`
+- `ModelType` selects solver dispatch path.
+- `BoundaryCondition` selects contraction backend: OBC -> BMPS, PBC -> TRG.
 
-Monte Carlo:
-- `MC_total_samples` (int): required
-- `WarmUp` (int): required
-- `MCLocalUpdateSweepsBetweenSample` (int): required
-- `MCRestrictU1` (bool): optional, default true (currently informational in unified drivers)
-- `InitialConfigStrategy` (string): optional, default `Random`
-  - `Random`: half-up / half-down random initial configuration when load fails
-  - `Neel`: checkerboard AFM initial configuration with random phase when load fails
-  - `ThreeSublatticePolarizedSeed`: A sublattice all up; B/C sublattices approximately 1/4 up each with exact total `Sz=0` (fallback only)
-  - Note: `Neel` requires even `Lx*Ly` when no per-rank configuration is loaded
-  - Note: with periodic BC, `Neel` is a true checkerboard AFM only when both `Lx` and `Ly` are even; otherwise wrap bonds are frustrated and code warns
-  - Note: `ThreeSublatticePolarizedSeed` requires even `Lx*Ly`; infeasible small-size layouts fall back to `Random` with warning
+### 2) `simple_update_algorithm_params.json`
 
-Optimizer (VMC only):
-- `OptimizerType` (string): `SR`/`StochasticReconfiguration`, `SGD`, `Adam`, `AdaGrad`, `LBFGS` (`L-BFGS` alias accepted)
-- `MaxIterations` (int)
-- `LearningRate` (double)
+Required keys:
 
-SGD-only:
-- `Momentum` (double; default 0.0)
-- `Nesterov` (bool; default false)
-- `WeightDecay` (double; default 0.0)
-
-Adam-only:
-- `Beta1` (double; default 0.9)
-- `Beta2` (double; default 0.999)
-- `Epsilon` (double; default 1e-8)
-- `WeightDecay` (double; default 0.0)
-
-AdaGrad-only:
-- `Epsilon` (double; default 1e-8)
-- `InitialAccumulator` (double; default 0.0)
-
-SR-only:
-- `CGMaxIter` (int)
-- `CGTol` (double)
-- `CGResidueRestart` (int)
-- `CGDiagShift` (double, default 0.0)
-- `NormalizeUpdate` (bool, default false)
-
-LBFGS-only:
-- `LBFGSHistorySize` (int, default 10)
-- `LBFGSToleranceGrad` (double, default 1e-5)
-- `LBFGSToleranceChange` (double, default 1e-9)
-- `LBFGSMaxEval` (int, default 20)
-- `LBFGSStepMode` (string, default `Fixed`; accepted `Fixed`, `StrongWolfe`, `kFixed`, `kStrongWolfe`)
-- `LBFGSWolfeC1` (double, default 1e-4)
-- `LBFGSWolfeC2` (double, default 0.9)
-- `LBFGSMinStep` (double, default 1e-8)
-- `LBFGSMaxStep` (double, default 1.0)
-- `LBFGSMinCurvature` (double, default 1e-12)
-- `LBFGSUseDamping` (bool, default true)
-- `LBFGSMaxDirectionNorm` (double, default 1e3)
-- `LBFGSAllowFallbackToFixedStep` (bool, default false)
-- `LBFGSFallbackFixedStepScale` (double, default 0.2)
-
-Iterative step selectors (SGD/SR only):
-- `InitialStepSelectorEnabled` (bool, default false)
-- `InitialStepSelectorMaxLineSearchSteps` (int, default 3)
-- `InitialStepSelectorEnableInDeterministic` (bool, default false)
-- `AutoStepSelectorEnabled` (bool, default false)
-- `AutoStepSelectorEveryNSteps` (int, default 10)
-- `AutoStepSelectorPhaseSwitchRatio` (double, default 0.3)
-- `AutoStepSelectorEnableInDeterministic` (bool, default false)
-
-Selector constraints:
-- Step selectors are only valid with `OptimizerType` = `SGD` or `SR`.
-- Step selectors cannot be used together with `LRScheduler`.
-- `LearningRate` must be positive when any selector is enabled.
-- `InitialStepSelectorMaxLineSearchSteps > 0` when `InitialStepSelectorEnabled=true`.
-- `AutoStepSelectorEveryNSteps > 0` and `AutoStepSelectorPhaseSwitchRatio in [0,1]` when `AutoStepSelectorEnabled=true`.
-
-StrongWolfe validation:
-- `LBFGSHistorySize > 0` always.
-- In `StrongWolfe` mode: `0 < LBFGSWolfeC1 < LBFGSWolfeC2 < 1`, `LBFGSMaxEval > 0`, `LBFGSToleranceGrad >= 0`.
-
-### Simple update algorithm file: `simple_update_algorithm_params.json`
-
-Required:
 - `Tau` (double)
 - `Step` (int)
 - `Dmin` (int)
 - `Dmax` (int)
-- `TruncErr` (double): simple-update truncation error (SU only)
+- `TruncErr` (double)
 - `ThreadNum` (int)
 
-### Contraction backend parameters (choose by boundary condition)
+Runtime effects:
 
-OBC (BMPS) required keys:
-- `Dbmps_max` (int)
+- `Tau` and `Step` control imaginary-time evolution length/granularity.
+- `Dmin`/`Dmax` set SU bond-dimension range.
+- Output always targets `tpsfinal/` (SITPS) and `peps/`.
 
-OBC (BMPS) optional keys:
-- `Dbmps_min` (int; default = `Dbmps_max`)
-- `BMPSTruncErr` (double; default = 0.0). Backward compatible fallback key: `TruncErr`.
-- `MPSCompressScheme` (int or string; default = `"SVD"`)
-- `BMPSConvergenceTol` (double; only used for variational compression; default = 1e-12)
-- `BMPSIterMax` (int; only used for variational compression; default = 10)
+### 3) `vmc_algorithm_params.json`
 
-PBC (TRG) required keys:
-- `TRGDmin` (int)
-- `TRGDmax` (int)
-- `TRGTruncErr` (double)
+#### 3.1 Required baseline keys
 
-PBC (TRG) optional keys:
-- `TRGInvRelativeEps` (double; default = 1e-12)
+- `MC_total_samples` (int)
+- `WarmUp` (int)
+- `MCLocalUpdateSweepsBetweenSample` (int)
+- `ThreadNum` (int, optional in parser, default `1`, but should be set explicitly)
+- `OptimizerType` (optional in parser, default `StochasticReconfiguration`)
+- `MaxIterations` (optional in parser, default `10`)
+- `LearningRate` (optional in parser, default `0.01`)
 
-### MPSCompressScheme values
+Important SR note:
 
-Accepted values:
+- If `OptimizerType` is SR / `StochasticReconfiguration`, these become required:
+  - `CGMaxIter`
+  - `CGTol`
+  - `CGResidueRestart`
+- `CGDiagShift` default is `0.0`.
+- `NormalizeUpdate` default is `false`.
+
+#### 3.2 Backend keys (selected by boundary condition)
+
+OBC/BMPS:
+
+- required: `Dbmps_max`
+- optional:
+  - `Dbmps_min` (default `Dbmps_max`)
+  - `BMPSTruncErr` (default `0.0`)
+  - `MPSCompressScheme` (default `SVD`)
+  - `BMPSConvergenceTol` (used by variational schemes)
+  - `BMPSIterMax` (used by variational schemes)
+
+PBC/TRG:
+
+- required: `TRGDmin`, `TRGDmax`, `TRGTruncErr`
+- optional: `TRGInvRelativeEps` (default `1e-12`)
+
+#### 3.3 IO keys
+
+- `WavefunctionBase` (string, default `"tps"`)
+  - load path is `WavefunctionBase + "final"` -> usually `tpsfinal/`
+- `ConfigurationLoadDir` (string, default `WavefunctionBase + "final"`)
+- `ConfigurationDumpDir` (string, default `WavefunctionBase + "final"`)
+
+Runtime effects:
+
+- `configuration{rank}` is loaded from `ConfigurationLoadDir` when available.
+- final configuration is dumped to `ConfigurationDumpDir`.
+
+#### 3.4 Optimizer-specific keys
+
+SGD:
+
+- `Momentum` (default `0.0`)
+- `Nesterov` (default `false`)
+- `WeightDecay` (default `0.0`)
+
+Adam:
+
+- `Beta1` (default `0.9`)
+- `Beta2` (default `0.999`)
+- `Epsilon` (default `1e-8`)
+- `WeightDecay` (default `0.0`)
+
+AdaGrad:
+
+- `Epsilon` (default `1e-8`)
+- `InitialAccumulator` (default `0.0`)
+
+LBFGS:
+
+- `LBFGSHistorySize` (default `10`)
+- `LBFGSToleranceGrad` (default `1e-5`)
+- `LBFGSToleranceChange` (default `1e-9`)
+- `LBFGSMaxEval` (default `20`)
+- `LBFGSStepMode` (default `Fixed`; accepts `Fixed`, `StrongWolfe`, `kFixed`, `kStrongWolfe`)
+- `LBFGSWolfeC1` (default `1e-4`)
+- `LBFGSWolfeC2` (default `0.9`)
+- `LBFGSMinStep` (default `1e-8`)
+- `LBFGSMaxStep` (default `1.0`)
+- `LBFGSMinCurvature` (default `1e-12`)
+- `LBFGSUseDamping` (default `true`)
+- `LBFGSMaxDirectionNorm` (default `1e3`)
+- `LBFGSAllowFallbackToFixedStep` (default `false`)
+- `LBFGSFallbackFixedStepScale` (default `0.2`)
+
+#### 3.5 Step selectors (SGD/SR only)
+
+- `InitialStepSelectorEnabled` (default `false`)
+- `InitialStepSelectorMaxLineSearchSteps` (default `3`)
+- `InitialStepSelectorEnableInDeterministic` (default `false`)
+- `AutoStepSelectorEnabled` (default `false`)
+- `AutoStepSelectorEveryNSteps` (default `10`)
+- `AutoStepSelectorPhaseSwitchRatio` (default `0.3`)
+- `AutoStepSelectorEnableInDeterministic` (default `false`)
+
+Constraints:
+
+- Selectors only valid for `SGD` or SR.
+- Selectors cannot be combined with `LRScheduler`.
+- `LearningRate` must be positive when any selector is enabled.
+- `InitialStepSelectorMaxLineSearchSteps > 0` when initial selector enabled.
+- `AutoStepSelectorEveryNSteps > 0` and `AutoStepSelectorPhaseSwitchRatio in [0,1]` when auto selector enabled.
+
+#### 3.6 Misc optional knobs
+
+- `LRScheduler`: `ExponentialDecay`, `CosineAnnealing`, `Plateau`
+- `ClipNorm`, `ClipValue`
+- spike recovery keys (`Spike*`)
+- checkpoint keys (`CheckpointEveryNSteps`, `CheckpointBasePath`)
+- `MCRestrictU1` (default `true`, currently informational in unified drivers)
+- `InitialConfigStrategy` (default `Random`; accepts `Random`, `Neel`, `ThreeSublatticePolarizedSeed`)
+
+### 4) `measure_algorithm_params.json`
+
+Required baseline keys:
+
+- `MC_total_samples`
+- `WarmUp`
+- `MCLocalUpdateSweepsBetweenSample`
+
+Backend keys:
+
+- same BMPS/TRG requirement as VMC, selected by `BoundaryCondition`
+
+Optional keys:
+
+- `ThreadNum` (default `1`)
+- IO keys (`WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`) with same defaults as VMC
+- `MCRestrictU1` and `InitialConfigStrategy`
+
+Runtime effects:
+
+- loads SITPS from `WavefunctionBase + "final"` when available
+- uses warm-start logic from `configuration{rank}` files
+
+### 5) Accepted `MPSCompressScheme` values
+
 - `0` or `"SVD"`
 - `1` or `"Variational2Site"`
 - `2` or `"Variational1Site"`
+
+### 6) Validation and Hard-Fail Conditions
+
+| Condition | Failure behavior |
+|---|---|
+| Missing `ModelType` in physics | Throws invalid argument (required key) |
+| Invalid `BoundaryCondition` text | Throws invalid argument |
+| OBC without `Dbmps_max` | Throws invalid argument (`OBC requested but BMPS params are missing`) |
+| PBC without TRG required keys | Throws invalid argument (`TRGDmin`, `TRGDmax`, `TRGTruncErr` required) |
+| Missing `MC_total_samples` / `WarmUp` / `MCLocalUpdateSweepsBetweenSample` | Parse failure in MC param parser |
+| SR optimizer without CG required keys | Parse failure in enhanced optimizer parser |
+| Step selectors used with non-SGD/SR optimizer | Throws invalid argument |
+| Step selectors combined with LR scheduler | Throws invalid argument |
+| Selector numeric constraints violated | Throws invalid argument |
+| `LBFGSStepMode` invalid | Throws invalid argument |
+| `LBFGSHistorySize == 0` | Throws invalid argument |
+| Strong-Wolfe inequalities violated | Throws invalid argument |
+| SITPS boundary != physics boundary (VMC/measure load) | Runtime error and program exit |
+
+### 7) High-impact runtime notes
+
+- Programs do not auto-fallback from `tpsfinal/` to `tpslowest/`.
+- For `Neel` and `ThreeSublatticePolarizedSeed`, odd `Lx*Ly` in fallback path throws.
+- `ThreeSublatticePolarizedSeed` may fall back to `Random` on infeasible small lattices with warning.
+
+For failure diagnosis and exact error text examples, see `tutorials/05-troubleshooting.md`.

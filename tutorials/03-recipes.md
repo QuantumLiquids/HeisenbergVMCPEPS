@@ -1,65 +1,58 @@
-## Recipes (Copy/Paste)
+## Recipes (Copy, Run, Then Tune)
 
-All examples assume you run from `build/` and paths are relative to it.
+All commands assume you run inside your build directory (for example `build/` or `build_llvm_sdk/`).
 
-Conventions used below:
-- The physics JSON defines the model + boundary condition.
-- The algorithm JSON defines numerics. It is grouped in this order to keep files readable:
-  1) threads
-  2) contraction backend params (BMPS or TRG)
-  3) MC params
-  4) optimizer params (VMC only)
-  5) optional IO overrides
+### Recipe A (canonical): Square Heisenberg OBC end-to-end
 
-Note: `ModelType` is required in the physics file (no default).
+Use this first if you are new to the project.
 
-### Recipe A: OBC (BMPS) end-to-end
+#### Physics
 
-Physics (OBC):
 ```json
 {
   "CaseParams": {
     "Lx": 4,
     "Ly": 4,
     "J2": 0.0,
-    "RemoveCorner": true,
     "ModelType": "SquareHeisenberg",
     "BoundaryCondition": "Open"
   }
 }
 ```
 
-Simple update algorithm:
+#### Simple Update Algorithm
+
 ```json
 {
   "CaseParams": {
-    "TruncErr": 1e-12,
+    "TruncErr": 1e-8,
     "Dmin": 4,
     "Dmax": 4,
     "Tau": 0.2,
-    "Step": 10,
+    "Step": 100,
     "ThreadNum": 1
   }
 }
 ```
 
-VMC algorithm (BMPS + SR):
+#### VMC Algorithm (SR + BMPS)
+
 ```json
 {
   "CaseParams": {
-    "BMPSTruncErr": 1e-12,
     "ThreadNum": 1,
 
     "Dbmps_min": 8,
     "Dbmps_max": 8,
     "MPSCompressScheme": "SVD",
+    "BMPSTruncErr": 1e-12,
 
-    "MC_total_samples": 20,
-    "WarmUp": 10,
+    "MC_total_samples": 3200,
+    "WarmUp": 100,
     "MCLocalUpdateSweepsBetweenSample": 1,
 
     "OptimizerType": "SR",
-    "MaxIterations": 2,
+    "MaxIterations": 30,
     "LearningRate": 0.1,
     "CGMaxIter": 50,
     "CGTol": 1e-6,
@@ -70,152 +63,205 @@ VMC algorithm (BMPS + SR):
 }
 ```
 
-Measure algorithm (BMPS):
+#### Measure Algorithm (BMPS)
+
 ```json
 {
   "CaseParams": {
-    "BMPSTruncErr": 1e-12,
     "ThreadNum": 1,
 
     "Dbmps_min": 8,
     "Dbmps_max": 8,
     "MPSCompressScheme": "SVD",
+    "BMPSTruncErr": 1e-12,
 
-    "MC_total_samples": 50,
-    "WarmUp": 20,
+    "MC_total_samples": 6400,
+    "WarmUp": 100,
     "MCLocalUpdateSweepsBetweenSample": 1
   }
 }
 ```
 
-Run:
+#### Run
+
 ```bash
 ./simple_update ../params/physics_params.json ../params/simple_update_algorithm_params.json
 mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_algorithm_params.json
 mpirun -n 1 ./mc_measure ../params/physics_params.json ../params/measure_algorithm_params.json
 ```
 
-### Recipe B: PBC (TRG) end-to-end (square only)
+### Recipe B: Square Heisenberg PBC/TRG (when you need periodic boundary)
 
-Physics (PBC):
+Use this only after Recipe A is stable.
+
+#### Physics
+
 ```json
 {
   "CaseParams": {
     "Lx": 4,
     "Ly": 4,
     "J2": 0.3,
-    "RemoveCorner": true,
     "ModelType": "SquareHeisenberg",
     "BoundaryCondition": "Periodic"
   }
 }
 ```
 
-VMC algorithm (TRG + SR):
-```json
-{
-  "CaseParams": {
-    "ThreadNum": 1,
+#### Algorithm requirements
 
-    "TRGDmin": 4,
-    "TRGDmax": 16,
-    "TRGTruncErr": 0.0,
-    "TRGInvRelativeEps": 1e-12,
+Include TRG keys in VMC and measure algorithm JSON:
 
-    "MC_total_samples": 20,
-    "WarmUp": 10,
-    "MCLocalUpdateSweepsBetweenSample": 1,
-
-    "OptimizerType": "SR",
-    "MaxIterations": 2,
-    "LearningRate": 0.1,
-    "CGMaxIter": 50,
-    "CGTol": 1e-6,
-    "CGResidueRestart": 10,
-    "CGDiagShift": 1e-4,
-    "NormalizeUpdate": false
-  }
-}
-```
-
-Measure algorithm (TRG):
-```json
-{
-  "CaseParams": {
-    "ThreadNum": 1,
-
-    "TRGDmin": 4,
-    "TRGDmax": 16,
-    "TRGTruncErr": 0.0,
-    "TRGInvRelativeEps": 1e-12,
-
-    "MC_total_samples": 50,
-    "WarmUp": 20,
-    "MCLocalUpdateSweepsBetweenSample": 1
-  }
-}
-```
+- `TRGDmin`
+- `TRGDmax`
+- `TRGTruncErr`
+- optional `TRGInvRelativeEps`
 
 Notes:
-- For PBC, make sure the `tpsfinal/` you load was generated with PBC (otherwise the driver will abort).
+
+- PBC requires SITPS generated consistently for PBC.
+- If `tpsfinal/` boundary condition differs from physics JSON, run aborts by design.
+
+### Recipe B1: Tile SITPS (PBC/OBC) with `sitps_tile`
+
+Use this after `simple_update` when you want to replicate an existing SITPS into a larger lattice.
+
+PBC example (`2x2 -> 8x8`):
+
+```bash
+./sitps_tile \
+  --input-dir tpsfinal \
+  --output-dir tpsfinal_8x8 \
+  --target-ly 8 \
+  --target-lx 8 \
+  --unit-ly 2 \
+  --unit-lx 2
+```
+
+Python wrapper (same flags, calls the C++ binary):
+
+```bash
+python3 ../scripts/sitps_tile.py \
+  --input-dir tpsfinal \
+  --output-dir tpsfinal_8x8 \
+  --target-ly 8 \
+  --target-lx 8 \
+  --unit-ly 2 \
+  --unit-lx 2
+```
+
+Then use matching physics in VMC/measure (`Lx=8, Ly=8, BoundaryCondition=Periodic`) and point `WavefunctionBase` to `tps` with a run directory where `tpsfinal/` is your tiled output.
+
+OBC example (`>=3x3` source only):
+
+```bash
+./sitps_tile \
+  --input-dir tpsfinal \
+  --output-dir tpsfinal_obc_10x12 \
+  --target-ly 10 \
+  --target-lx 12
+```
+
+Important constraints:
+
+- OBC mode rejects `--unit-ly/--unit-lx`.
+- PBC mode requires `target` dimensions to be integer multiples of `unit`.
+- Tool validates virtual-leg consistency and aborts on mismatch.
+- Optional strict cross-check against physics JSON:
+
+```bash
+./sitps_tile \
+  --input-dir tpsfinal \
+  --output-dir tpsfinal_8x8 \
+  --target-ly 8 \
+  --target-lx 8 \
+  --unit-ly 2 \
+  --unit-lx 2 \
+  --physics-json ../params/physics_8x8_pbc.json
+```
+
+### Recipe C: Square XY variant
+
+When to use:
+
+- Same workflow and numerics as square Heisenberg, but XY Hamiltonian.
+
+Change only physics file:
+
+```bash
+mpirun -n 1 ./vmc_optimize ../params/physics_square_xy.json ../params/vmc_algorithm_params.json
+```
+
+### Recipe D: Triangle Heisenberg variant (OBC only)
+
+When to use:
+
+- Triangle-lattice PEPS path and comparison against DMRG benchmark appendix.
+
+Use triangle physics file:
+
+```bash
+./simple_update ../params/physics_triangle_heisenberg.json ../params/simple_update_algorithm_params.json
+mpirun -n 1 ./vmc_optimize ../params/physics_triangle_heisenberg.json ../params/vmc_algorithm_params.json
+mpirun -n 1 ./mc_measure ../params/physics_triangle_heisenberg.json ../params/measure_algorithm_params.json
+```
+
+Note:
+
 - Triangle PBC is not supported.
 
-### Recipe C: BMPS variational compression knobs
+### Recipe E: Resume from `tpslowest` safely
 
-When `MPSCompressScheme` is variational, you can control convergence:
+When to use:
 
-```json
-{
-  "CaseParams": {
-    "Dbmps_min": 8,
-    "Dbmps_max": 16,
-    "MPSCompressScheme": "Variational2Site",
-    "BMPSConvergenceTol": 1e-10,
-    "BMPSIterMax": 20
-  }
-}
-```
-
-### Recipe D: LBFGS fixed-step (MC-friendly baseline)
-
-Use the provided sample:
+- You want to continue optimization from lowest-energy snapshot instead of latest final snapshot.
 
 ```bash
-cd build
-mpirun -n 1 ./vmc_optimize \
-  ../params/physics_params.json \
-  ../params/vmc_lbfgs_fixed.json
+cp -r tpslowest/. tpsfinal/
+mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_algorithm_params.json
 ```
 
-### Recipe E: LBFGS strong-Wolfe (deterministic-style tuning)
+This is explicit by design; drivers do not auto-fallback to `tpslowest/`.
 
-Use the provided sample:
+### Recipe F: Optimizer variants using provided sample JSONs
+
+Fixed-step L-BFGS:
 
 ```bash
-cd build
-mpirun -n 1 ./vmc_optimize \
-  ../params/physics_params.json \
-  ../params/vmc_lbfgs_strong_wolfe.json
+mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_lbfgs_fixed.json
 ```
 
-### Recipe F: SR with initial + auto step selectors
-
-Use the provided sample:
+Strong-Wolfe L-BFGS:
 
 ```bash
-cd build
-mpirun -n 1 ./vmc_optimize \
-  ../params/physics_params.json \
-  ../params/vmc_sr_step_selector.json
+mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_lbfgs_strong_wolfe.json
 ```
 
-### Benchmark recipe: square12x12D8vmc (machine_test)
-
-Run the provided benchmark case (two-file mode):
+SR with step selectors:
 
 ```bash
-cd build
+mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_sr_step_selector.json
+```
+
+### Recipe G: Run + plot trajectory (first-class endpoint)
+
+```bash
+mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_algorithm_params.json
+python3 ../plot/workflow/plot_energy_trajectory.py \
+  --csv ./energy/energy_trajectory.csv \
+  --out ./energy/energy_trajectory.png \
+  --title "VMC trajectory" \
+  --ref-energy -9.189 --ref-label "exact"
+```
+
+### Recipe H: Machine benchmark case
+
+Use the provided machine test inputs:
+
+```bash
 mpirun -n 1 ./vmc_optimize \
   ../machine_test/square12x12D8vmc/physics_params.json \
   ../machine_test/square12x12D8vmc/vmc_algorithm_params.json
 ```
+
+For DMRG comparison context, see `tutorials/appendix-dmrg-benchmark.md`.

@@ -1,15 +1,13 @@
-## Tutorials (English-only)
+## Tutorials (new-user oriented)
 
-These docs aim to answer, in order:
-1) What am I running and what should I expect to happen?
-2) Which parameters control which part of the computation?
-3) What are good minimal configs to start from?
-4) Where is the exact key-by-key reference?
+Read in this order:
 
-Start here:
-- `tutorials/01-quick-start.md` (end-to-end, OBC)
-- `tutorials/02-concepts.md` (high-level view + parameter taxonomy)
-- `tutorials/03-recipes.md` (copy/paste configs)
-- `tutorials/04-parameter-reference.md` (key reference)
+1. `tutorials/01-quick-start.md` - run this (end-to-end `simple_update -> vmc_optimize -> mc_measure -> plot`).
+2. `tutorials/02-concepts.md` - understand this (model/backend matrix, data flow, restart semantics, deprecations).
+3. `tutorials/03-recipes.md` - copy/tune this (ready-to-edit configs and common run variants).
+4. `tutorials/04-parameter-reference.md` - reference this (key-by-key constraints, defaults, failure conditions).
+5. `tutorials/05-troubleshooting.md` - debug this (build/runtime/output failure playbook).
+6. `tutorials/06-plotting-workflow.md` - plot this (canonical Python plotting flow).
+7. `tutorials/appendix-dmrg-benchmark.md` - appendix (triangle DMRG benchmark utilities).
 
-Older drafts and legacy snapshots are kept in `tutorials/deprecated/`.
+Legacy drafts and older snapshots are kept in `tutorials/deprecated/`.

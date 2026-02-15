@@ -1,193 +1,133 @@
-## Concepts (High-Level View)
+## Concepts (Core PEPS Workflow)
 
-This repository is a thin, user-facing driver layer on top of `qlpeps`. The two things to keep in your head:
-- The physics file says *what* you simulate.
-- The algorithm file says *how* you simulate it (including which contraction backend is used).
+This repository is a driver layer over `qlpeps`. Keep this model in mind:
 
-### What happens in a run (pipeline)
+- `physics_params.json` tells the code what model to solve.
+- `*_algorithm_params.json` tells the code how to solve it (backend, MC, optimizer, IO).
 
-Typical workflow:
+Main workflow:
 
-1) `simple_update`
-   - Input: physics + simple-update algorithm params
-   - Output: `peps/` and `tpsfinal/`
-2) `vmc_optimize`
-   - Input: physics + VMC algorithm params, reads `tpsfinal/`
-   - Output: updated `tpsfinal/` (and optional `tpslowest/`, energy CSVs)
-3) `mc_measure`
-   - Input: physics + measurement algorithm params, reads `tpsfinal/`
-   - Output: measurement dumps
+1. `simple_update` prepares PEPS and SITPS (`tpsfinal/`).
+2. `vmc_optimize` loads SITPS and optimizes it.
+3. `mc_measure` loads SITPS and measures observables.
 
-### Two-file parameter model (what goes where)
+### 1) Model / Backend Matrix (strict)
 
-Drivers are called as:
+| `ModelType` | `BoundaryCondition` | Contraction backend | Status |
+|---|---|---|---|
+| `SquareHeisenberg` | `Open` / `OBC` | BMPS | Supported |
+| `SquareHeisenberg` | `Periodic` / `PBC` | TRG | Supported |
+| `SquareXY` | `Open` / `OBC` | BMPS | Supported |
+| `SquareXY` | `Periodic` / `PBC` | TRG | Supported |
+| `TriangleHeisenberg` | `Open` / `OBC` | BMPS | Supported |
+| `TriangleHeisenberg` | `Periodic` / `PBC` | TRG | Not supported |
+
+### 2) Two-file Parameter Model
+
+Program shape is always:
+
 ```bash
-./prog <physics_params.json> <algorithm_params.json>
+./program <physics_params.json> <algorithm_params.json>
 ```
 
-- `physics_params.json` (model definition)
-  - lattice size (`Lx`, `Ly`)
-  - couplings (`J2`, ...)
-  - model family (`ModelType`)
-  - boundary condition (`BoundaryCondition`)
-- `*_algorithm_params.json` (numerics + IO)
-  - The structure depends on which program you run.
+`physics_params.json`:
 
-Simple update (`simple_update_algorithm_params.json`):
-- Threads: `ThreadNum`
-- Simple-update numerics: `Tau`, `Step`, `Dmin`, `Dmax`, `TruncErr`
-- No MC / optimizer parameters.
+- `Lx`, `Ly`, `J2`
+- `ModelType` (required)
+- `BoundaryCondition` (optional, defaults to open)
+- `RemoveCorner` (legacy optional key; ignored by unified square/triangle drivers)
 
-VMC (`vmc_algorithm_params.json`):
-- Threads: `ThreadNum`
-- Contraction backend params (selected by `BoundaryCondition`):
-  - OBC/BMPS: `Dbmps_*`, `MPSCompressScheme`, optional BMPS variational knobs
-  - PBC/TRG: `TRG*`
-- Monte Carlo params: `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
-- Optimizer params: `OptimizerType`, `MaxIterations`, `LearningRate`, and method-specific keys (SR/Adam/SGD/AdaGrad/LBFGS)
-- Optional IO overrides: `WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`
+`algorithm_params.json`:
 
-Measurement (`measure_algorithm_params.json`):
-- Threads: `ThreadNum`
-- Contraction backend params (BMPS or TRG, same rule as VMC)
-- Monte Carlo params: `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
-- Optional IO overrides: `WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`
-- No optimizer parameters.
+- command-specific numerics
+- backend knobs (BMPS or TRG)
+- MC/optimizer knobs (where relevant)
+- IO overrides (`WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`)
 
-This is a taxonomy, not a priority order. Many keys are equally “first-class”; they just control different
-subsystems.
+### 3) Runtime Artifacts and Data Flow
 
-### Parameter taxonomy (mental map)
+Key directories/files:
 
-Think in subsystems, not files:
+- `peps/`: PEPS snapshot written by `simple_update`.
+- `tpsfinal/`: canonical SITPS load path for `vmc_optimize` and `mc_measure`.
+- `tpslowest/`: best-energy snapshot written by optimizer when available.
+- `tpsfinal/configuration{rank}`: per-rank MC configurations (warm start state).
+- `energy/energy_trajectory.csv`: human-readable VMC trajectory (canonical plotting input).
+- `energy/energy_trajectory`, `energy/energy_err_trajectory`: legacy binary trajectory files.
 
-Physics:
-- `ModelType` (required), `Lx`, `Ly`, `J2`, `BoundaryCondition`
+### 4) State Load / Restart Semantics
 
-Wavefunction IO:
-- where to load/save tensors: `WavefunctionBase` -> `tpsfinal/`
-- where to load/save per-rank MC configuration: `ConfigurationLoadDir`, `ConfigurationDumpDir`
+`vmc_optimize`:
 
-Contraction backend (chosen by physics boundary condition):
-- OBC -> BMPS contraction parameters (`Dbmps_*`, `MPSCompressScheme`, optional BMPS variational knobs)
-- PBC (square only) -> TRG contraction parameters (`TRG*`)
+- Requires `tpsfinal/` by default (`WavefunctionBase + "final"`).
+- Does not auto-fallback to `tpslowest/`.
+- Enforces boundary-condition consistency between loaded SITPS and physics JSON.
 
-Monte Carlo:
-- `MC_total_samples`, `WarmUp`, `MCLocalUpdateSweepsBetweenSample`
+`mc_measure`:
 
-Optimizer (VMC only):
-- `OptimizerType`, `MaxIterations`, `LearningRate`, and SR/Adam/SGD/AdaGrad/LBFGS specifics
-- Optional iterative step selectors are available for SGD/SR (`InitialStepSelector*`, `AutoStepSelector*`) and are not used by LBFGS.
+- Prefers SITPS from `tpsfinal/`.
+- If SITPS is missing, it may attempt legacy TPS loading and conversion (depends on runtime state and PEPS version).
+- Also enforces boundary-condition consistency.
 
-### Monte Carlo configuration (warm start vs cold start)
+Resume from lowest-energy snapshot:
 
-During VMC optimization and measurement, each MPI rank maintains a Monte Carlo
-*configuration* — an assignment of spin-up / spin-down to every lattice site.
-The quality of this configuration matters: a good configuration (one that is
-already typical for the current wavefunction) lets the sampler produce useful
-samples immediately, while a random configuration needs many "warmup" sweeps
-before the Markov chain equilibrates.
-
-**How load-from-disk works.** Both `vmc_optimize` and `mc_measure` try to
-load a previously saved configuration before they start sampling:
-
-1. Look for the file `ConfigurationLoadDir/configuration{rank}`
-   (e.g. `tpsfinal/configuration0` for MPI rank 0).
-2. If the file exists and its shape matches the lattice, load it and
-   mark this rank as **warmed up** — warmup sweeps are skipped.
-3. If the file is missing (e.g. first run, or you added new MPI ranks),
-   initialize according to `InitialConfigStrategy` and run the full
-   `WarmUp` sweeps specified in the algorithm JSON.
-
-**InitialConfigStrategy (fallback only).**
-- `Random` (default): half-up / half-down random occupancy.
-- `Neel`: checkerboard AFM pattern with randomly selected phase (two
-  sublattice-to-spin mappings are sampled uniformly).
-- `ThreeSublatticePolarizedSeed`: 3-sublattice polarized seed.
-  - A sublattice: all up.
-  - B/C sublattices: choose up spins to be as close as possible to each
-    sublattice's 1/4 occupation while enforcing exact total `Sz=0` (for even `Lx*Ly`).
-- This strategy is only used when `configuration{rank}` cannot be loaded.
-- `Neel` requires even `Lx*Ly` in this fallback path; odd site count throws
-  an explicit runtime error.
-- For `Neel` with periodic boundary conditions, a true unfrustrated
-  checkerboard AFM requires both `Lx` and `Ly` even. If either is odd,
-  wrap bonds are frustrated; code prints a per-rank warning and still uses
-  the checkerboard seed.
-- `ThreeSublatticePolarizedSeed` also requires even `Lx*Ly` in this fallback
-  path; odd site count throws an explicit runtime error.
-- If `ThreeSublatticePolarizedSeed` is infeasible on a small-size lattice,
-  code falls back to `Random` and prints per-rank warning.
-- `ThreeSublatticePolarizedSeed` can be used with non-triangle models, but a
-  per-rank warning is printed.
-
-After a run finishes, each rank saves its final configuration to
-`ConfigurationDumpDir/configuration{rank}`, so the next run can pick up
-where this one left off.
-
-**Default directories.** If you do not set `ConfigurationLoadDir` /
-`ConfigurationDumpDir` in the algorithm JSON, both default to
-`WavefunctionBase + "final"` — which is normally `tpsfinal/`. This means
-configurations live alongside the wavefunction tensors, and a simple
-re-run of `vmc_optimize` or `mc_measure` automatically reuses them.
-
-**Scaling to more ranks.** If you restart a job with more MPI ranks than
-before, the existing ranks load their saved configurations (warm start),
-while the new ranks start from random (cold start with warmup). This is
-handled automatically — no manual intervention needed.
-
-**Resuming from the lowest-energy snapshot.** The optimizer may save a
-`tpslowest/` snapshot. To resume from it, copy `tpslowest/*` into
-`tpsfinal/` (including any `configuration{rank}` files that are there).
-The programs only look in `tpsfinal/` by default; they never auto-fallback
-to `tpslowest/`.
-
-### Boundary condition is a branch, but not the only branch
-
-Boundary condition is one important branch because it selects a different contraction backend:
-
-```json
-{
-  "CaseParams": {
-    "BoundaryCondition": "Open"
-  }
-}
+```bash
+cp -r tpslowest/. tpsfinal/
 ```
 
-Supported values: `Open` / `OBC` / `Periodic` / `PBC` (case-insensitive).
+### 5) MC Configuration Warm Start
 
-Backend selection and strict consistency:
-- OBC (`Open`) -> BMPS backend
-  - requires BMPS parameters in algorithm JSON
-- PBC (`Periodic`, square only) -> TRG backend
-  - requires TRG parameters in algorithm JSON
-- The loaded `tpsfinal/` must have the same boundary condition as `physics_params.json` (enforced).
+Per-rank config load rule:
 
-### Contraction parameters (required/optional)
+1. Try `ConfigurationLoadDir/configuration{rank}`.
+2. If loaded, that rank is warmed up.
+3. If missing, use `InitialConfigStrategy` fallback and perform warmup sweeps.
 
-OBC (BMPS):
-- Required: `Dbmps_max`
-- Optional: `Dbmps_min` (default = `Dbmps_max`)
-- Optional: `MPSCompressScheme` (default = `SVD`)
-- Optional: `BMPSTruncErr` (default = 0.0; fallback key `TruncErr`)
-- Optional (variational compression only): `BMPSConvergenceTol` (default = 1e-12 if not set), `BMPSIterMax` (default = 10)
+Default directories:
 
-PBC (TRG):
-- Required: `TRGDmin`, `TRGDmax`, `TRGTruncErr`
-- Optional: `TRGInvRelativeEps` (default = 1e-12)
+- `ConfigurationLoadDir` defaults to `WavefunctionBase + "final"`.
+- `ConfigurationDumpDir` defaults to `WavefunctionBase + "final"`.
 
-### MPSCompressScheme is string-friendly
+### 6) Measurement Output Contract (current registry output)
 
-You can write:
-- `0` or `"SVD"`
-- `1` or `"Variational2Site"`
-- `2` or `"Variational1Site"`
+Preferred output layout:
 
-### Model dispatch (another branch)
+- `<measurement_data_dump_path>/stats/*.csv`
+- `<measurement_data_dump_path>/samples/psi.csv`
 
-`ModelType` selects solver logic:
-- `"SquareHeisenberg"`
-- `"SquareXY"`
-- `"TriangleHeisenberg"` (OBC only)
+CSV formats:
 
-For square PBC, the solver supports up to J1-J2 (NN + NNN).
+1. Flat observables: `stats/<key>.csv` with header `index,mean,stderr`
+2. Matrix observables: `stats/<key>_mean.csv` and `stats/<key>_stderr.csv` without header
+
+Current square Heisenberg workflows always include:
+
+- `stats/energy.csv`
+- `stats/spin_z_mean.csv`, `stats/spin_z_stderr.csv`
+- `stats/bond_energy_h_mean.csv`, `stats/bond_energy_h_stderr.csv`
+- `stats/bond_energy_v_mean.csv`, `stats/bond_energy_v_stderr.csv`
+
+Shape rules:
+
+- `spin_z_*`: `Ly x Lx`
+- OBC: `bond_energy_h_*` is `Ly x (Lx-1)`, `bond_energy_v_*` is `(Ly-1) x Lx`
+- PBC: both bond-energy matrices are `Ly x Lx` (periodic wrap included)
+
+Model/backend-dependent optional examples:
+
+- `stats/SmSp_row.csv`
+- `stats/SpSm_row.csv`
+- `stats/SzSz_all2all.csv`
+- `stats/SzSz_all2all_index_map.txt`
+
+
+### 7) Deprecation Status
+
+- `src/kagome*` drivers are deprecated and not built by default.
+- `plot/` contains mixed legacy/experimental scripts.
+- Canonical plotting workflow for tutorials is now:
+  - `plot/workflow/plot_energy_trajectory.py`
+
+### 8)  Parameters
+
+See `tutorials/04-parameter-reference.md` for exact defaults and validation rules.

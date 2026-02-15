@@ -14,9 +14,11 @@ params/
 ### physics_params.json
 ```json
 {
-  "CaseParams": { "Lx": 4, "Ly": 4, "J2": 0.0, "RemoveCorner": true }
+  "CaseParams": { "Lx": 4, "Ly": 4, "J2": 0.0 }
 }
 ```
+Legacy note:
+- `RemoveCorner` is an optional compatibility key; unified square/triangle drivers ignore it.
 
 ### Numerical blocks by algorithm
 - Simple Update:

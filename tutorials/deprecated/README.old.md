@@ -12,7 +12,7 @@ This directory is the single source of truth for how a user runs the code and wh
 - MC measurements producing basic observables
 
 ### Minimal tutorial set (max 5 files)
-- [01-quick-start.md](01-quick-start.md)
+- [01-quick-start.old.md](01-quick-start.old.md)
 - [02-parameter-system.md](02-parameter-system.md)
 - [03-parameter-reference.md](03-parameter-reference.md)
 - [04-algorithm-workflows.md](04-algorithm-workflows.md)

@@ -3,7 +3,7 @@
 ### physics_params.json
 - Lx, Ly: lattice size (int)
 - J2: NNN coupling (double)
-- RemoveCorner: for triangular geometry (bool)
+- RemoveCorner: legacy compatibility key (bool), ignored by unified square/triangle drivers
 
 ### numerical (in algorithm files)
 - TruncErr (double), ThreadNum (int)
