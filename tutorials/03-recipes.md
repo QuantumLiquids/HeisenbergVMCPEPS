@@ -143,6 +143,34 @@ Notes:
 - PBC requires SITPS generated consistently for PBC.
 - If `tpsfinal/` boundary condition differs from physics JSON, run aborts by design.
 
+### Recipe B0: 2x2 PBC tau schedule (large -> small tau)
+
+Use this when you want staged imaginary-time evolution with decreasing tau:
+`0.5 -> 0.2 -> 0.1 -> 0.05 -> 0.02`.
+
+Quickstart files:
+
+- `params/quickstart/physics_local_2x2_pbc.json`
+- `params/quickstart/simple_update_local_2x2_pbc_tau_schedule.json`
+
+Run:
+
+```bash
+./simple_update \
+  ../params/quickstart/physics_local_2x2_pbc.json \
+  ../params/quickstart/simple_update_local_2x2_pbc_tau_schedule.json
+```
+
+Expected extra schedule logs:
+
+- `=== Tau stage 1/5: tau=0.5, step_cap=8 ===`
+- `=== Stage result: converged=..., executed_steps=..., stop_reason=... ===`
+
+Machine-readable outputs:
+
+- `tau_schedule/schedule_summary.json`
+- `tau_schedule/schedule_summary.csv`
+
 ### Recipe B1: Tile SITPS (PBC/OBC) with `sitps_tile`
 
 Use this after `simple_update` when you want to replicate an existing SITPS into a larger lattice.

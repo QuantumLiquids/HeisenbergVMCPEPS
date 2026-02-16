@@ -45,6 +45,21 @@ Optional advanced-stop keys:
 - `AdvancedStopPatience` (int, default `3`)
 - `AdvancedStopMinSteps` (int, default `10`)
 
+Optional tau-schedule keys:
+
+- `TauScheduleEnabled` (bool, default `false`)
+- `TauScheduleTaus` (string, required when `TauScheduleEnabled=true`)
+  - comma-separated positive doubles (example: `"0.5,0.2,0.1,0.05,0.02"`)
+- `TauScheduleStepCaps` (string, optional)
+  - comma-separated positive integers
+  - if omitted, every stage uses global `Step`
+- `TauScheduleRequireConverged` (bool, default `true`)
+  - when true, a stage is considered failed if `GetLastRunSummary().converged=false`
+  - requires advanced-stop to be active (`AdvancedStopEnabled=true` or any `AdvancedStop*` tuning keys present)
+- `TauScheduleDumpEachStage` (bool, default `false`)
+- `TauScheduleDumpDir` (string, default `"tau_schedule"`)
+- `TauScheduleAbortOnStageFailure` (bool, default `true`)
+
 Advanced-stop activation:
 
 - Enabled when `AdvancedStopEnabled=true`.
@@ -68,6 +83,15 @@ Runtime effects:
 - `Dmin`/`Dmax` set SU bond-dimension range.
 - Advanced-stop (when active) can terminate before `Step`; otherwise run always executes to `Step`.
 - Output always targets `tpsfinal/` (SITPS) and `peps/`.
+- When `TauScheduleEnabled=false` (default), driver runs one stage using global `Tau` + `Step` (legacy behavior).
+- When `TauScheduleEnabled=true`, stage `tau`/`step_cap` override global `Tau`/`Step` at runtime.
+- Tau stages run in listed order on the same evolving PEPS.
+- Driver writes machine-readable schedule summaries to:
+  - `<TauScheduleDumpDir>/schedule_summary.json`
+  - `<TauScheduleDumpDir>/schedule_summary.csv`
+- If `TauScheduleDumpEachStage=true`, driver also dumps stage snapshots under:
+  - `<TauScheduleDumpDir>/stage_XX_tau_<value>/tpsfinal`
+  - `<TauScheduleDumpDir>/stage_XX_tau_<value>/peps`
 
 ### 3) `vmc_algorithm_params.json`
 
@@ -227,6 +251,13 @@ Runtime effects:
 | Selector numeric constraints violated | Throws invalid argument |
 | Active advanced-stop + `AdvancedStopEnergyAbsTol` / `AdvancedStopEnergyRelTol` / `AdvancedStopLambdaRelTol` < 0 | Throws invalid argument |
 | Active advanced-stop + `AdvancedStopPatience <= 0` or `AdvancedStopMinSteps <= 0` | Throws invalid argument |
+| `TauScheduleEnabled=true` but `TauScheduleTaus` missing/empty | Throws invalid argument |
+| `TauScheduleTaus` contains non-positive or malformed item | Throws invalid argument |
+| `TauScheduleStepCaps` contains non-positive or malformed item | Throws invalid argument |
+| `TauScheduleStepCaps` count != `TauScheduleTaus` count | Throws invalid argument |
+| `TauScheduleEnabled=true`, `TauScheduleStepCaps` omitted, and `Step <= 0` | Throws invalid argument |
+| `TauScheduleRequireConverged=true` but advanced-stop is disabled | Throws invalid argument |
+| `TauScheduleDumpDir` empty/whitespace-only | Throws invalid argument |
 | `LBFGSStepMode` invalid | Throws invalid argument |
 | `LBFGSHistorySize == 0` | Throws invalid argument |
 | Strong-Wolfe inequalities violated | Throws invalid argument |

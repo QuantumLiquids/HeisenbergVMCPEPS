@@ -16,7 +16,179 @@
 #include "qlpeps/api/conversions.h"
 #include "./qldouble.h"
 #include "./common_params.h"
+#include <filesystem>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
+
+namespace {
+
+using StopReason = qlpeps::SimpleUpdateExecutor<TenElemT, QNT>::StopReason;
+
+struct StageSummaryRecord {
+  size_t index;
+  double tau;
+  size_t step_cap;
+  bool converged;
+  std::string stop_reason;
+  size_t executed_steps;
+};
+
+std::string StopReasonToString(const StopReason stop_reason) {
+  switch (stop_reason) {
+    case StopReason::kMaxSteps:
+      return "kMaxSteps";
+    case StopReason::kAdvancedConverged:
+      return "kAdvancedConverged";
+    case StopReason::kNotRun:
+    default:
+      return "kNotRun";
+  }
+}
+
+std::string FormatTauForPath(const double tau) {
+  std::ostringstream oss;
+  oss << std::defaultfloat << std::setprecision(15) << tau;
+  std::string value = oss.str();
+  const size_t exponent_pos = value.find_first_of("eE");
+  if (exponent_pos == std::string::npos) {
+    while (!value.empty() && value.back() == '0') {
+      value.pop_back();
+    }
+    if (!value.empty() && value.back() == '.') {
+      value.pop_back();
+    }
+  }
+  if (value.empty()) {
+    value = "0";
+  }
+  return value;
+}
+
+std::string BuildStageDirName(
+    const size_t stage_index,
+    const size_t stage_count,
+    const double tau) {
+  const size_t width = std::max<size_t>(2, std::to_string(stage_count).size());
+  std::ostringstream oss;
+  oss << "stage_" << std::setw(static_cast<int>(width)) << std::setfill('0') << stage_index
+      << "_tau_" << FormatTauForPath(tau);
+  return oss.str();
+}
+
+std::string EscapeJsonString(const std::string &input) {
+  std::string escaped;
+  escaped.reserve(input.size());
+  for (const char c : input) {
+    switch (c) {
+      case '\\':
+        escaped += "\\\\";
+        break;
+      case '"':
+        escaped += "\\\"";
+        break;
+      case '\n':
+        escaped += "\\n";
+        break;
+      default:
+        escaped.push_back(c);
+        break;
+    }
+  }
+  return escaped;
+}
+
+void EnsureDirectory(const std::filesystem::path &dir_path) {
+  std::error_code ec;
+  std::filesystem::create_directories(dir_path, ec);
+  if (ec) {
+    throw std::runtime_error(
+        "Failed to create directory '" + dir_path.string() + "': " + ec.message());
+  }
+}
+
+void WriteScheduleSummaryJson(
+    const std::string &dump_dir,
+    const bool enabled,
+    const size_t stage_count,
+    const bool require_converged,
+    const bool abort_on_stage_failure,
+    const bool overall_success,
+    const std::vector<StageSummaryRecord> &stages) {
+  EnsureDirectory(dump_dir);
+  const std::filesystem::path json_path =
+      std::filesystem::path(dump_dir) / "schedule_summary.json";
+  std::ofstream ofs(json_path);
+  if (!ofs.is_open()) {
+    throw std::runtime_error("Failed to open " + json_path.string() + " for writing.");
+  }
+  ofs << std::setprecision(15);
+  ofs << "{\n"
+      << "  \"enabled\": " << (enabled ? "true" : "false") << ",\n"
+      << "  \"stage_count\": " << stage_count << ",\n"
+      << "  \"require_converged\": " << (require_converged ? "true" : "false") << ",\n"
+      << "  \"abort_on_stage_failure\": " << (abort_on_stage_failure ? "true" : "false") << ",\n"
+      << "  \"overall_success\": " << (overall_success ? "true" : "false") << ",\n"
+      << "  \"stages\": [\n";
+  for (size_t i = 0; i < stages.size(); ++i) {
+    const auto &stage = stages[i];
+    ofs << "    {\n"
+        << "      \"index\": " << stage.index << ",\n"
+        << "      \"tau\": " << stage.tau << ",\n"
+        << "      \"step_cap\": " << stage.step_cap << ",\n"
+        << "      \"converged\": " << (stage.converged ? "true" : "false") << ",\n"
+        << "      \"stop_reason\": \"" << EscapeJsonString(stage.stop_reason) << "\",\n"
+        << "      \"executed_steps\": " << stage.executed_steps << "\n"
+        << "    }";
+    if (i + 1 < stages.size()) {
+      ofs << ",";
+    }
+    ofs << "\n";
+  }
+  ofs << "  ]\n"
+      << "}\n";
+}
+
+void WriteScheduleSummaryCsv(
+    const std::string &dump_dir,
+    const std::vector<StageSummaryRecord> &stages) {
+  EnsureDirectory(dump_dir);
+  const std::filesystem::path csv_path =
+      std::filesystem::path(dump_dir) / "schedule_summary.csv";
+  std::ofstream ofs(csv_path);
+  if (!ofs.is_open()) {
+    throw std::runtime_error("Failed to open " + csv_path.string() + " for writing.");
+  }
+  ofs << std::setprecision(15);
+  ofs << "stage_index,tau,step_cap,converged,stop_reason,executed_steps\n";
+  for (const auto &stage : stages) {
+    ofs << stage.index << ","
+        << stage.tau << ","
+        << stage.step_cap << ","
+        << (stage.converged ? "true" : "false") << ","
+        << stage.stop_reason << ","
+        << stage.executed_steps << "\n";
+  }
+}
+
+void DumpSitpsAndPeps(
+    qlpeps::SimpleUpdateExecutor<TenElemT, QNT> &su_exe,
+    const std::string &sitps_dir,
+    const std::string &peps_dir,
+    const bool release_mem) {
+  const auto &peps = su_exe.GetPEPS();
+  auto tps = qlpeps::ToTPS<TenElemT, QNT>(peps);
+  for (auto &tensor : tps) {
+    tensor.Normalize();
+  }
+  qlpeps::SplitIndexTPS<TenElemT, QNT> sitps = qlpeps::ToSplitIndexTPS<TenElemT, QNT>(tps);
+  sitps.Dump(sitps_dir);
+  su_exe.DumpResult(peps_dir, release_mem);
+}
+
+}  // namespace
 
 int main(int argc, char **argv) {
   if (argc != 3) {
@@ -102,7 +274,12 @@ int main(int argc, char **argv) {
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.numerical_params.ThreadNum);
 
-  qlpeps::SimpleUpdatePara update_para = params.CreateSimpleUpdatePara();
+  const bool tau_schedule_enabled = params.tau_schedule.has_value();
+  qlpeps::SimpleUpdatePara update_para = tau_schedule_enabled
+      ? params.CreateSimpleUpdateParaForStage(
+            params.tau_schedule.value().taus.front(),
+            params.tau_schedule.value().step_caps.front())
+      : params.CreateSimpleUpdatePara();
 
   qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.physical_params.Ly, params.physical_params.Lx, bc);
   if (qlmps::IsPathExist(peps_path)) {
@@ -152,46 +329,88 @@ int main(int argc, char **argv) {
     su_exe = std::make_unique<qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT>>(update_para, peps0, ham_nn, ham_nnn);
   }
 
-  su_exe->Execute();
-  if (params.advanced_stop.has_value()) {
-    const auto &summary = su_exe->GetLastRunSummary();
-    std::string stop_reason = "kNotRun";
-    switch (summary.stop_reason) {
-      case qlpeps::SimpleUpdateExecutor<TenElemT, QNT>::StopReason::kMaxSteps:
-        stop_reason = "kMaxSteps";
-        break;
-      case qlpeps::SimpleUpdateExecutor<TenElemT, QNT>::StopReason::kAdvancedConverged:
-        stop_reason = "kAdvancedConverged";
-        break;
-      case qlpeps::SimpleUpdateExecutor<TenElemT, QNT>::StopReason::kNotRun:
-      default:
-        stop_reason = "kNotRun";
-        break;
+  const std::string sitps_final = "tpsfinal";
+  int return_code = 0;
+  if (!tau_schedule_enabled) {
+    su_exe->Execute();
+    if (params.advanced_stop.has_value()) {
+      const auto &summary = su_exe->GetLastRunSummary();
+      const std::string stop_reason = StopReasonToString(summary.stop_reason);
+      std::cout << "Advanced stop summary: converged=" << std::boolalpha << summary.converged
+                << ", stop_reason=" << stop_reason
+                << ", executed_steps=" << summary.executed_steps
+                << "/" << params.Step << std::endl;
     }
-    std::cout << "Advanced stop summary: converged=" << std::boolalpha << summary.converged
-              << ", stop_reason=" << stop_reason
-              << ", executed_steps=" << summary.executed_steps
-              << "/" << params.Step << std::endl;
-  }
-  
-  // Convert to TPS (in-memory) and normalize, then generate SplitIndexTPS and save (TPS file not stored)
-  auto peps = su_exe->GetPEPS();
-  auto tps = qlpeps::ToTPS<TenElemT, QNT>(peps);
-  for (auto &tensor : tps) {
-      tensor.Normalize();
-  }
-  
-  // Convert TPS to SplitIndexTPS and save for VMC use under final/lowest convention
-  qlpeps::SplitIndexTPS<TenElemT, QNT> sitps = qlpeps::ToSplitIndexTPS<TenElemT, QNT>(tps);
-  std::string sitps_final = "tpsfinal";
-  sitps.Dump(sitps_final);
+  } else {
+    const auto &schedule = params.tau_schedule.value();
+    std::vector<StageSummaryRecord> stage_summaries;
+    stage_summaries.reserve(schedule.taus.size());
+    bool overall_success = true;
+    for (size_t stage = 0; stage < schedule.taus.size(); ++stage) {
+      const size_t stage_index = stage + 1;
+      const double stage_tau = schedule.taus[stage];
+      const size_t stage_step_cap = schedule.step_caps[stage];
+      std::cout << "=== Tau stage " << stage_index << "/" << schedule.taus.size()
+                << ": tau=" << stage_tau
+                << ", step_cap=" << stage_step_cap
+                << " ===" << std::endl;
 
-  // Save PEPS format for compatibility
-  su_exe->DumpResult(peps_path, true);
-  
+      su_exe->update_para = params.CreateSimpleUpdateParaForStage(stage_tau, stage_step_cap);
+      su_exe->Execute();
+      const auto &summary = su_exe->GetLastRunSummary();
+      const std::string stop_reason = StopReasonToString(summary.stop_reason);
+      std::cout << "=== Stage result: converged=" << std::boolalpha << summary.converged
+                << ", executed_steps=" << summary.executed_steps
+                << ", stop_reason=" << stop_reason
+                << " ===" << std::endl;
+
+      stage_summaries.push_back(StageSummaryRecord{
+          stage_index,
+          stage_tau,
+          stage_step_cap,
+          summary.converged,
+          stop_reason,
+          summary.executed_steps
+      });
+
+      if (schedule.dump_each_stage) {
+        const std::filesystem::path stage_dir =
+            std::filesystem::path(schedule.dump_dir) /
+            BuildStageDirName(stage_index, schedule.taus.size(), stage_tau);
+        EnsureDirectory(stage_dir);
+        DumpSitpsAndPeps(
+            *su_exe,
+            (stage_dir / "tpsfinal").string(),
+            (stage_dir / "peps").string(),
+            false);
+      }
+
+      const bool stage_failed = schedule.require_converged && !summary.converged;
+      if (stage_failed) {
+        overall_success = false;
+        if (schedule.abort_on_stage_failure) {
+          return_code = -3;
+          break;
+        }
+      }
+    }
+
+    WriteScheduleSummaryJson(
+        schedule.dump_dir,
+        true,
+        schedule.taus.size(),
+        schedule.require_converged,
+        schedule.abort_on_stage_failure,
+        overall_success,
+        stage_summaries);
+    WriteScheduleSummaryCsv(schedule.dump_dir, stage_summaries);
+  }
+
+  DumpSitpsAndPeps(*su_exe, sitps_final, peps_path, true);
+
   std::cout << "Simple Update completed." << std::endl;
   std::cout << "SplitIndexTPS saved to: " << sitps_final << std::endl;
   std::cout << "PEPS saved to: " << peps_path << std::endl;
 
-  return 0;
+  return return_code;
 }

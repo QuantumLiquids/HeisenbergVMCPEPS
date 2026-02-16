@@ -122,6 +122,9 @@ The key outputs:
   true variational energy -- that will be given by Monte-Carlo).
 - **Directories created**: `tpsfinal/` (TPS format for VMC) and
   `peps/` (raw PEPS tensors with lambda tensors).
+- **If tau schedule is enabled** (`TauScheduleEnabled=true`): the driver also
+  writes `tau_schedule/schedule_summary.json` and
+  `tau_schedule/schedule_summary.csv` (or your configured `TauScheduleDumpDir`).
 
 **Optional: advanced automatic stop (early termination)**
 
@@ -615,6 +618,7 @@ python3 plot/workflow/plot_energy_trajectory.py \
 | `peps/` | Raw PEPS: `gamma_ten_*.qlten` (site tensors) + `lam_*.qlten` (bond singular values) | Simple update |
 | `tpsfinal/` | SplitIndexTPS: `tps_ten*_*.qlten` + MC configurations + metadata | Simple update, updated by VMC and measurement |
 | `tpslowest/` | Snapshot of tpsfinal at the lowest energy seen during VMC | VMC (if energy improved) |
+| `tau_schedule/` | `schedule_summary.json` + `schedule_summary.csv` + optional stage snapshots | Simple update (only when `TauScheduleEnabled=true`) |
 | `energy/` | `energy_trajectory.csv` + optional `.png` | VMC |
 | `stats/` | Measurement CSV files | Measurement |
 | `samples/` | `psi.csv` — raw wavefunction amplitudes | Measurement |

@@ -22,8 +22,11 @@
 #include <limits>
 #include <optional>
 #include <random>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace heisenberg_params {
 
@@ -34,6 +37,83 @@ inline std::string TrimAsciiWhitespace(std::string s) {
   while (!s.empty() && is_space(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
   while (!s.empty() && is_space(static_cast<unsigned char>(s.back()))) s.pop_back();
   return s;
+}
+
+inline std::vector<std::string> SplitCsvTokens(
+    const std::string &csv,
+    const std::string &key_name) {
+  const std::string trimmed_csv = TrimAsciiWhitespace(csv);
+  if (trimmed_csv.empty()) {
+    throw std::invalid_argument(key_name + " must not be empty.");
+  }
+  if (trimmed_csv.front() == ',' || trimmed_csv.back() == ',') {
+    throw std::invalid_argument(key_name + " has malformed leading/trailing comma.");
+  }
+
+  std::vector<std::string> tokens;
+  std::stringstream stream(trimmed_csv);
+  std::string token;
+  while (std::getline(stream, token, ',')) {
+    token = TrimAsciiWhitespace(token);
+    if (token.empty()) {
+      throw std::invalid_argument(key_name + " contains an empty item.");
+    }
+    tokens.push_back(token);
+  }
+  if (tokens.empty()) {
+    throw std::invalid_argument(key_name + " must not be empty.");
+  }
+  return tokens;
+}
+
+inline std::vector<double> ParsePositiveDoubleCsv(
+    const std::string &csv,
+    const std::string &key_name) {
+  const auto tokens = SplitCsvTokens(csv, key_name);
+  std::vector<double> values;
+  values.reserve(tokens.size());
+  for (const auto &token : tokens) {
+    size_t parsed_len = 0;
+    double value = 0.0;
+    try {
+      value = std::stod(token, &parsed_len);
+    } catch (const std::exception &) {
+      throw std::invalid_argument(key_name + " has invalid floating-point item: '" + token + "'.");
+    }
+    if (parsed_len != token.size()) {
+      throw std::invalid_argument(key_name + " has malformed floating-point item: '" + token + "'.");
+    }
+    if (value <= 0.0) {
+      throw std::invalid_argument(key_name + " requires all values > 0.");
+    }
+    values.push_back(value);
+  }
+  return values;
+}
+
+inline std::vector<size_t> ParsePositiveSizeTCsv(
+    const std::string &csv,
+    const std::string &key_name) {
+  const auto tokens = SplitCsvTokens(csv, key_name);
+  std::vector<size_t> values;
+  values.reserve(tokens.size());
+  for (const auto &token : tokens) {
+    size_t parsed_len = 0;
+    long long value = 0;
+    try {
+      value = std::stoll(token, &parsed_len);
+    } catch (const std::exception &) {
+      throw std::invalid_argument(key_name + " has invalid integer item: '" + token + "'.");
+    }
+    if (parsed_len != token.size()) {
+      throw std::invalid_argument(key_name + " has malformed integer item: '" + token + "'.");
+    }
+    if (value <= 0) {
+      throw std::invalid_argument(key_name + " requires all values > 0.");
+    }
+    values.push_back(static_cast<size_t>(value));
+  }
+  return values;
 }
 
 inline qlpeps::BoundaryCondition ParseBoundaryCondition(const std::string &value) {
@@ -463,18 +543,37 @@ struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
     size_t min_steps = 10;          ///< Minimum executed sweeps before stopping.
   };
 
+  /**
+   * @brief Optional multi-stage tau schedule configuration.
+   *
+   * Semantics:
+   * - Stages run in listed order on the same evolving PEPS state.
+   * - Each stage uses one tau and one step cap.
+   * - If step_caps is omitted in input, all stages inherit global @ref Step.
+   */
+  struct TauScheduleOptions {
+    std::vector<double> taus;       ///< Stage taus in execution order.
+    std::vector<size_t> step_caps;  ///< Per-stage step caps.
+    bool require_converged = true;  ///< Mark stage failed when summary.converged is false.
+    bool dump_each_stage = false;   ///< Whether to dump stage snapshots under dump_dir.
+    std::string dump_dir = "tau_schedule";  ///< Driver-owned output directory.
+    bool abort_on_stage_failure = true;     ///< Abort schedule on first failed stage.
+  };
+
   PhysicalParams physical_params;
   NumericalParams numerical_params;
   double Tau;    ///< Time step for imaginary time evolution
   size_t Step;   ///< Number of simple update steps
   std::optional<AdvancedStopOptions> advanced_stop;  ///< Advanced stop config; absent means fixed-step mode.
+  std::optional<TauScheduleOptions> tau_schedule;    ///< Optional tau schedule; absent means legacy single-stage mode.
 
   SimpleUpdateParams(const char *physics_file, const char *algorithm_file)
       : qlmps::CaseParamsParserBasic(algorithm_file),
         physical_params(physics_file),
         numerical_params(algorithm_file) {
     Tau = ParseDouble("Tau");
-    Step = ParseInt("Step");
+    const int parsed_step = ParseInt("Step");
+    Step = static_cast<size_t>(parsed_step);
 
     const bool has_advanced_stop_enabled_key = this->Has("AdvancedStopEnabled");
     const bool advanced_stop_enabled = ParseBoolOr("AdvancedStopEnabled", false);
@@ -522,24 +621,78 @@ struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
       options.min_steps = static_cast<size_t>(min_steps);
       advanced_stop = options;
     }
+
+    const bool tau_schedule_enabled = ParseBoolOr("TauScheduleEnabled", false);
+    if (tau_schedule_enabled) {
+      TauScheduleOptions options;
+      if (!this->Has("TauScheduleTaus")) {
+        throw std::invalid_argument(
+            "TauScheduleEnabled=true requires key TauScheduleTaus.");
+      }
+      options.taus = ParsePositiveDoubleCsv(ParseStr("TauScheduleTaus"), "TauScheduleTaus");
+      if (options.taus.empty()) {
+        throw std::invalid_argument(
+            "TauScheduleEnabled=true requires non-empty TauScheduleTaus.");
+      }
+
+      if (this->Has("TauScheduleStepCaps")) {
+        options.step_caps = ParsePositiveSizeTCsv(
+            ParseStr("TauScheduleStepCaps"),
+            "TauScheduleStepCaps");
+        if (options.step_caps.size() != options.taus.size()) {
+          throw std::invalid_argument(
+              "TauScheduleStepCaps count must match TauScheduleTaus count.");
+        }
+      } else {
+        if (parsed_step <= 0) {
+          throw std::invalid_argument(
+              "Step must be > 0 when TauScheduleEnabled=true and TauScheduleStepCaps is omitted.");
+        }
+        options.step_caps.assign(options.taus.size(), static_cast<size_t>(parsed_step));
+      }
+
+      options.require_converged = ParseBoolOr("TauScheduleRequireConverged", true);
+      if (options.require_converged && !advanced_stop.has_value()) {
+        throw std::invalid_argument(
+            "TauScheduleRequireConverged=true requires advanced stop to be enabled. "
+            "Set AdvancedStopEnabled=true (or provide AdvancedStop* keys), "
+            "or set TauScheduleRequireConverged=false.");
+      }
+      options.dump_each_stage = ParseBoolOr("TauScheduleDumpEachStage", false);
+      options.dump_dir = TrimAsciiWhitespace(ParseStrOr("TauScheduleDumpDir", "tau_schedule"));
+      if (options.dump_dir.empty()) {
+        throw std::invalid_argument("TauScheduleDumpDir must not be empty.");
+      }
+      options.abort_on_stage_failure = ParseBoolOr("TauScheduleAbortOnStageFailure", true);
+      tau_schedule = options;
+    }
   }
 
   /**
    * @brief Build qlpeps simple-update parameters from parsed driver inputs.
    */
   qlpeps::SimpleUpdatePara CreateSimpleUpdatePara() const {
+    return CreateSimpleUpdateParaForStage(Tau, Step);
+  }
+
+  /**
+   * @brief Build per-stage qlpeps simple-update parameters for tau-schedule mode.
+   */
+  qlpeps::SimpleUpdatePara CreateSimpleUpdateParaForStage(
+      double tau,
+      size_t step_cap) const {
     if (!advanced_stop.has_value()) {
       return qlpeps::SimpleUpdatePara(
-          Step,
-          Tau,
+          step_cap,
+          tau,
           numerical_params.Dmin,
           numerical_params.Dmax,
           numerical_params.TruncErr);
     }
     const auto &cfg = advanced_stop.value();
     return qlpeps::SimpleUpdatePara::Advanced(
-        Step,
-        Tau,
+        step_cap,
+        tau,
         numerical_params.Dmin,
         numerical_params.Dmax,
         numerical_params.TruncErr,
