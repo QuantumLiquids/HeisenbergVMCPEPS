@@ -12,6 +12,7 @@
 
 #include "qlmps/case_params_parser.h"
 #include "qlpeps/one_dim_tn/boundary_mps/bmps.h"
+#include "qlpeps/algorithm/simple_update/simple_update.h"
 #include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
 #include "qlpeps/two_dim_tn/common/boundary_condition.h"
 #include "qlpeps/two_dim_tn/tensor_network_2d/trg/trg_contractor.h"
@@ -446,10 +447,27 @@ inline qlpeps::PEPSParams CreatePEPSParams(
  * @brief Parameters for Simple Update (imaginary time evolution)
  */
 struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
+  /**
+   * @brief Optional advanced stop controls for simple update convergence.
+   *
+   * Semantics:
+   * - Convergence gate is (energy criterion) AND (lambda criterion).
+   * - Gate must pass for @ref patience consecutive sweeps.
+   * - Advanced stop is allowed only after @ref min_steps sweeps.
+   */
+  struct AdvancedStopOptions {
+    double energy_abs_tol = 1e-8;   ///< Absolute energy tolerance.
+    double energy_rel_tol = 1e-10;  ///< Relative energy tolerance.
+    double lambda_rel_tol = 1e-6;   ///< Relative lambda-drift tolerance.
+    size_t patience = 3;            ///< Required consecutive gate passes.
+    size_t min_steps = 10;          ///< Minimum executed sweeps before stopping.
+  };
+
   PhysicalParams physical_params;
   NumericalParams numerical_params;
   double Tau;    ///< Time step for imaginary time evolution
   size_t Step;   ///< Number of simple update steps
+  std::optional<AdvancedStopOptions> advanced_stop;  ///< Advanced stop config; absent means fixed-step mode.
 
   SimpleUpdateParams(const char *physics_file, const char *algorithm_file)
       : qlmps::CaseParamsParserBasic(algorithm_file),
@@ -457,6 +475,79 @@ struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
         numerical_params(algorithm_file) {
     Tau = ParseDouble("Tau");
     Step = ParseInt("Step");
+
+    const bool has_advanced_stop_enabled_key = this->Has("AdvancedStopEnabled");
+    const bool advanced_stop_enabled = ParseBoolOr("AdvancedStopEnabled", false);
+    const bool has_advanced_stop_tuning_key =
+        this->Has("AdvancedStopEnergyAbsTol") ||
+        this->Has("AdvancedStopEnergyRelTol") ||
+        this->Has("AdvancedStopLambdaRelTol") ||
+        this->Has("AdvancedStopPatience") ||
+        this->Has("AdvancedStopMinSteps");
+
+    bool enable_advanced_stop = false;
+    if (has_advanced_stop_enabled_key && !advanced_stop_enabled) {
+      // Explicit false wins over implicit auto-enable from tuning keys.
+      enable_advanced_stop = false;
+    } else {
+      enable_advanced_stop = advanced_stop_enabled || has_advanced_stop_tuning_key;
+    }
+
+    if (enable_advanced_stop) {
+      AdvancedStopOptions options;
+      options.energy_abs_tol = ParseDoubleOr("AdvancedStopEnergyAbsTol", options.energy_abs_tol);
+      options.energy_rel_tol = ParseDoubleOr("AdvancedStopEnergyRelTol", options.energy_rel_tol);
+      options.lambda_rel_tol = ParseDoubleOr("AdvancedStopLambdaRelTol", options.lambda_rel_tol);
+
+      const int patience = ParseIntOr("AdvancedStopPatience", static_cast<int>(options.patience));
+      const int min_steps = ParseIntOr("AdvancedStopMinSteps", static_cast<int>(options.min_steps));
+
+      if (options.energy_abs_tol < 0.0) {
+        throw std::invalid_argument("AdvancedStopEnergyAbsTol must be >= 0.");
+      }
+      if (options.energy_rel_tol < 0.0) {
+        throw std::invalid_argument("AdvancedStopEnergyRelTol must be >= 0.");
+      }
+      if (options.lambda_rel_tol < 0.0) {
+        throw std::invalid_argument("AdvancedStopLambdaRelTol must be >= 0.");
+      }
+      if (patience <= 0) {
+        throw std::invalid_argument("AdvancedStopPatience must be > 0.");
+      }
+      if (min_steps <= 0) {
+        throw std::invalid_argument("AdvancedStopMinSteps must be > 0.");
+      }
+
+      options.patience = static_cast<size_t>(patience);
+      options.min_steps = static_cast<size_t>(min_steps);
+      advanced_stop = options;
+    }
+  }
+
+  /**
+   * @brief Build qlpeps simple-update parameters from parsed driver inputs.
+   */
+  qlpeps::SimpleUpdatePara CreateSimpleUpdatePara() const {
+    if (!advanced_stop.has_value()) {
+      return qlpeps::SimpleUpdatePara(
+          Step,
+          Tau,
+          numerical_params.Dmin,
+          numerical_params.Dmax,
+          numerical_params.TruncErr);
+    }
+    const auto &cfg = advanced_stop.value();
+    return qlpeps::SimpleUpdatePara::Advanced(
+        Step,
+        Tau,
+        numerical_params.Dmin,
+        numerical_params.Dmax,
+        numerical_params.TruncErr,
+        cfg.energy_abs_tol,
+        cfg.energy_rel_tol,
+        cfg.lambda_rel_tol,
+        cfg.patience,
+        cfg.min_steps);
   }
 };
 

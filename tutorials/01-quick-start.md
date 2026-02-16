@@ -123,6 +123,24 @@ The key outputs:
 - **Directories created**: `tpsfinal/` (TPS format for VMC) and
   `peps/` (raw PEPS tensors with lambda tensors).
 
+**Optional: advanced automatic stop (early termination)**
+
+Use `params/quickstart/simple_update_local_2x2_pbc_advanced_stop.json` to let
+Simple Update stop automatically when energy and lambda convergence criteria are
+met before the hard cap `Step`.
+
+```bash
+./build/simple_update params/quickstart/physics_local_2x2_pbc.json \
+                      params/quickstart/simple_update_local_2x2_pbc_advanced_stop.json
+```
+
+Expected extra log signals:
+
+- backend stop reason line:
+  - `Stopping: advanced simple-update convergence reached after ... sweeps.`
+- driver summary line:
+  - `Advanced stop summary: converged=true, stop_reason=kAdvancedConverged, executed_steps=<N>/<Step>`
+
 #### Step 2: VMC Optimization -- minimize the energy
 
 Starting from the simple-update PEPS, the VMC optimizer treats all tensor

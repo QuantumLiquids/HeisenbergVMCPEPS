@@ -5,11 +5,11 @@
     "Dmax": 2,
     "ThreadNum": 1,
     "Tau": 0.2,
-    "Step": 8,
-    "AdvancedStopEnabled": false,
-    "AdvancedStopEnergyAbsTol": 1e-8,
-    "AdvancedStopEnergyRelTol": 1e-10,
-    "AdvancedStopLambdaRelTol": 1e-6,
+    "Step": 80,
+    "AdvancedStopEnabled": true,
+    "AdvancedStopEnergyAbsTol": 1e-6,
+    "AdvancedStopEnergyRelTol": 1e-8,
+    "AdvancedStopLambdaRelTol": 1e-5,
     "AdvancedStopPatience": 3,
     "AdvancedStopMinSteps": 10
   }

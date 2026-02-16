@@ -35,6 +35,27 @@ Use this first if you are new to the project.
 }
 ```
 
+Advanced-stop variant (optional):
+
+```json
+{
+  "CaseParams": {
+    "TruncErr": 1e-8,
+    "Dmin": 4,
+    "Dmax": 4,
+    "Tau": 0.2,
+    "Step": 400,
+    "ThreadNum": 1,
+    "AdvancedStopEnabled": true,
+    "AdvancedStopEnergyAbsTol": 1e-8,
+    "AdvancedStopEnergyRelTol": 1e-10,
+    "AdvancedStopLambdaRelTol": 1e-6,
+    "AdvancedStopPatience": 3,
+    "AdvancedStopMinSteps": 10
+  }
+}
+```
+
 #### VMC Algorithm (SR + BMPS)
 
 ```json

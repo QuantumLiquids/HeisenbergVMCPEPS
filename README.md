@@ -29,6 +29,7 @@ DMRG benchmark binaries (appendix scope):
 Notes:
 
 - `ModelType` controls solver dispatch: `SquareHeisenberg`, `SquareXY`, `TriangleHeisenberg`.
+- `simple_update` supports optional advanced convergence stop via `AdvancedStop*` parameters in simple-update JSON.
 - Triangle PBC is not supported in current PEPS backend.
 - `src/kagome*` code is deprecated and corresponding binaries are disabled in default CMake.
 

@@ -102,9 +102,7 @@ int main(int argc, char **argv) {
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.numerical_params.ThreadNum);
 
-  qlpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
-                                       params.numerical_params.Dmin, params.numerical_params.Dmax,
-                                       params.numerical_params.TruncErr);
+  qlpeps::SimpleUpdatePara update_para = params.CreateSimpleUpdatePara();
 
   qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.physical_params.Ly, params.physical_params.Lx, bc);
   if (qlmps::IsPathExist(peps_path)) {
@@ -155,6 +153,26 @@ int main(int argc, char **argv) {
   }
 
   su_exe->Execute();
+  if (params.advanced_stop.has_value()) {
+    const auto &summary = su_exe->GetLastRunSummary();
+    std::string stop_reason = "kNotRun";
+    switch (summary.stop_reason) {
+      case qlpeps::SimpleUpdateExecutor<TenElemT, QNT>::StopReason::kMaxSteps:
+        stop_reason = "kMaxSteps";
+        break;
+      case qlpeps::SimpleUpdateExecutor<TenElemT, QNT>::StopReason::kAdvancedConverged:
+        stop_reason = "kAdvancedConverged";
+        break;
+      case qlpeps::SimpleUpdateExecutor<TenElemT, QNT>::StopReason::kNotRun:
+      default:
+        stop_reason = "kNotRun";
+        break;
+    }
+    std::cout << "Advanced stop summary: converged=" << std::boolalpha << summary.converged
+              << ", stop_reason=" << stop_reason
+              << ", executed_steps=" << summary.executed_steps
+              << "/" << params.Step << std::endl;
+  }
   
   // Convert to TPS (in-memory) and normalize, then generate SplitIndexTPS and save (TPS file not stored)
   auto peps = su_exe->GetPEPS();

@@ -3,6 +3,7 @@
 `local22_pbc` (stable tiny local run):
 - `params/quickstart/physics_local_2x2_pbc.json`
 - `params/quickstart/simple_update_local_2x2_pbc.json`
+- `params/quickstart/simple_update_local_2x2_pbc_advanced_stop.json` (advanced-stop variant)
 - `params/quickstart/vmc_local_2x2_pbc_n1.json`
 - `params/quickstart/measure_local_2x2_pbc_n1.json`
 

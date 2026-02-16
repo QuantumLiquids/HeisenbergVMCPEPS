@@ -36,10 +36,37 @@ Required keys:
 - `TruncErr` (double)
 - `ThreadNum` (int)
 
+Optional advanced-stop keys:
+
+- `AdvancedStopEnabled` (bool, default `false`)
+- `AdvancedStopEnergyAbsTol` (double, default `1e-8`)
+- `AdvancedStopEnergyRelTol` (double, default `1e-10`)
+- `AdvancedStopLambdaRelTol` (double, default `1e-6`)
+- `AdvancedStopPatience` (int, default `3`)
+- `AdvancedStopMinSteps` (int, default `10`)
+
+Advanced-stop activation:
+
+- Enabled when `AdvancedStopEnabled=true`.
+- Also auto-enabled when any advanced-stop tuning key is present.
+- If `AdvancedStopEnabled=false` is set explicitly, advanced-stop is disabled even if tuning keys are present.
+
+Advanced-stop convergence rule:
+
+- Gate condition is `energy AND lambda`, then apply `patience` and `min_steps`.
+- Energy criterion:
+  - `|ΔE| <= max(energy_abs_tol, energy_rel_tol * max(1, |E_prev|, |E_curr|))`
+- Lambda criterion:
+  - compute per-bond relative L2 drift on lambda diagonals and take the global maximum;
+  - require `max_lambda_drift <= lambda_rel_tol`.
+- If bond dimensions change between two sweeps, lambda drift is skipped and the convergence streak resets.
+- Stop when gate passes for `AdvancedStopPatience` consecutive sweeps and executed sweeps >= `AdvancedStopMinSteps`.
+
 Runtime effects:
 
 - `Tau` and `Step` control imaginary-time evolution length/granularity.
 - `Dmin`/`Dmax` set SU bond-dimension range.
+- Advanced-stop (when active) can terminate before `Step`; otherwise run always executes to `Step`.
 - Output always targets `tpsfinal/` (SITPS) and `peps/`.
 
 ### 3) `vmc_algorithm_params.json`
@@ -198,6 +225,8 @@ Runtime effects:
 | Step selectors used with non-SGD/SR optimizer | Throws invalid argument |
 | Step selectors combined with LR scheduler | Throws invalid argument |
 | Selector numeric constraints violated | Throws invalid argument |
+| Active advanced-stop + `AdvancedStopEnergyAbsTol` / `AdvancedStopEnergyRelTol` / `AdvancedStopLambdaRelTol` < 0 | Throws invalid argument |
+| Active advanced-stop + `AdvancedStopPatience <= 0` or `AdvancedStopMinSteps <= 0` | Throws invalid argument |
 | `LBFGSStepMode` invalid | Throws invalid argument |
 | `LBFGSHistorySize == 0` | Throws invalid argument |
 | Strong-Wolfe inequalities violated | Throws invalid argument |
