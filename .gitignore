@@ -68,3 +68,6 @@ CLAUDE.md
 
 # MCP run manager local artifacts
 artifacts/
+
+# Git worktrees
+.worktrees/
