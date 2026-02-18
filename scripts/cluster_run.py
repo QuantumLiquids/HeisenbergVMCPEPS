@@ -13,6 +13,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
+import csv
+import statistics
+
 
 # ---------------------------------------------------------------------------
 # Parsing helpers
@@ -46,6 +49,16 @@ def compute_mc_samples(lx: int, ly: int, ntasks: int) -> int:
     raw = lx * ly * 200
     clamped = max(10000, min(20000, raw))
     return int(math.ceil(clamped / ntasks) * ntasks)
+
+
+def compute_warmup(lx: int, ly: int) -> int:
+    """Auto-scale WarmUp: 2 * Lx * Ly, clamped to [100, 500]."""
+    return max(100, min(500, lx * ly * 2))
+
+
+def compute_cg_residue_restart(lx: int, ly: int) -> int:
+    """CGResidueRestart: 10 for most systems, 20 for large (max side >= 16)."""
+    return 20 if max(lx, ly) >= 16 else 10
 
 
 def compute_case_name(lx: int, ly: int, j2: float, d: int) -> str:
@@ -126,14 +139,14 @@ def build_params(
         "ThreadNum": 1,
         "InitialConfigStrategy": "Neel",
         "MC_total_samples": vmc_samples,
-        "WarmUp": 100,
+        "WarmUp": compute_warmup(lx, ly),
         "MCLocalUpdateSweepsBetweenSample": 1,
         "OptimizerType": optimizer,
         "MaxIterations": iterations,
         "LearningRate": lr,
         "CGMaxIter": 200,
         "CGTol": 1e-6,
-        "CGResidueRestart": 10,
+        "CGResidueRestart": compute_cg_residue_restart(lx, ly),
         "CGDiagShift": 1e-4,
         "NormalizeUpdate": False,
         "InitialStepSelectorEnabled": True,
@@ -175,7 +188,7 @@ def build_params(
         "ThreadNum": 1,
         "InitialConfigStrategy": "Neel",
         "MC_total_samples": meas_samples,
-        "WarmUp": 100,
+        "WarmUp": compute_warmup(lx, ly),
         "MCLocalUpdateSweepsBetweenSample": 1,
         "ConfigurationLoadDir": "tpsfinal",
         "ConfigurationDumpDir": "tpsfinal",
@@ -216,14 +229,19 @@ def build_params(
 # Slurm template generation
 # ---------------------------------------------------------------------------
 
-_SLURM_HEADER = """\
+def _slurm_header(
+    job_name: str, partition: str, ntasks: int, walltime: str,
+    case_dir: str, repo: str, stage: str, qos: str = "",
+) -> str:
+    qos_line = f"\n#SBATCH --qos={qos}" if qos else ""
+    return f"""\
 #!/bin/bash
 #SBATCH -J {job_name}
 #SBATCH -p {partition}
 #SBATCH -N 1
 #SBATCH --ntasks={ntasks}
 #SBATCH --cpus-per-task=1
-#SBATCH --time={walltime}
+#SBATCH --time={walltime}{qos_line}
 #SBATCH --output={case_dir}/logs/slurm_%j_{stage}.out
 #SBATCH --error={case_dir}/logs/slurm_%j_{stage}.err
 
@@ -250,11 +268,12 @@ def generate_slurm_stage1(
     job_name: str, partition: str, ntasks: int, walltime: str,
     case_dir: str, repo: str,
     unit_lx: int, unit_ly: int, full_lx: int, full_ly: int,
-    bc: str = "pbc",
+    bc: str = "pbc", qos: str = "",
 ) -> str:
-    header = _SLURM_HEADER.format(
+    header = _slurm_header(
         job_name=job_name, partition=partition, ntasks=1,
         walltime=walltime, case_dir=case_dir, repo=repo, stage="su_tile",
+        qos=qos,
     )
     # sitps_tile rejects --unit-ly/--unit-lx for OBC mode
     if bc == "pbc":
@@ -288,11 +307,12 @@ echo "[Stage 1] completed at $(date "+%F %T")"
 
 def generate_slurm_stage2(
     job_name: str, partition: str, ntasks: int, walltime: str,
-    case_dir: str, repo: str,
+    case_dir: str, repo: str, qos: str = "",
 ) -> str:
-    header = _SLURM_HEADER.format(
+    header = _slurm_header(
         job_name=job_name, partition=partition, ntasks=ntasks,
         walltime=walltime, case_dir=case_dir, repo=repo, stage="vmc",
+        qos=qos,
     )
     body = """
 echo "=== Stage 2: VMC Optimize ==="
@@ -306,11 +326,12 @@ echo "[Stage 2] completed at $(date "+%F %T")"
 
 def generate_slurm_stage3(
     job_name: str, partition: str, ntasks: int, walltime: str,
-    case_dir: str, repo: str,
+    case_dir: str, repo: str, qos: str = "",
 ) -> str:
-    header = _SLURM_HEADER.format(
+    header = _slurm_header(
         job_name=job_name, partition=partition, ntasks=ntasks,
         walltime=walltime, case_dir=case_dir, repo=repo, stage="meas",
+        qos=qos,
     )
     body = """
 echo "=== Stage 3: MC Measure ==="
@@ -340,6 +361,7 @@ def generate_case_files(
     unit_ly: int,
     full_lx: int,
     full_ly: int,
+    qos: str = "",
 ) -> None:
     """Write all param files, slurm scripts, and meta.json to case_dir."""
 
@@ -361,19 +383,19 @@ def generate_case_files(
     s1 = generate_slurm_stage1(
         f"{job_name_prefix}_su", partition, 1, walltime,
         remote_case, remote_repo, unit_lx, unit_ly, full_lx, full_ly,
-        bc=bc,
+        bc=bc, qos=qos,
     )
     (case_dir / "stage1_su_tile.slurm").write_text(s1)
 
     s2 = generate_slurm_stage2(
         f"{job_name_prefix}_vmc", partition, ntasks, walltime,
-        remote_case, remote_repo,
+        remote_case, remote_repo, qos=qos,
     )
     (case_dir / "stage2_vmc.slurm").write_text(s2)
 
     s3 = generate_slurm_stage3(
         f"{job_name_prefix}_meas", partition, ntasks, walltime,
-        remote_case, remote_repo,
+        remote_case, remote_repo, qos=qos,
     )
     (case_dir / "stage3_measure.slurm").write_text(s3)
 
@@ -384,6 +406,7 @@ def generate_case_files(
         "partition": partition,
         "ntasks": ntasks,
         "walltime": walltime,
+        "qos": qos,
         "remote_repo": remote_repo,
         "params_summary": {
             "lx": full_lx, "ly": full_ly,
@@ -408,7 +431,7 @@ def generate_case_files(
 # ---------------------------------------------------------------------------
 
 def print_summary(case_name: str, params: Dict[str, Any], partition: str,
-                  ntasks: int, walltime: str) -> None:
+                  ntasks: int, walltime: str, qos: str = "") -> None:
     su = params["simple_update"]["CaseParams"]
     vmc = params["vmc"]["CaseParams"]
     meas = params["measure"]["CaseParams"]
@@ -433,6 +456,9 @@ def print_summary(case_name: str, params: Dict[str, Any], partition: str,
     print(f"  LR:           {vmc['LearningRate']}")
     print(f"  Iterations:   {vmc['MaxIterations']}")
     print(f"  MC samples:   {vmc['MC_total_samples']}")
+    print(f"  WarmUp:       {vmc['WarmUp']} (auto: 2 x Lx x Ly, range [100, 500])")
+    print(f"  CG:           MaxIter={vmc['CGMaxIter']}, Tol={vmc['CGTol']}, "
+          f"DiagShift={vmc['CGDiagShift']}, Restart={vmc['CGResidueRestart']}")
     bc_key = "TRGDmin" if "TRGDmin" in vmc else "Dbmps_min"
     bc_max_key = "TRGDmax" if "TRGDmax" in vmc else "Dbmps_max"
     print(f"  Contraction:  Dmin={vmc[bc_key]}, Dmax={vmc[bc_max_key]}")
@@ -444,6 +470,8 @@ def print_summary(case_name: str, params: Dict[str, Any], partition: str,
     print(f"  Partition:    {partition}")
     print(f"  Tasks:        {ntasks}")
     print(f"  Wall time:    {walltime}")
+    if qos:
+        print(f"  QoS:          {qos}")
 
 
 # ---------------------------------------------------------------------------
@@ -497,7 +525,8 @@ def cmd_new_case(args: argparse.Namespace) -> int:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     case_dir = Path("run") / case_name / timestamp
 
-    print_summary(case_name, params, args.partition, args.ntasks, args.walltime)
+    print_summary(case_name, params, args.partition, args.ntasks, args.walltime,
+                  qos=args.qos)
 
     answer = input(f"\nGenerate to {case_dir}/ ? [Y/n] ").strip().lower()
     if answer and answer != "y":
@@ -515,6 +544,7 @@ def cmd_new_case(args: argparse.Namespace) -> int:
         remote_repo=args.remote_repo,
         unit_lx=ulx, unit_ly=uly,
         full_lx=lx, full_ly=ly,
+        qos=args.qos,
     )
     print(f"\nGenerated: {case_dir}/")
     return 0
@@ -633,7 +663,129 @@ def cmd_fetch(args: argparse.Namespace) -> int:
         print("  -> logs/ not found")
 
     print(f"\nResults saved to {output_dir}/{meta['case']}/{meta['run_id']}/")
+
+    # Append to run journal
+    journal_path = getattr(args, 'journal', 'run_journal.jsonl')
+    energy_csv = output_dir / meta["case"] / meta["run_id"] / "energy" / "energy_trajectory.csv"
+    energy_data = parse_energy_trajectory(str(energy_csv))
+    entry = build_journal_entry(meta, energy_data)
+    append_journal(entry, journal_path)
+    if energy_data:
+        print(f"\nJournal: appended entry for {meta['case']}/{meta['run_id']}")
+        print(f"  Energy: {energy_data['final_energy']:.6f} +/- {energy_data['final_energy_err']:.4f}")
+        print(f"  Best:   {energy_data['best_energy']:.6f} at iter {energy_data['best_iter']}")
+        print(f"  Spikes: {energy_data['spike_count']}")
+    else:
+        print("\nJournal: appended entry (no energy data yet)")
+
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Run journal
+# ---------------------------------------------------------------------------
+
+def parse_energy_trajectory(csv_path: str) -> dict | None:
+    """Parse energy_trajectory.csv into summary dict. Returns None if file missing."""
+    try:
+        with open(csv_path) as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+    except (FileNotFoundError, OSError):
+        return None
+    if not rows:
+        return None
+
+    energies = [(int(r["iteration"]), float(r["energy"])) for r in rows]
+    energy_errs = [float(r["energy_err"]) for r in rows]
+    grad_norms = [float(r["gradient_norm"]) for r in rows]
+
+    best_iter, best_energy = min(energies, key=lambda x: x[1])
+    final_energy = energies[-1][1]
+    final_energy_err = energy_errs[-1]
+
+    deltas = [abs(energies[i+1][1] - energies[i][1]) for i in range(len(energies)-1)]
+    spike_count = 0
+    if deltas:
+        med_delta = statistics.median(deltas)
+        threshold = max(med_delta * 10, 1e-6)
+        spike_count = sum(1 for d in deltas if d > threshold)
+
+    return {
+        "final_energy": final_energy,
+        "final_energy_err": final_energy_err,
+        "best_energy": best_energy,
+        "best_iter": best_iter,
+        "gradient_norm_final": grad_norms[-1],
+        "spike_count": spike_count,
+        "total_iterations": len(rows),
+    }
+
+
+def build_journal_entry(
+    meta: dict,
+    energy_data: dict | None,
+    walltime_used_seconds: int | None = None,
+) -> dict:
+    """Build a journal entry from meta.json and parsed energy data."""
+    ps = meta.get("params_summary", {})
+    return {
+        "case": meta["case"],
+        "run_id": meta["run_id"],
+        "timestamp": meta.get("created_at", ""),
+        "params": {
+            "lx": ps.get("lx"), "ly": ps.get("ly"),
+            "D": ps.get("D"), "J2": ps.get("J2"),
+            "bc": ps.get("bc"),
+            "optimizer": ps.get("optimizer"),
+            "lr": ps.get("lr"),
+            "iterations": ps.get("iterations"),
+            "vmc_samples": ps.get("vmc_samples"),
+        },
+        "outcome": energy_data or {},
+        "hpc": {
+            "partition": meta.get("partition", ""),
+            "qos": meta.get("qos", ""),
+            "ntasks": meta.get("ntasks", 0),
+            "walltime_requested": meta.get("walltime", ""),
+            "walltime_used_seconds": walltime_used_seconds,
+        },
+        "insights": [],
+    }
+
+
+def read_journal(path: str = "run_journal.jsonl") -> list:
+    """Read all entries from the run journal. Returns [] if file missing."""
+    try:
+        with open(path) as f:
+            return [json.loads(line) for line in f if line.strip()]
+    except (FileNotFoundError, OSError):
+        return []
+
+
+def append_journal(entry: dict, path: str = "run_journal.jsonl") -> None:
+    """Append a single entry to the run journal."""
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def suggest_walltime(
+    journal: list, lx: int, ly: int, d: int, bc: str,
+) -> int | None:
+    """Suggest walltime (seconds) as 5x median of similar past runs.
+    Returns None if no similar runs found."""
+    similar = [
+        e["hpc"]["walltime_used_seconds"]
+        for e in journal
+        if (e.get("params", {}).get("lx") == lx
+            and e.get("params", {}).get("ly") == ly
+            and e.get("params", {}).get("D") == d
+            and e.get("params", {}).get("bc") == bc
+            and e.get("hpc", {}).get("walltime_used_seconds") is not None)
+    ]
+    if not similar:
+        return None
+    return int(5 * statistics.median(similar))
 
 
 # ---------------------------------------------------------------------------
@@ -657,7 +809,8 @@ def main() -> int:
     p_new.add_argument("--cluster", default="susphy", help="Cluster SSH alias")
     p_new.add_argument("--partition", default="256G56c", help="Slurm partition")
     p_new.add_argument("--ntasks", type=int, default=56, help="MPI ranks")
-    p_new.add_argument("--walltime", default="72:00:00", help="Wall time limit")
+    p_new.add_argument("--walltime", default="60-00:00:00", help="Wall time limit (default: 60 days)")
+    p_new.add_argument("--qos", default="wanghxqos", help="Slurm QoS (default: wanghxqos)")
     p_new.add_argument("--optimizer", default="SR", choices=["SR", "Adam", "AdaGrad", "SGD"])
     p_new.add_argument("--lr", type=float, default=0.1, help="Learning rate")
     p_new.add_argument("--iterations", type=int, default=30, help="VMC iterations")
@@ -681,6 +834,7 @@ def main() -> int:
     p_fetch.add_argument("--case", required=True, help="Local case directory path")
     p_fetch.add_argument("--cluster", default="susphy")
     p_fetch.add_argument("--output-dir", default="data")
+    p_fetch.add_argument("--journal", default="run_journal.jsonl", help="Journal file path")
 
     args = parser.parse_args()
 

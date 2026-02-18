@@ -131,3 +131,63 @@ run/<case>/<timestamp>/
   logs/           -- slurm stdout/stderr
   meta.json       -- run metadata + job IDs
 ```
+
+## Run Journal Protocol
+
+A persistent `run_journal.jsonl` (gitignored) accumulates run outcomes
+for AI-driven parameter suggestions and walltime estimation.
+
+At the start of any run-related conversation:
+
+1. Read `run_journal.jsonl` if it exists
+2. Summarize relevant past runs for the current discussion
+3. When proposing parameters, cite relevant history:
+   "Based on run 20260217 (8x8 D=8 PBC), SR lr=0.1 converged in 22
+   iters with 1 spike. Suggesting lr=0.05."
+
+After fetching results (`fetch` command auto-appends to journal):
+
+4. Review the new journal entry
+5. Analyze convergence quality (see checklist below)
+6. Suggest improvements if warranted
+
+## Post-Fetch Analysis Checklist
+
+After fetching results, evaluate:
+
+- **Energy trend**: converging / plateaued / diverging?
+- **Spike count**: 0 ideal, >2 suggests lr or CGDiagShift issue
+- **Accept rate**: 0.2-0.3 is healthy for spin-1/2
+- **Walltime utilization**: <10% means walltime too generous, suggest 5x median
+- **CG iterations**: hitting CGMaxIter often? suggest increasing it
+- **Gradient norm**: should decrease; flat means optimization stuck
+- **EvalT / UpdateT**: compare to similar past runs, flag regressions
+
+## Improvement Suggestion Categories
+
+When patterns emerge across multiple runs, suggest:
+
+**Parameter tuning:**
+- "D=8 runs consistently need lr<=0.05 to avoid spikes"
+- "WarmUp=128 insufficient for 12x12; energy unstable in first iterations"
+
+**HPC resource optimization:**
+- "256G56c uses only 30GB for D=5; smaller partition available?"
+- "Last 3 runs used <7% walltime; suggest 5x median = 2d12h"
+- "Consider --ntasks 28 with OMP_NUM_THREADS=2 for memory-bound D=10"
+
+**Code improvements:**
+- "SpikeFactorErr=100 triggers in 4/5 D>=8 runs; consider tightening default
+  in enhanced_params_parser.h"
+- "CGDiagShift=1e-4 causes CG stalling at D=10; scale with D?"
+
+**Performance:**
+- "EvalT increased 3x from D=5 to D=8 but UpdateT stayed flat;
+  contraction is the bottleneck, not the CG solver"
+
+## Walltime Strategy
+
+- **No history**: Default 60 days (safe ceiling for unknown jobs)
+- **With history**: AI reads journal, finds similar runs (same lattice/D/BC),
+  suggests 5x median walltime. Displayed in summary.
+- **User override**: `--walltime` always wins
