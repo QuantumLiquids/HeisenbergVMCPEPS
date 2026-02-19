@@ -1,0 +1,16 @@
+{
+  "CaseParams": {
+    "TruncErr": 1e-8,
+    "Dmin": 2,
+    "Dmax": 2,
+    "ThreadNum": 1,
+    "Tau": 0.1,
+    "Step": 80,
+    "AdvancedStopEnabled": true,
+    "AdvancedStopEnergyAbsTol": 1e-6,
+    "AdvancedStopEnergyRelTol": 1e-8,
+    "AdvancedStopLambdaRelTol": 1e-5,
+    "AdvancedStopPatience": 3,
+    "AdvancedStopMinSteps": 10
+  }
+}

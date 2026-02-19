@@ -11,6 +11,7 @@
 #define HEISENBERGVMCPEPS_COMMON_PARAMS_H
 
 #include "qlmps/case_params_parser.h"
+#include "qlpeps/algorithm/loop_update/loop_update.h"
 #include "qlpeps/one_dim_tn/boundary_mps/bmps.h"
 #include "qlpeps/algorithm/simple_update/simple_update.h"
 #include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
@@ -18,6 +19,7 @@
 #include "qlpeps/two_dim_tn/tensor_network_2d/trg/trg_contractor.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -162,6 +164,87 @@ inline InitialConfigStrategy ParseInitialConfigStrategy(const std::string &value
   }
   throw std::invalid_argument(
       "InitialConfigStrategy must be Random, Neel, or ThreeSublatticePolarizedSeed.");
+}
+
+/**
+ * @brief Shared advanced-stop controls used by update drivers.
+ *
+ * Semantics:
+ * - Convergence gate is (energy criterion) AND (lambda criterion).
+ * - Gate must pass for @ref patience consecutive sweeps.
+ * - Advanced stop is allowed only after @ref min_steps sweeps.
+ */
+struct AdvancedStopOptions {
+  double energy_abs_tol = 1e-8;   ///< Absolute energy tolerance.
+  double energy_rel_tol = 1e-10;  ///< Relative energy tolerance.
+  double lambda_rel_tol = 1e-6;   ///< Relative lambda-drift tolerance.
+  size_t patience = 3;            ///< Required consecutive gate passes.
+  size_t min_steps = 10;          ///< Minimum executed sweeps before stopping.
+};
+
+/**
+ * @brief Parse AdvancedStop* keys with explicit-false precedence.
+ *
+ * Activation rule:
+ * - Enabled when `AdvancedStopEnabled=true`.
+ * - Auto-enabled when any AdvancedStop tuning key exists.
+ * - If `AdvancedStopEnabled=false` exists explicitly, advanced-stop is disabled
+ *   even if tuning keys are present.
+ */
+inline std::optional<AdvancedStopOptions> ParseAdvancedStopOptions(
+    qlmps::CaseParamsParserBasic &parser) {
+  const bool has_advanced_stop_enabled_key = parser.Has("AdvancedStopEnabled");
+  const bool advanced_stop_enabled = parser.ParseBoolOr("AdvancedStopEnabled", false);
+  const bool has_advanced_stop_tuning_key =
+      parser.Has("AdvancedStopEnergyAbsTol") ||
+      parser.Has("AdvancedStopEnergyRelTol") ||
+      parser.Has("AdvancedStopLambdaRelTol") ||
+      parser.Has("AdvancedStopPatience") ||
+      parser.Has("AdvancedStopMinSteps");
+
+  bool enable_advanced_stop = false;
+  if (has_advanced_stop_enabled_key && !advanced_stop_enabled) {
+    // Explicit false wins over implicit auto-enable from tuning keys.
+    enable_advanced_stop = false;
+  } else {
+    enable_advanced_stop = advanced_stop_enabled || has_advanced_stop_tuning_key;
+  }
+  if (!enable_advanced_stop) {
+    return std::nullopt;
+  }
+
+  AdvancedStopOptions options;
+  options.energy_abs_tol =
+      parser.ParseDoubleOr("AdvancedStopEnergyAbsTol", options.energy_abs_tol);
+  options.energy_rel_tol =
+      parser.ParseDoubleOr("AdvancedStopEnergyRelTol", options.energy_rel_tol);
+  options.lambda_rel_tol =
+      parser.ParseDoubleOr("AdvancedStopLambdaRelTol", options.lambda_rel_tol);
+
+  const int patience =
+      parser.ParseIntOr("AdvancedStopPatience", static_cast<int>(options.patience));
+  const int min_steps =
+      parser.ParseIntOr("AdvancedStopMinSteps", static_cast<int>(options.min_steps));
+
+  if (options.energy_abs_tol < 0.0) {
+    throw std::invalid_argument("AdvancedStopEnergyAbsTol must be >= 0.");
+  }
+  if (options.energy_rel_tol < 0.0) {
+    throw std::invalid_argument("AdvancedStopEnergyRelTol must be >= 0.");
+  }
+  if (options.lambda_rel_tol < 0.0) {
+    throw std::invalid_argument("AdvancedStopLambdaRelTol must be >= 0.");
+  }
+  if (patience <= 0) {
+    throw std::invalid_argument("AdvancedStopPatience must be > 0.");
+  }
+  if (min_steps <= 0) {
+    throw std::invalid_argument("AdvancedStopMinSteps must be > 0.");
+  }
+
+  options.patience = static_cast<size_t>(patience);
+  options.min_steps = static_cast<size_t>(min_steps);
+  return options;
 }
 
 /**
@@ -527,21 +610,7 @@ inline qlpeps::PEPSParams CreatePEPSParams(
  * @brief Parameters for Simple Update (imaginary time evolution)
  */
 struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
-  /**
-   * @brief Optional advanced stop controls for simple update convergence.
-   *
-   * Semantics:
-   * - Convergence gate is (energy criterion) AND (lambda criterion).
-   * - Gate must pass for @ref patience consecutive sweeps.
-   * - Advanced stop is allowed only after @ref min_steps sweeps.
-   */
-  struct AdvancedStopOptions {
-    double energy_abs_tol = 1e-8;   ///< Absolute energy tolerance.
-    double energy_rel_tol = 1e-10;  ///< Relative energy tolerance.
-    double lambda_rel_tol = 1e-6;   ///< Relative lambda-drift tolerance.
-    size_t patience = 3;            ///< Required consecutive gate passes.
-    size_t min_steps = 10;          ///< Minimum executed sweeps before stopping.
-  };
+  using AdvancedStopOptions = heisenberg_params::AdvancedStopOptions;
 
   /**
    * @brief Optional multi-stage tau schedule configuration.
@@ -574,53 +643,7 @@ struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
     Tau = ParseDouble("Tau");
     const int parsed_step = ParseInt("Step");
     Step = static_cast<size_t>(parsed_step);
-
-    const bool has_advanced_stop_enabled_key = this->Has("AdvancedStopEnabled");
-    const bool advanced_stop_enabled = ParseBoolOr("AdvancedStopEnabled", false);
-    const bool has_advanced_stop_tuning_key =
-        this->Has("AdvancedStopEnergyAbsTol") ||
-        this->Has("AdvancedStopEnergyRelTol") ||
-        this->Has("AdvancedStopLambdaRelTol") ||
-        this->Has("AdvancedStopPatience") ||
-        this->Has("AdvancedStopMinSteps");
-
-    bool enable_advanced_stop = false;
-    if (has_advanced_stop_enabled_key && !advanced_stop_enabled) {
-      // Explicit false wins over implicit auto-enable from tuning keys.
-      enable_advanced_stop = false;
-    } else {
-      enable_advanced_stop = advanced_stop_enabled || has_advanced_stop_tuning_key;
-    }
-
-    if (enable_advanced_stop) {
-      AdvancedStopOptions options;
-      options.energy_abs_tol = ParseDoubleOr("AdvancedStopEnergyAbsTol", options.energy_abs_tol);
-      options.energy_rel_tol = ParseDoubleOr("AdvancedStopEnergyRelTol", options.energy_rel_tol);
-      options.lambda_rel_tol = ParseDoubleOr("AdvancedStopLambdaRelTol", options.lambda_rel_tol);
-
-      const int patience = ParseIntOr("AdvancedStopPatience", static_cast<int>(options.patience));
-      const int min_steps = ParseIntOr("AdvancedStopMinSteps", static_cast<int>(options.min_steps));
-
-      if (options.energy_abs_tol < 0.0) {
-        throw std::invalid_argument("AdvancedStopEnergyAbsTol must be >= 0.");
-      }
-      if (options.energy_rel_tol < 0.0) {
-        throw std::invalid_argument("AdvancedStopEnergyRelTol must be >= 0.");
-      }
-      if (options.lambda_rel_tol < 0.0) {
-        throw std::invalid_argument("AdvancedStopLambdaRelTol must be >= 0.");
-      }
-      if (patience <= 0) {
-        throw std::invalid_argument("AdvancedStopPatience must be > 0.");
-      }
-      if (min_steps <= 0) {
-        throw std::invalid_argument("AdvancedStopMinSteps must be > 0.");
-      }
-
-      options.patience = static_cast<size_t>(patience);
-      options.min_steps = static_cast<size_t>(min_steps);
-      advanced_stop = options;
-    }
+    advanced_stop = ParseAdvancedStopOptions(*this);
 
     const bool tau_schedule_enabled = ParseBoolOr("TauScheduleEnabled", false);
     if (tau_schedule_enabled) {
@@ -696,6 +719,165 @@ struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
         numerical_params.Dmin,
         numerical_params.Dmax,
         numerical_params.TruncErr,
+        cfg.energy_abs_tol,
+        cfg.energy_rel_tol,
+        cfg.lambda_rel_tol,
+        cfg.patience,
+        cfg.min_steps);
+  }
+};
+
+/**
+ * @brief Parameters for Loop Update (square Heisenberg NN only in this driver).
+ *
+ * Constraints for this first-phase driver:
+ * - ModelType must be `SquareHeisenberg`.
+ * - J2 must be 0 (nearest-neighbor only).
+ */
+struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
+  using AdvancedStopOptions = heisenberg_params::AdvancedStopOptions;
+
+  /**
+   * @brief Optional loop-update truncation controls.
+   *
+   * These keys are optional; defaults are chosen to match current legacy usage.
+   */
+  struct LoopTruncationOptions {
+    double arnoldi_tol = 1e-10;
+    size_t arnoldi_max_iter = 200;
+    double loop_inv_tol = 1e-8;
+    double fet_tolerance = 1e-12;
+    size_t fet_max_iter = 30;
+    size_t cg_max_iter = 100;
+    double cg_tol = 1e-10;
+    size_t cg_residue_restart = 20;
+    double cg_diag_shift = 0.0;
+  };
+
+  PhysicalParams physical_params;
+  NumericalParams numerical_params;
+  double Tau;    ///< Imaginary-time step length.
+  size_t Step;   ///< Loop-update sweep cap.
+  std::optional<AdvancedStopOptions> advanced_stop;  ///< Optional advanced stop config.
+  LoopTruncationOptions truncation;
+
+  LoopUpdateParams(const char *physics_file, const char *algorithm_file)
+      : qlmps::CaseParamsParserBasic(algorithm_file),
+        physical_params(physics_file),
+        numerical_params(algorithm_file) {
+    Tau = ParseDouble("Tau");
+    if (Tau <= 0.0) {
+      throw std::invalid_argument("Tau must be > 0 for loop_update.");
+    }
+    const int parsed_step = ParseInt("Step");
+    if (parsed_step <= 0) {
+      throw std::invalid_argument("Step must be > 0 for loop_update.");
+    }
+    Step = static_cast<size_t>(parsed_step);
+
+    advanced_stop = ParseAdvancedStopOptions(*this);
+
+    truncation.arnoldi_tol = ParseDoubleOr("ArnoldiTol", truncation.arnoldi_tol);
+    truncation.loop_inv_tol = ParseDoubleOr("LoopInvTol", truncation.loop_inv_tol);
+    truncation.fet_tolerance = ParseDoubleOr("FETTolerance", truncation.fet_tolerance);
+    truncation.cg_tol = ParseDoubleOr("CGTol", truncation.cg_tol);
+    truncation.cg_diag_shift = ParseDoubleOr("CGDiagShift", truncation.cg_diag_shift);
+
+    const int arnoldi_max_iter = ParseIntOr(
+        "ArnoldiMaxIter",
+        static_cast<int>(truncation.arnoldi_max_iter));
+    const int fet_max_iter = ParseIntOr(
+        "FETMaxIter",
+        static_cast<int>(truncation.fet_max_iter));
+    const int cg_max_iter = ParseIntOr(
+        "CGMaxIter",
+        static_cast<int>(truncation.cg_max_iter));
+    const int cg_residue_restart = ParseIntOr(
+        "CGResidueRestart",
+        static_cast<int>(truncation.cg_residue_restart));
+
+    if (truncation.arnoldi_tol <= 0.0) {
+      throw std::invalid_argument("ArnoldiTol must be > 0.");
+    }
+    if (truncation.loop_inv_tol <= 0.0) {
+      throw std::invalid_argument("LoopInvTol must be > 0.");
+    }
+    if (truncation.fet_tolerance <= 0.0) {
+      throw std::invalid_argument("FETTolerance must be > 0.");
+    }
+    if (truncation.cg_tol <= 0.0) {
+      throw std::invalid_argument("CGTol must be > 0.");
+    }
+    if (truncation.cg_diag_shift < 0.0) {
+      throw std::invalid_argument("CGDiagShift must be >= 0.");
+    }
+    if (arnoldi_max_iter <= 0) {
+      throw std::invalid_argument("ArnoldiMaxIter must be > 0.");
+    }
+    if (fet_max_iter <= 0) {
+      throw std::invalid_argument("FETMaxIter must be > 0.");
+    }
+    if (cg_max_iter <= 0) {
+      throw std::invalid_argument("CGMaxIter must be > 0.");
+    }
+    if (cg_residue_restart <= 0) {
+      throw std::invalid_argument("CGResidueRestart must be > 0.");
+    }
+
+    truncation.arnoldi_max_iter = static_cast<size_t>(arnoldi_max_iter);
+    truncation.fet_max_iter = static_cast<size_t>(fet_max_iter);
+    truncation.cg_max_iter = static_cast<size_t>(cg_max_iter);
+    truncation.cg_residue_restart = static_cast<size_t>(cg_residue_restart);
+
+    if (physical_params.ModelType != "SquareHeisenberg") {
+      throw std::invalid_argument(
+          "loop_update currently supports only ModelType=SquareHeisenberg.");
+    }
+    constexpr double kJ2Tolerance = 1e-15;
+    if (std::abs(physical_params.J2) > kJ2Tolerance) {
+      throw std::invalid_argument(
+          "loop_update currently supports nearest-neighbor Heisenberg only: require J2=0.");
+    }
+  }
+
+  /**
+   * @brief Build qlpeps loop-update truncation parameters.
+   */
+  qlpeps::LoopUpdateTruncatePara CreateLoopUpdateTruncatePara() const {
+    qlpeps::ArnoldiParams arnoldi_params(
+        truncation.arnoldi_tol,
+        truncation.arnoldi_max_iter);
+    qlpeps::ConjugateGradientParams cg_params(
+        truncation.cg_max_iter,
+        truncation.cg_tol,
+        truncation.cg_residue_restart,
+        truncation.cg_diag_shift);
+    qlpeps::FullEnvironmentTruncateParams fet_params(
+        numerical_params.Dmin,
+        numerical_params.Dmax,
+        numerical_params.TruncErr,
+        truncation.fet_tolerance,
+        truncation.fet_max_iter,
+        cg_params);
+    return qlpeps::LoopUpdateTruncatePara(
+        arnoldi_params,
+        truncation.loop_inv_tol,
+        fet_params);
+  }
+
+  /**
+   * @brief Build qlpeps loop-update driver parameters.
+   */
+  qlpeps::LoopUpdatePara CreateLoopUpdatePara() const {
+    const auto truncate_para = CreateLoopUpdateTruncatePara();
+    if (!advanced_stop.has_value()) {
+      return qlpeps::LoopUpdatePara(truncate_para, Step, Tau);
+    }
+    const auto &cfg = advanced_stop.value();
+    return qlpeps::LoopUpdatePara::Advanced(
+        truncate_para,
+        Step,
+        Tau,
         cfg.energy_abs_tol,
         cfg.energy_rel_tol,
         cfg.lambda_rel_tol,

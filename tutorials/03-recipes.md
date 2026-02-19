@@ -107,6 +107,8 @@ Advanced-stop variant (optional):
 
 ```bash
 ./simple_update ../params/physics_params.json ../params/simple_update_algorithm_params.json
+# Optional refinement (SquareHeisenberg with J2=0 only):
+./loop_update ../params/physics_params.json ../params/loop_update_algorithm_params.json
 mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_algorithm_params.json
 mpirun -n 1 ./mc_measure ../params/physics_params.json ../params/measure_algorithm_params.json
 ```
@@ -170,6 +172,22 @@ Machine-readable outputs:
 
 - `tau_schedule/schedule_summary.json`
 - `tau_schedule/schedule_summary.csv`
+
+Optional: run loop update after tau-schedule simple update:
+
+```bash
+./loop_update \
+  ../params/quickstart/physics_local_2x2_pbc.json \
+  ../params/quickstart/loop_update_local_2x2_pbc.json
+```
+
+Advanced-stop variant:
+
+```bash
+./loop_update \
+  ../params/quickstart/physics_local_2x2_pbc.json \
+  ../params/quickstart/loop_update_local_2x2_pbc_advanced_stop.json
+```
 
 ### Recipe B1: Tile SITPS (PBC/OBC) with `sitps_tile`
 

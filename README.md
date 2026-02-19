@@ -15,6 +15,7 @@ Main workflow binaries:
 | Binary | Purpose | Typical command |
 |---|---|---|
 | `simple_update` | Prepare initial PEPS/SITPS state | `./simple_update ../params/physics_params.json ../params/simple_update_algorithm_params.json` |
+| `loop_update` | Refine square Heisenberg NN PEPS/SITPS state with loop update | `./loop_update ../params/physics_params.json ../params/loop_update_algorithm_params.json` |
 | `vmc_optimize` | Optimize SITPS with VMC | `mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_algorithm_params.json` |
 | `mc_measure` | Run Monte Carlo measurement on SITPS | `mpirun -n 1 ./mc_measure ../params/physics_params.json ../params/measure_algorithm_params.json` |
 | `sitps_tile` | Tile/replicate SITPS to larger lattices with consistency checks | `./sitps_tile --input-dir tpsfinal --output-dir tpsfinal_8x8 --target-ly 8 --target-lx 8 --unit-ly 2 --unit-lx 2` |
@@ -30,6 +31,7 @@ Notes:
 
 - `ModelType` controls solver dispatch: `SquareHeisenberg`, `SquareXY`, `TriangleHeisenberg`.
 - `simple_update` supports optional advanced convergence stop via `AdvancedStop*` parameters in simple-update JSON.
+- `loop_update` currently supports only `ModelType=SquareHeisenberg` with `J2=0`.
 - Triangle PBC is not supported in current PEPS backend.
 - `src/kagome*` code is deprecated and corresponding binaries are disabled in default CMake.
 

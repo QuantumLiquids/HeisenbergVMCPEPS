@@ -97,6 +97,7 @@ link_libraries(
 add_library(myutil_obj OBJECT src/myutil.cpp)
 
 add_executable(simple_update src/simple_update.cpp)
+add_executable(loop_update src/loop_update.cpp)
 add_executable(vmc_optimize src/vmc_optimize.cpp)
 add_executable(mc_measure src/mc_measure.cpp)
 

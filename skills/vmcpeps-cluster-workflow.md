@@ -81,6 +81,13 @@ Before submitting any job:
 
 ## Cluster Operational Notes (susphy)
 
+### Core configuration (256G56c)
+- **56 cores per node**, 256 GB RAM.
+- VMC and measure (MPI stages): set `--ntasks` to `56 * N` where N is
+  the number of nodes (`--nodes N`), with `OMP_NUM_THREADS=1`. Each MPI
+  rank gets one core. Using fewer ranks wastes cores.
+- Simple update (stage 1) is single-process; core count irrelevant.
+
 ### Partition selection
 - Use `256G56c` for production runs. The 24c partitions have ABI
   compatibility issues with login-node builds.

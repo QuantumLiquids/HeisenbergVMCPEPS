@@ -93,9 +93,54 @@ Runtime effects:
   - `<TauScheduleDumpDir>/stage_XX_tau_<value>/tpsfinal`
   - `<TauScheduleDumpDir>/stage_XX_tau_<value>/peps`
 
-### 3) `vmc_algorithm_params.json`
+### 3) `loop_update_algorithm_params.json`
 
-#### 3.1 Required baseline keys
+Required keys:
+
+- `Tau` (double)
+- `Step` (int)
+- `Dmin` (int)
+- `Dmax` (int)
+- `TruncErr` (double)
+- `ThreadNum` (int)
+
+Optional advanced-stop keys (same semantics as simple update):
+
+- `AdvancedStopEnabled` (bool, default `false`)
+- `AdvancedStopEnergyAbsTol` (double, default `1e-8`)
+- `AdvancedStopEnergyRelTol` (double, default `1e-10`)
+- `AdvancedStopLambdaRelTol` (double, default `1e-6`)
+- `AdvancedStopPatience` (int, default `3`)
+- `AdvancedStopMinSteps` (int, default `10`)
+
+Optional loop-truncation keys:
+
+- `ArnoldiTol` (double, default `1e-10`)
+- `ArnoldiMaxIter` (int, default `200`)
+- `LoopInvTol` (double, default `1e-8`)
+- `FETTolerance` (double, default `1e-12`)
+- `FETMaxIter` (int, default `30`)
+- `CGMaxIter` (int, default `100`)
+- `CGTol` (double, default `1e-10`)
+- `CGResidueRestart` (int, default `20`)
+- `CGDiagShift` (double, default `0.0`)
+
+Current scope constraints (hard-fail if violated):
+
+- `ModelType` must be `SquareHeisenberg`
+- `J2` must be exactly zero within numerical tolerance
+
+Runtime effects:
+
+- Driver runs loop-update sweeps with `LoopUpdatePara` built from this JSON.
+- Advanced-stop (when active) can terminate before `Step`; otherwise run executes to `Step`.
+- Output always targets `tpsfinal/` (SITPS) and `peps/`.
+- Driver logs include an optional advanced-stop summary:
+  - `converged`, `stop_reason`, `executed_steps/Step`.
+
+### 4) `vmc_algorithm_params.json`
+
+#### 4.1 Required baseline keys
 
 - `MC_total_samples` (int)
 - `WarmUp` (int)
@@ -114,7 +159,7 @@ Important SR note:
 - `CGDiagShift` default is `0.0`.
 - `NormalizeUpdate` default is `false`.
 
-#### 3.2 Backend keys (selected by boundary condition)
+#### 4.2 Backend keys (selected by boundary condition)
 
 OBC/BMPS:
 
@@ -131,7 +176,7 @@ PBC/TRG:
 - required: `TRGDmin`, `TRGDmax`, `TRGTruncErr`
 - optional: `TRGInvRelativeEps` (default `1e-12`)
 
-#### 3.3 IO keys
+#### 4.3 IO keys
 
 - `WavefunctionBase` (string, default `"tps"`)
   - load path is `WavefunctionBase + "final"` -> usually `tpsfinal/`
@@ -143,7 +188,7 @@ Runtime effects:
 - `configuration{rank}` is loaded from `ConfigurationLoadDir` when available.
 - final configuration is dumped to `ConfigurationDumpDir`.
 
-#### 3.4 Optimizer-specific keys
+#### 4.4 Optimizer-specific keys
 
 SGD:
 
@@ -180,7 +225,7 @@ LBFGS:
 - `LBFGSAllowFallbackToFixedStep` (default `false`)
 - `LBFGSFallbackFixedStepScale` (default `0.2`)
 
-#### 3.5 Step selectors (SGD/SR only)
+#### 4.5 Step selectors (SGD/SR only)
 
 - `InitialStepSelectorEnabled` (default `false`)
 - `InitialStepSelectorMaxLineSearchSteps` (default `3`)
@@ -198,7 +243,7 @@ Constraints:
 - `InitialStepSelectorMaxLineSearchSteps > 0` when initial selector enabled.
 - `AutoStepSelectorEveryNSteps > 0` and `AutoStepSelectorPhaseSwitchRatio in [0,1]` when auto selector enabled.
 
-#### 3.6 Misc optional knobs
+#### 4.6 Misc optional knobs
 
 - `LRScheduler`: `ExponentialDecay`, `CosineAnnealing`, `Plateau`
 - `ClipNorm`, `ClipValue`
@@ -207,7 +252,7 @@ Constraints:
 - `MCRestrictU1` (default `true`, currently informational in unified drivers)
 - `InitialConfigStrategy` (default `Random`; accepts `Random`, `Neel`, `ThreeSublatticePolarizedSeed`)
 
-### 4) `measure_algorithm_params.json`
+### 5) `measure_algorithm_params.json`
 
 Required baseline keys:
 
@@ -230,13 +275,13 @@ Runtime effects:
 - loads SITPS from `WavefunctionBase + "final"` when available
 - uses warm-start logic from `configuration{rank}` files
 
-### 5) Accepted `MPSCompressScheme` values
+### 6) Accepted `MPSCompressScheme` values
 
 - `0` or `"SVD"`
 - `1` or `"Variational2Site"`
 - `2` or `"Variational1Site"`
 
-### 6) Validation and Hard-Fail Conditions
+### 7) Validation and Hard-Fail Conditions
 
 | Condition | Failure behavior |
 |---|---|
@@ -251,6 +296,11 @@ Runtime effects:
 | Selector numeric constraints violated | Throws invalid argument |
 | Active advanced-stop + `AdvancedStopEnergyAbsTol` / `AdvancedStopEnergyRelTol` / `AdvancedStopLambdaRelTol` < 0 | Throws invalid argument |
 | Active advanced-stop + `AdvancedStopPatience <= 0` or `AdvancedStopMinSteps <= 0` | Throws invalid argument |
+| `loop_update` with `ModelType != SquareHeisenberg` | Throws invalid argument |
+| `loop_update` with `J2 != 0` | Throws invalid argument |
+| `loop_update` with non-positive `ArnoldiTol` / `LoopInvTol` / `FETTolerance` / `CGTol` | Throws invalid argument |
+| `loop_update` with non-positive `ArnoldiMaxIter` / `FETMaxIter` / `CGMaxIter` / `CGResidueRestart` | Throws invalid argument |
+| `loop_update` with `CGDiagShift < 0` | Throws invalid argument |
 | `TauScheduleEnabled=true` but `TauScheduleTaus` missing/empty | Throws invalid argument |
 | `TauScheduleTaus` contains non-positive or malformed item | Throws invalid argument |
 | `TauScheduleStepCaps` contains non-positive or malformed item | Throws invalid argument |
@@ -263,7 +313,7 @@ Runtime effects:
 | Strong-Wolfe inequalities violated | Throws invalid argument |
 | SITPS boundary != physics boundary (VMC/measure load) | Runtime error and program exit |
 
-### 7) High-impact runtime notes
+### 8) High-impact runtime notes
 
 - Programs do not auto-fallback from `tpsfinal/` to `tpslowest/`.
 - For `Neel` and `ThreeSublatticePolarizedSeed`, odd `Lx*Ly` in fallback path throws.

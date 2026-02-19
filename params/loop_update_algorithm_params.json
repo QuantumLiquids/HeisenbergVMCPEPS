@@ -1,0 +1,25 @@
+{
+  "CaseParams": {
+    "TruncErr": 1e-5,
+    "Dmin": 4,
+    "Dmax": 4,
+    "ThreadNum": 1,
+    "Tau": 0.1,
+    "Step": 20,
+    "AdvancedStopEnabled": false,
+    "AdvancedStopEnergyAbsTol": 1e-8,
+    "AdvancedStopEnergyRelTol": 1e-10,
+    "AdvancedStopLambdaRelTol": 1e-6,
+    "AdvancedStopPatience": 3,
+    "AdvancedStopMinSteps": 10,
+    "ArnoldiTol": 1e-10,
+    "ArnoldiMaxIter": 200,
+    "LoopInvTol": 1e-8,
+    "FETTolerance": 1e-12,
+    "FETMaxIter": 30,
+    "CGMaxIter": 100,
+    "CGTol": 1e-10,
+    "CGResidueRestart": 20,
+    "CGDiagShift": 0.0
+  }
+}
