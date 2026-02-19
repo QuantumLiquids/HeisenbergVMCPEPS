@@ -143,3 +143,7 @@ option(BUILD_CONVERTER "Build TPS->SplitIndexTPS converter (temporary tool)" OFF
 if (BUILD_CONVERTER)
     add_executable(convert_tps_to_sitps src/convert_tps_to_sitps.cpp $<TARGET_OBJECTS:myutil_obj>)
 endif ()
+option(BUILD_TXT_TO_TPS_SITPS "Build TXT->TPS->SplitIndexTPS converter (temporary tool)" OFF)
+if (BUILD_TXT_TO_TPS_SITPS)
+    add_executable(txt_to_tps_sitps src/txt_to_tps_sitps.cpp)
+endif ()
