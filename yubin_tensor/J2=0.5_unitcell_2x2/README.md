@@ -1,8 +1,8 @@
-# Yubin Tensor (J2=0, Unit Cell 2x2)
+# Yubin Tensor (J2=0.5, Unit Cell 2x2)
 
-This directory stores the converted SplitIndexTPS for the current J2=0 dataset.
+This directory stores the converted SplitIndexTPS for the older J2=0.5 dataset.
 
-Source path:
+At conversion time, the source file path was:
 - `/Users/wanghaoxin/GitHub/HeisenbergVMCPEPS/out_tensor.txt`
 
 ## Conversion command
@@ -10,7 +10,7 @@ Source path:
 ```bash
 ./build/txt_to_tps_sitps \
   --input-txt out_tensor.txt \
-  --output-sitps-dir yubin_tensor/J2=0_unitcell_2x2/tpsfinal \
+  --output-sitps-dir yubin_tensor/J2=0.5_unitcell_2x2/tpsfinal \
   --ly 2 --lx 2 \
   --phy-dim 2 \
   --dim-r 5 --dim-l 5 --dim-u 5 --dim-d 5 \
@@ -34,6 +34,5 @@ Source path:
 
 ## Output
 
-- Canonical converted SITPS directory: `yubin_tensor/J2=0_unitcell_2x2/tpsfinal`
-- Metadata file: `yubin_tensor/J2=0_unitcell_2x2/tpsfinal/tps_meta.txt`
-
+- Canonical converted SITPS directory: `yubin_tensor/J2=0.5_unitcell_2x2/tpsfinal`
+- Metadata file: `yubin_tensor/J2=0.5_unitcell_2x2/tpsfinal/tps_meta.txt`
