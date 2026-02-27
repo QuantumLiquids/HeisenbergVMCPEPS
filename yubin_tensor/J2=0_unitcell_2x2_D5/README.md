@@ -1,6 +1,6 @@
-# Yubin Tensor (J2=0, Unit Cell 2x2)
+# Yubin Tensor (J2=0, D5, Unit Cell 2x2)
 
-This directory stores the converted SplitIndexTPS for the current J2=0 dataset.
+This directory stores the converted SplitIndexTPS for the J2=0, D=5 dataset.
 
 Source path:
 - `/Users/wanghaoxin/GitHub/HeisenbergVMCPEPS/out_tensor.txt`
@@ -10,7 +10,7 @@ Source path:
 ```bash
 ./build/txt_to_tps_sitps \
   --input-txt out_tensor.txt \
-  --output-sitps-dir yubin_tensor/J2=0_unitcell_2x2/tpsfinal \
+  --output-sitps-dir yubin_tensor/J2=0_unitcell_2x2_D5/tpsfinal \
   --ly 2 --lx 2 \
   --phy-dim 2 \
   --dim-r 5 --dim-l 5 --dim-u 5 --dim-d 5 \
@@ -34,6 +34,12 @@ Source path:
 
 ## Output
 
-- Canonical converted SITPS directory: `yubin_tensor/J2=0_unitcell_2x2/tpsfinal`
-- Metadata file: `yubin_tensor/J2=0_unitcell_2x2/tpsfinal/tps_meta.txt`
+- Canonical converted SITPS directory: `yubin_tensor/J2=0_unitcell_2x2_D5/tpsfinal`
+- Metadata file: `yubin_tensor/J2=0_unitcell_2x2_D5/tpsfinal/tps_meta.txt`
 
+## Energy measurement (8x8 PBC, tiled from 2x2, D=5)
+
+- Total energy: -42.9959 +/- 0.0021
+- Energy per site: -0.67181 +/- 0.00003
+- Measured on susphy cluster, 56 MPI ranks, 25648 MC samples
+- Run: `run/8x8J2=0D5_yubin_verify/20260220/` (job 521590)
