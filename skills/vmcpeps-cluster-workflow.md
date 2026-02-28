@@ -69,6 +69,7 @@ Before submitting any job:
    optimizer, iteration count)
 3. Verify SSH connectivity: `ssh susphy "hostname"`
 4. Check no conflicting jobs: `ssh susphy "squeue -u wanghx"`
+5. Create or update `run_history.json` with job entry (`status: "RUNNING"`)
 
 ## Parameter Defaults
 
@@ -126,18 +127,22 @@ After a successful run, key output files are:
 ## Directory Structure
 
 ```
-run/<case>/<timestamp>/
-  params/         -- frozen input JSONs
+run/<physics_case>/<timestamp_suffix>/
+  run_history.json -- structured job history (see Run History Protocol)
+  params/          -- frozen input JSONs
   stage1_su_tile.slurm
   stage2_vmc.slurm
   stage3_measure.slurm
-  su_unit/        -- simple update working dir
-  tpsfinal_tiled/ -- tiled TPS
-  vmc/            -- VMC working dir (energy/, tpsfinal/, checkpoints/)
-  measure/        -- measurement working dir (stats/, tpsfinal/)
-  logs/           -- slurm stdout/stderr
-  meta.json       -- run metadata + job IDs
+  su_unit/         -- simple update working dir
+  tpsfinal_tiled/  -- tiled TPS
+  vmc/             -- VMC working dir (energy/, tpsfinal/, checkpoints/)
+  measure/         -- measurement working dir (stats/, tpsfinal/)
+  logs/            -- slurm stdout/stderr
 ```
+
+Top-level directories are named by physics parameters (e.g., `8x8J2=0D5/`).
+Date subdirectories have descriptive suffixes (e.g., `20260220_yubin_verify/`,
+`20260220_201619_yubin_vmc/`).
 
 ## Run Journal Protocol
 
@@ -160,7 +165,13 @@ After fetching results (`fetch` command auto-appends to journal):
 
 ## Post-Fetch Analysis Checklist
 
-After fetching results, evaluate:
+After fetching results, update `run_history.json` first:
+1. Set job `status` to COMPLETED or FAILED
+2. Fill in `ended`, `last_energy`, `last_energy_per_site`
+3. If failed, write `failure_reason` (diagnosis, not just "killed")
+4. Update `current_status` and `best_energy_per_site`
+
+Then evaluate:
 
 - **Energy trend**: converging / plateaued / diverging?
 - **Spike count**: 0 ideal, >2 suggests lr or CGDiagShift issue
@@ -191,6 +202,86 @@ When patterns emerge across multiple runs, suggest:
 **Performance:**
 - "EvalT increased 3x from D=5 to D=8 but UpdateT stayed flat;
   contraction is the bottleneck, not the CG solver"
+
+## Run History Protocol
+
+Every cluster run date-subdirectory must have a `run_history.json`. This is
+the single source of truth for what happened, why, and the current state.
+
+### Schema
+
+```json
+{
+  "purpose": "One-line goal of this run",
+  "context": "Why this approach was chosen, what alternatives were tried",
+  "pipeline": ["su", "tile", "vmc", "measure"],
+  "physics": {
+    "model": "SquareHeisenberg",
+    "Lx": 8, "Ly": 8, "J2": 0.0, "D": 5, "BC": "Periodic"
+  },
+  "source_data": "relative path to initial tpsfinal, or null if from SU",
+  "jobs": [
+    {
+      "id": 522405,
+      "stage": "vmc",
+      "status": "COMPLETED|FAILED|RUNNING|PENDING|CANCELLED",
+      "submitted": "ISO 8601",
+      "ended": "ISO 8601 or null",
+      "failure_reason": "human-readable diagnosis or null",
+      "iterations_completed": 30,
+      "last_energy": -42.999,
+      "last_energy_per_site": -0.672,
+      "params_changed": {"InitialStepSelectorEnabled": false},
+      "notes": "free-text context"
+    }
+  ],
+  "current_status": "completed|running|failed|staged",
+  "best_energy_per_site": -0.672,
+  "best_energy_error": 0.00003
+}
+```
+
+### Update rules
+
+- **On submission**: Add job entry with `status: "RUNNING"`.
+- **On completion**: Update `status`, `ended`, energy results.
+- **On failure**: Set `status: "FAILED"`, write `failure_reason` with
+  root cause diagnosis (not just "killed" or "crashed").
+- **On resubmission**: Record `params_changed` in the new job entry.
+- **Prune transient retries**: If a job was just a stepping stone to
+  finding the real fix, delete its log files and don't record it.
+  Only keep meaningful attempts that contributed to diagnosis or results.
+
+### Discovery
+
+To scan all runs without reading logs:
+
+```bash
+# Find all documented runs
+glob("run/**/run_history.json")
+
+# Quick status overview
+jq '.current_status' run/**/run_history.json
+
+# Find all completed runs with energy
+jq 'select(.current_status=="completed") | .best_energy_per_site' run/**/run_history.json
+```
+
+### Failure signatures to document
+
+When writing `failure_reason`, include actionable diagnosis:
+- "InitialStepSelector bumped LR from 0.1 to 0.3, causing CG divergence"
+- "Killed by cluster disk failure and reboot on 2026-02-21"
+- "Loop update unstable: E0 drifted upward, advanced stop never triggered"
+
+Not: "job failed", "crashed", "exit code 127"
+
+## Benchmark Energies
+
+Reference energies for validating results are stored in
+`data/benchmarks/qmc_square_heisenberg.json`. When plotting energy
+trajectories, read this file and overlay the appropriate QMC benchmark
+line for the matching model, J2, and lattice size.
 
 ## Walltime Strategy
 
