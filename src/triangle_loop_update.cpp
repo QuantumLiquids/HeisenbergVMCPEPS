@@ -135,7 +135,11 @@ int main(int argc, char **argv) {
   ArnoldiParams arnoldi_params(1e-10, 200);
   double fet_tol = 1e-12;
   double fet_max_iter = 30;
-  ConjugateGradientParams cg_params(100, 1e-10, 20, 0.0);
+  ConjugateGradientParams cg_params{
+      .max_iter = 100,
+      .relative_tolerance = 1e-5,
+      .residual_recompute_interval = 20
+  };
 
   FullEnvironmentTruncateParams fet_params(params.Dmin, params.Dmax, params.TruncErr,
                                            fet_tol, fet_max_iter,

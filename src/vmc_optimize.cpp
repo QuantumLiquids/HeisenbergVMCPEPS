@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
                 << ", max_line_search_steps=" << params.initial_step_selector_max_line_search_steps
                 << ", deterministic=" << params.initial_step_selector_enable_in_deterministic
                 << std::endl;
-      std::cout << "  Auto: enabled=" << params.auto_step_selector_enabled
+      std::cout << "  Periodic: enabled=" << params.auto_step_selector_enabled
                 << ", every_n_steps=" << params.auto_step_selector_every_n_steps
                 << ", phase_switch_ratio=" << params.auto_step_selector_phase_switch_ratio
                 << ", deterministic=" << params.auto_step_selector_enable_in_deterministic

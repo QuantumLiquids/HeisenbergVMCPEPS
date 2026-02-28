@@ -80,7 +80,11 @@ int main(int argc, char **argv) {
         init_config,
         params.step_len,
         params.update_scheme,
-        ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
+        ConjugateGradientParams{
+            .max_iter = params.CGMaxIter,
+            .relative_tolerance = params.CGTol,
+            .residual_recompute_interval = static_cast<int>(params.CGResidueRestart)
+        });
   } else {
     optimize_para = qlpeps::VMCOptimizePara(
         BMPSTruncatePara(params.Db_min, params.Db_max,
@@ -94,7 +98,11 @@ int main(int argc, char **argv) {
         params.Ly, params.Lx,
         params.step_len,
         params.update_scheme,
-        ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
+        ConjugateGradientParams{
+            .max_iter = params.CGMaxIter,
+            .relative_tolerance = params.CGTol,
+            .residual_recompute_interval = static_cast<int>(params.CGResidueRestart)
+        });
   }
 
   using Model = KagomeSpinOneHalfHeisenbergOnSquarePEPSSolver<TenElemT, QNT>;

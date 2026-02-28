@@ -40,7 +40,11 @@ int main(int argc, char **argv) {
       params.Ly, params.Lx,
       params.step_len,
       params.update_scheme,
-      ConjugateGradientParams(params.CGMaxIter, params.CGTol, params.CGResidueRestart, params.CGDiagShift));
+      ConjugateGradientParams{
+          .max_iter = params.CGMaxIter,
+          .relative_tolerance = params.CGTol,
+          .residual_recompute_interval = static_cast<int>(params.CGResidueRestart)
+      });
 
   using Model = SpinOneHalfWaveFunctionFluctuationSqrPEPS<TenElemT, QNT>;
   VMCPEPSExecutor<TenElemT, QNT, MCUpdater, Model> *executor(nullptr);

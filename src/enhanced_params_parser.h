@@ -50,11 +50,20 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       epsilon = this->ParseDoubleOr("Epsilon", 1e-8);
       initial_accumulator = this->ParseDoubleOr("InitialAccumulator", 0.0);
     } else if (optimizer_type == "StochasticReconfiguration") {
-      // SR: require explicit CG params (no defaults) except Diagonal shift (defaults to 0.0)
+      // SR: require explicit CG params (no defaults) except diagonal shift (defaults to 0.0)
       cg_max_iter = ParseInt("CGMaxIter");
-      cg_tol = ParseDouble("CGTol");
-      cg_residue_restart = ParseInt("CGResidueRestart");
-      cg_diag_shift = this->ParseDoubleOr("CGDiagShift", 0.0);
+      cg_tol = heisenberg_params::ParseCGRelativeToleranceRequired(*this);
+      {
+        const std::string key = heisenberg_params::ResolveKeyAlias(
+            *this, "CGResidualRecomputeInterval", "CGResidueRestart");
+        cg_residue_restart = static_cast<size_t>(ParseInt(key));
+      }
+      {
+        const std::string key = heisenberg_params::ResolveKeyAlias(
+            *this, "SRDiagShift", "CGDiagShift",
+            "('diag_shift' moved from CG to SR in upstream PEPS.)");
+        cg_diag_shift = this->ParseDoubleOr(key, 0.0);
+      }
       normalize_update = this->ParseBoolOr("NormalizeUpdate", false);
     } else if (optimizer_type == "LBFGS") {
       lbfgs_history_size = ParseNonNegativeSizeTOr_("LBFGSHistorySize", 10);
@@ -278,7 +287,7 @@ private:
       initial_step_selector_max_line_search_steps,
       initial_step_selector_enable_in_deterministic
     };
-    base_params.auto_step_selector = qlpeps::AutoStepSelectorParams{
+    base_params.periodic_step_selector = qlpeps::PeriodicStepSelectorParams{
       auto_step_selector_enabled,
       auto_step_selector_every_n_steps,
       auto_step_selector_phase_switch_ratio,
@@ -302,8 +311,16 @@ private:
       qlpeps::AdaGradParams adagrad_params(epsilon, initial_accumulator);
       return qlpeps::OptimizerParams(base_params, adagrad_params, ckpt_params, spike_params);
     } else if (optimizer_type == "StochasticReconfiguration") {
-      qlpeps::ConjugateGradientParams cg_params(cg_max_iter, cg_tol, cg_residue_restart, cg_diag_shift);
-      qlpeps::StochasticReconfigurationParams sr_params(cg_params, normalize_update);
+      qlpeps::ConjugateGradientParams cg_params{
+          .max_iter = cg_max_iter,
+          .relative_tolerance = cg_tol,
+          .residual_recompute_interval = static_cast<int>(cg_residue_restart)
+      };
+      qlpeps::StochasticReconfigurationParams sr_params{
+          .cg_params = cg_params,
+          .diag_shift = cg_diag_shift,
+          .normalize_update = normalize_update
+      };
       return qlpeps::OptimizerParams(base_params, sr_params, ckpt_params, spike_params);
     } else if (optimizer_type == "LBFGS") {
       qlpeps::LBFGSParams lbfgs_params(

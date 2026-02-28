@@ -32,6 +32,89 @@
 
 namespace heisenberg_params {
 
+/**
+ * @brief Resolve a renamed JSON key: prefer new_key, fall back to old_key with warning.
+ *
+ * - If both keys exist, throws (ambiguous).
+ * - If only old_key exists, prints a deprecation warning to stderr and returns old_key.
+ * - Otherwise returns new_key (caller uses its default if absent).
+ */
+inline std::string ResolveKeyAlias(
+    qlmps::CaseParamsParserBasic &parser,
+    const std::string &new_key,
+    const std::string &old_key,
+    const std::string &context = "") {
+  const bool has_new = parser.Has(new_key);
+  const bool has_old = parser.Has(old_key);
+  if (has_new && has_old) {
+    throw std::invalid_argument(
+        "Ambiguous: both '" + old_key + "' (deprecated) and '" + new_key +
+        "' are present. Remove '" + old_key + "'.");
+  }
+  if (has_old) {
+    std::cerr << "[warn] JSON key '" << old_key << "' is deprecated; use '"
+              << new_key << "' instead.";
+    if (!context.empty()) std::cerr << " " << context;
+    std::cerr << std::endl;
+    return old_key;
+  }
+  return new_key;
+}
+
+/**
+ * @brief Parse CG tolerance with legacy sqrt() auto-conversion.
+ *
+ * New key `CGRelativeTolerance` is in norm-space (matches upstream).
+ * Old key `CGTol` was in squared-residual space; its value is auto-sqrt'd.
+ */
+inline double ParseCGRelativeTolerance(
+    qlmps::CaseParamsParserBasic &parser,
+    double default_value) {
+  const bool has_new = parser.Has("CGRelativeTolerance");
+  const bool has_old = parser.Has("CGTol");
+  if (has_new && has_old) {
+    throw std::invalid_argument(
+        "Ambiguous: both 'CGTol' (deprecated) and 'CGRelativeTolerance' "
+        "are present. Remove 'CGTol'.");
+  }
+  if (has_old) {
+    const double old_val = parser.ParseDouble("CGTol");
+    const double converted = std::sqrt(old_val);
+    std::cerr << "[warn] JSON key 'CGTol' is deprecated; use "
+                 "'CGRelativeTolerance' instead. Auto-converting: sqrt("
+              << old_val << ") = " << converted << std::endl;
+    return converted;
+  }
+  return parser.ParseDoubleOr("CGRelativeTolerance", default_value);
+}
+
+/**
+ * @brief Parse required CG tolerance (no default) with legacy sqrt() conversion.
+ */
+inline double ParseCGRelativeToleranceRequired(
+    qlmps::CaseParamsParserBasic &parser) {
+  const bool has_new = parser.Has("CGRelativeTolerance");
+  const bool has_old = parser.Has("CGTol");
+  if (has_new && has_old) {
+    throw std::invalid_argument(
+        "Ambiguous: both 'CGTol' (deprecated) and 'CGRelativeTolerance' "
+        "are present. Remove 'CGTol'.");
+  }
+  if (has_old) {
+    const double old_val = parser.ParseDouble("CGTol");
+    const double converted = std::sqrt(old_val);
+    std::cerr << "[warn] JSON key 'CGTol' is deprecated; use "
+                 "'CGRelativeTolerance' instead. Auto-converting: sqrt("
+              << old_val << ") = " << converted << std::endl;
+    return converted;
+  }
+  if (!has_new) {
+    throw std::invalid_argument(
+        "Missing required key 'CGRelativeTolerance' (or deprecated 'CGTol').");
+  }
+  return parser.ParseDouble("CGRelativeTolerance");
+}
+
 inline std::string TrimAsciiWhitespace(std::string s) {
   auto is_space = [](unsigned char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
@@ -749,9 +832,8 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
     double fet_tolerance = 1e-12;
     size_t fet_max_iter = 30;
     size_t cg_max_iter = 100;
-    double cg_tol = 1e-10;
+    double cg_tol = 1e-5;  ///< Relative tolerance in norm-space (upstream default: 1e-4).
     size_t cg_residue_restart = 20;
-    double cg_diag_shift = 0.0;
   };
 
   PhysicalParams physical_params;
@@ -780,8 +862,7 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
     truncation.arnoldi_tol = ParseDoubleOr("ArnoldiTol", truncation.arnoldi_tol);
     truncation.loop_inv_tol = ParseDoubleOr("LoopInvTol", truncation.loop_inv_tol);
     truncation.fet_tolerance = ParseDoubleOr("FETTolerance", truncation.fet_tolerance);
-    truncation.cg_tol = ParseDoubleOr("CGTol", truncation.cg_tol);
-    truncation.cg_diag_shift = ParseDoubleOr("CGDiagShift", truncation.cg_diag_shift);
+    truncation.cg_tol = ParseCGRelativeTolerance(*this, truncation.cg_tol);
 
     const int arnoldi_max_iter = ParseIntOr(
         "ArnoldiMaxIter",
@@ -792,9 +873,16 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
     const int cg_max_iter = ParseIntOr(
         "CGMaxIter",
         static_cast<int>(truncation.cg_max_iter));
-    const int cg_residue_restart = ParseIntOr(
-        "CGResidueRestart",
-        static_cast<int>(truncation.cg_residue_restart));
+    {
+      const std::string key = ResolveKeyAlias(
+          *this, "CGResidualRecomputeInterval", "CGResidueRestart");
+      const int val = ParseIntOr(
+          key, static_cast<int>(truncation.cg_residue_restart));
+      if (val <= 0) {
+        throw std::invalid_argument("CGResidualRecomputeInterval must be > 0.");
+      }
+      truncation.cg_residue_restart = static_cast<size_t>(val);
+    }
 
     if (truncation.arnoldi_tol <= 0.0) {
       throw std::invalid_argument("ArnoldiTol must be > 0.");
@@ -806,10 +894,7 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
       throw std::invalid_argument("FETTolerance must be > 0.");
     }
     if (truncation.cg_tol <= 0.0) {
-      throw std::invalid_argument("CGTol must be > 0.");
-    }
-    if (truncation.cg_diag_shift < 0.0) {
-      throw std::invalid_argument("CGDiagShift must be >= 0.");
+      throw std::invalid_argument("CGRelativeTolerance must be > 0.");
     }
     if (arnoldi_max_iter <= 0) {
       throw std::invalid_argument("ArnoldiMaxIter must be > 0.");
@@ -820,14 +905,10 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
     if (cg_max_iter <= 0) {
       throw std::invalid_argument("CGMaxIter must be > 0.");
     }
-    if (cg_residue_restart <= 0) {
-      throw std::invalid_argument("CGResidueRestart must be > 0.");
-    }
 
     truncation.arnoldi_max_iter = static_cast<size_t>(arnoldi_max_iter);
     truncation.fet_max_iter = static_cast<size_t>(fet_max_iter);
     truncation.cg_max_iter = static_cast<size_t>(cg_max_iter);
-    truncation.cg_residue_restart = static_cast<size_t>(cg_residue_restart);
 
     if (physical_params.ModelType != "SquareHeisenberg") {
       throw std::invalid_argument(
@@ -847,11 +928,11 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
     qlpeps::ArnoldiParams arnoldi_params(
         truncation.arnoldi_tol,
         truncation.arnoldi_max_iter);
-    qlpeps::ConjugateGradientParams cg_params(
-        truncation.cg_max_iter,
-        truncation.cg_tol,
-        truncation.cg_residue_restart,
-        truncation.cg_diag_shift);
+    qlpeps::ConjugateGradientParams cg_params{
+        .max_iter = truncation.cg_max_iter,
+        .relative_tolerance = truncation.cg_tol,
+        .residual_recompute_interval = static_cast<int>(truncation.cg_residue_restart)
+    };
     qlpeps::FullEnvironmentTruncateParams fet_params(
         numerical_params.Dmin,
         numerical_params.Dmax,
