@@ -15,9 +15,9 @@
     "MaxIterations": 10,
     "LearningRate": 0.1,
     "CGMaxIter": 50,
-    "CGTol": 1e-8,
-    "CGResidueRestart": 10,
-    "CGDiagShift": 1e-4,
+    "CGRelativeTolerance": 1e-4,
+    "CGResidualRecomputeInterval": 10,
+    "SRDiagShift": 1e-4,
     "NormalizeUpdate": false,
 
     "InitialStepSelectorEnabled": true,

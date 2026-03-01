@@ -41,6 +41,26 @@ Old JSON keys are still accepted with deprecation warnings. New keys align with 
 
 Both old and new keys are present → error (ambiguous).
 
+### MinSR optimizer (commit 6546955) - Wired 2026-03-01
+
+New optimizer variant: MinSR (Minimum-step Stochastic Reconfiguration, Chen & Heyl 2024).
+Solves Ns x Ns system instead of Np x Np when Np >> Ns.
+
+`MinSRParams` struct (has constructors):
+- `.r_pinv` (double, default 1e-12) — relative pseudo-inverse cutoff
+- `.a_pinv` (double, default 0.0) — absolute pseudo-inverse cutoff
+- `.soft_cutoff` (bool, default true) — soft cutoff formula (Eq. 23)
+- `.solver_mode` (MinSRSolverMode, default kAuto) — Auto/Replicated/Distributed
+
+`MinSRSolverMode` enum: `kAuto`, `kReplicated` (LAPACK), `kDistributed` (ScaLAPACK)
+
+JSON keys in HeisenbergVMCPEPS:
+- `"OptimizerType": "MinSR"`
+- `MinSRRPinv` (default 1e-12)
+- `MinSRAPinv` (default 0.0)
+- `MinSRSoftCutoff` (default true)
+- `MinSRSolverMode` (default "Auto"; accepts Auto/Replicated/Distributed)
+
 ### Other changes (not affecting this codebase directly)
 
 - `step_length_trajectory` -> `learning_rate_trajectory`

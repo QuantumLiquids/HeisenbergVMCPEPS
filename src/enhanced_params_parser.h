@@ -80,6 +80,11 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       lbfgs_max_direction_norm = this->ParseDoubleOr("LBFGSMaxDirectionNorm", 1e3);
       lbfgs_allow_fallback_to_fixed_step = this->ParseBoolOr("LBFGSAllowFallbackToFixedStep", false);
       lbfgs_fallback_fixed_step_scale = this->ParseDoubleOr("LBFGSFallbackFixedStepScale", 0.2);
+    } else if (optimizer_type == "MinSR") {
+      minsr_r_pinv = this->ParseDoubleOr("MinSRRPinv", 1e-12);
+      minsr_a_pinv = this->ParseDoubleOr("MinSRAPinv", 0.0);
+      minsr_soft_cutoff = this->ParseBoolOr("MinSRSoftCutoff", true);
+      minsr_solver_mode = ParseMinSRSolverMode_(this->ParseStrOr("MinSRSolverMode", "Auto"));
     }
     
     // Learning rate scheduler (optional)
@@ -185,6 +190,12 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   bool lbfgs_allow_fallback_to_fixed_step = false;
   double lbfgs_fallback_fixed_step_scale = 0.2;
   
+  // MinSR parameters
+  double minsr_r_pinv = 1e-12;
+  double minsr_a_pinv = 0.0;
+  bool minsr_soft_cutoff = true;
+  qlpeps::MinSRSolverMode minsr_solver_mode = qlpeps::MinSRSolverMode::kAuto;
+
   // Learning rate scheduler
   std::string lr_scheduler_type;
   double decay_rate = 0.95;
@@ -340,6 +351,10 @@ private:
         lbfgs_fallback_fixed_step_scale
       );
       return qlpeps::OptimizerParams(base_params, lbfgs_params, ckpt_params, spike_params);
+    } else if (optimizer_type == "MinSR") {
+      qlpeps::MinSRParams minsr_params(minsr_r_pinv, minsr_a_pinv,
+                                       minsr_soft_cutoff, minsr_solver_mode);
+      return qlpeps::OptimizerParams(base_params, minsr_params, ckpt_params, spike_params);
     } else {
       throw std::invalid_argument("Unknown optimizer type: " + optimizer_type);
     }
@@ -358,6 +373,7 @@ private:
     if (key == "adam") return "Adam";
     if (key == "adagrad") return "AdaGrad";
     if (key == "lbfgs" || key == "l-bfgs") return "LBFGS";
+    if (key == "minsr" || key == "min_sr" || key == "min-sr") return "MinSR";
     return heisenberg_params::TrimAsciiWhitespace(value);
   }
 
@@ -368,16 +384,26 @@ private:
     throw std::invalid_argument("LBFGSStepMode must be one of: Fixed, StrongWolfe, kFixed, kStrongWolfe");
   }
 
+  static qlpeps::MinSRSolverMode ParseMinSRSolverMode_(const std::string &value) {
+    const std::string key = ToLowerAscii_(heisenberg_params::TrimAsciiWhitespace(value));
+    if (key == "auto" || key == "kauto") return qlpeps::MinSRSolverMode::kAuto;
+    if (key == "replicated" || key == "kreplicated") return qlpeps::MinSRSolverMode::kReplicated;
+    if (key == "distributed" || key == "kdistributed") return qlpeps::MinSRSolverMode::kDistributed;
+    throw std::invalid_argument(
+        "MinSRSolverMode must be one of: Auto, Replicated, Distributed");
+  }
+
   void ValidateOptimizerConfig_() const {
     if (optimizer_type != "SGD" && optimizer_type != "Adam" &&
         optimizer_type != "AdaGrad" && optimizer_type != "StochasticReconfiguration" &&
-        optimizer_type != "LBFGS") {
+        optimizer_type != "LBFGS" && optimizer_type != "MinSR") {
       throw std::invalid_argument("Unknown optimizer type: " + optimizer_type);
     }
 
     const bool any_selector_enabled = initial_step_selector_enabled || auto_step_selector_enabled;
     if (any_selector_enabled &&
-        !(optimizer_type == "SGD" || optimizer_type == "StochasticReconfiguration")) {
+        !(optimizer_type == "SGD" || optimizer_type == "StochasticReconfiguration" ||
+          optimizer_type == "MinSR")) {
       throw std::invalid_argument(
           "Step selectors only support SGD and StochasticReconfiguration");
     }
@@ -402,6 +428,16 @@ private:
         throw std::invalid_argument(
             "AutoStepSelectorPhaseSwitchRatio must be within [0, 1]");
       }
+    }
+
+    if (optimizer_type == "MinSR") {
+      if (minsr_r_pinv < 0.0) {
+        throw std::invalid_argument("MinSRRPinv must be >= 0");
+      }
+      if (minsr_a_pinv < 0.0) {
+        throw std::invalid_argument("MinSRAPinv must be >= 0");
+      }
+      return;
     }
 
     if (optimizer_type != "LBFGS") {

@@ -25,12 +25,24 @@ const char* LBFGSStepModeToString(qlpeps::LBFGSStepMode mode) {
   }
   return "Unknown";
 }
+
+const char* MinSRSolverModeToString(qlpeps::MinSRSolverMode mode) {
+  switch (mode) {
+    case qlpeps::MinSRSolverMode::kAuto:
+      return "Auto";
+    case qlpeps::MinSRSolverMode::kReplicated:
+      return "Replicated";
+    case qlpeps::MinSRSolverMode::kDistributed:
+      return "Distributed";
+  }
+  return "Unknown";
+}
 }  // namespace
 
 int main(int argc, char **argv) {
   if (argc != 3) {
     std::cout << "Usage: " << argv[0] << " <physics_params.json> <vmc_algorithm_params.json>" << std::endl;
-    std::cout << "Supported optimizers: SGD, Adam, AdaGrad, StochasticReconfiguration, LBFGS" << std::endl;
+    std::cout << "Supported optimizers: SGD, Adam, AdaGrad, StochasticReconfiguration, LBFGS, MinSR" << std::endl;
     return -1;
   }
   
@@ -68,6 +80,13 @@ int main(int argc, char **argv) {
                   << ", tol_grad=" << params.lbfgs_tolerance_grad
                   << ", tol_change=" << params.lbfgs_tolerance_change << std::endl;
       }
+    }
+    if (params.optimizer_type == "MinSR") {
+      std::cout << "MinSR Config: r_pinv=" << params.minsr_r_pinv
+                << ", a_pinv=" << params.minsr_a_pinv
+                << ", soft_cutoff=" << params.minsr_soft_cutoff
+                << ", solver_mode=" << MinSRSolverModeToString(params.minsr_solver_mode)
+                << std::endl;
     }
     if (params.initial_step_selector_enabled || params.auto_step_selector_enabled) {
       std::cout << "Step Selectors:" << std::endl;

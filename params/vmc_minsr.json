@@ -1,0 +1,22 @@
+{
+  "CaseParams": {
+    "BMPSTruncErr": 1e-15,
+    "ThreadNum": 2,
+
+    "MC_total_samples": 10000,
+    "WarmUp": 1000,
+    "MCLocalUpdateSweepsBetweenSample": 2,
+
+    "Dbmps_min": 4,
+    "Dbmps_max": 4,
+    "MPSCompressScheme": "Variational2Site",
+
+    "OptimizerType": "MinSR",
+    "MaxIterations": 30,
+    "LearningRate": 0.1,
+    "MinSRRPinv": 1e-12,
+    "MinSRAPinv": 0.0,
+    "MinSRSoftCutoff": true,
+    "MinSRSolverMode": "Auto"
+  }
+}

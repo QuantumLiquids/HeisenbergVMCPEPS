@@ -16,9 +16,9 @@
     "LearningRate": 0.1,
 
     "CGMaxIter": 600,
-    "CGTol": 1e-5,
-    "CGResidueRestart": 20,
-    "CGDiagShift": 0.01,
+    "CGRelativeTolerance": 3.162e-3,
+    "CGResidualRecomputeInterval": 20,
+    "SRDiagShift": 0.01,
 
     "WavefunctionBase": "tps",
     "ConfigurationLoadDir": "configs",
