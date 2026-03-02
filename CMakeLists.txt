@@ -71,6 +71,18 @@ find_package(MPI REQUIRED)
 # Prefer CXX-only OpenMP to avoid requiring OpenMP_C on some platforms
 find_package(OpenMP COMPONENTS CXX REQUIRED)
 
+option(QLPEPS_USE_SCALAPACK "Enable ScaLAPACK for distributed MinSR eigensolve" ON)
+if (QLPEPS_USE_SCALAPACK)
+    find_package(ScaLAPACK)
+    if (SCALAPACK_FOUND)
+        add_definitions(-DQLPEPS_HAS_SCALAPACK)
+        link_libraries(ScaLAPACK::ScaLAPACK)
+        message(STATUS "ScaLAPACK found -- MinSR distributed solver enabled")
+    else ()
+        message(WARNING "QLPEPS_USE_SCALAPACK=ON but ScaLAPACK not found -- MinSR uses replicated LAPACK unless MinSRSolverMode=Distributed")
+    endif ()
+endif ()
+
 
 find_path(TENSOR_HEADER_PATH "qlten")
 find_path(MPS_HEADER_PATH "qlmps")
