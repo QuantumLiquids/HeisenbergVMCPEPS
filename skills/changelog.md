@@ -1,5 +1,33 @@
 # Changelog: Upstream PEPS API Changes
 
+## PEPS commit e572888 - Applied 2026-03-03
+
+Cluster binary rebuilt 2026-03-02 20:58. **Jobs submitted before this date
+do NOT have these features.**
+
+### JSONL structured logging (auto-enabled)
+
+Per-iteration machine-readable log auto-generated at
+`vmc/energy/optimization_log.jsonl`. No configuration needed — upstream
+auto-configures when `tps_dump_base_name` is set (always true in our runs).
+
+### PeriodicStepSelector fixes
+
+- Selector **no longer triggers at iter 0** (previously caused 2x EvalT
+  overhead on the very first iteration).
+- New `SelectorT` field in log output separates selector time from UpdateT.
+- Log line now shows `CG resid` field.
+
+### Affected jobs
+
+Jobs using the old binary (before 2026-03-02 rebuild):
+- 523623, 523634, 524096, 524117, 524119, 524679 — no JSONL, no SelectorT,
+  iter 0 has 2x EvalT spike in UpdateT.
+
+Jobs using the new binary (after rebuild): will have JSONL and fixes.
+
+---
+
 ## PEPS post-v0.1.0 (up to f13022c) - Applied 2026-02-28
 
 ### ConjugateGradientParams (aggregate, no constructors)
