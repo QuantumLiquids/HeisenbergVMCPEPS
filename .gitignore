@@ -74,3 +74,6 @@ artifacts/
 
 # Run journal (local operational state)
 run_journal.jsonl
+
+
+draft/
