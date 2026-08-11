@@ -38,13 +38,14 @@ Notes:
 ## Dependencies
 
 - C++20 compiler
-- CMake >= 3.14
-- BLAS/LAPACK (Intel MKL or OpenBLAS)
-- MPI
-- OpenMP (CXX)
-- QuantumLiquids/TensorToolkit
-- QuantumLiquids/UltraDMRG
-- QuantumLiquids/PEPS
+- CMake >= 3.27
+- An installed `PEPS` CMake package, together with its `UltraDMRG` and
+  `TensorToolkit` package dependencies
+
+The upstream package targets select and propagate MPI, OpenMP, BLAS/LAPACK,
+HPTT, and other numeric dependencies. To enable distributed MinSR, configure
+and install PEPS with `-DQLPEPS_USE_SCALAPACK=ON`; consumers inherit that
+capability through `PEPS::PEPS`.
 
 ## Build
 
@@ -56,6 +57,9 @@ mkdir -p build
 cmake -S . -B build
 cmake --build build -j4
 ```
+
+If the upstream packages use a non-system install prefix, add
+`-DCMAKE_PREFIX_PATH=/path/to/prefix` to the configure command.
 
 macOS/Homebrew LLVM (recommended when you hit libc++ ABI mismatch):
 

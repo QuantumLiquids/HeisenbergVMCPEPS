@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
     mpo_gen.AddTerm(0.5 * params.J2, sp, link.first, sm, link.second);
     mpo_gen.AddTerm(0.5 * params.J2, sm, link.first, sp, link.second);
   }
-  auto mro = mpo_gen.GenMatReprMPO(false);
+  auto operator_plan = mpo_gen.GenDmrgOperatorPlan();
 
   using FiniteMPST = qlmps::FiniteMPS<TenElemT, QNT>;
   FiniteMPST mps(sites);
@@ -158,8 +158,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  const qlmps::DMRGOptions dmrg_options;
   if (!has_bond_dimension_parameter) {
-    e0 = qlmps::FiniteDMRG(mps, mro, sweep_params, comm);
+    e0 = qlmps::FiniteDMRG(mps, operator_plan, sweep_params, dmrg_options, comm);
   } else {
     size_t DMRG_time = input_D_set.size();
     std::vector<size_t> MaxLanczIterSet(DMRG_time);
@@ -187,7 +188,8 @@ int main(int argc, char *argv[]) {
           qlmps::LanczosParams(params.LanczErr, MaxLanczIterSet[i]),
           params.noise
       );
-      e0 = qlmps::FiniteDMRG(mps, mro, sweep_params_with_spec_D, comm);
+      e0 = qlmps::FiniteDMRG(
+          mps, operator_plan, sweep_params_with_spec_D, dmrg_options, comm);
     }
   }
   std::cout << "E0/site: " << e0 / static_cast<double>(N) << std::endl;

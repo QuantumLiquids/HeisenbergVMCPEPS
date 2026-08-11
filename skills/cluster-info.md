@@ -68,16 +68,16 @@ set -x; set -u
 
 ### Build on cluster
 
+Install TensorToolkit, UltraDMRG, and PEPS into a common prefix in dependency
+order. Build PEPS with `-DQLPEPS_USE_SCALAPACK=ON` when distributed MinSR is
+required. The example below assumes that prefix is `$HOME/.local`.
+
 ```bash
 cd ~/HeisenbergVMCPEPS/build
 cmake .. \
   -DCMAKE_CXX_COMPILER=/share/software/gcc/12.1.0/bin/g++ \
   -DCMAKE_C_COMPILER=/share/software/gcc/12.1.0/bin/gcc \
-  -Dhptt_INCLUDE_DIR=$HOME/TensorToolkit/external/hptt/include \
-  -Dhptt_LIBRARY=$HOME/TensorToolkit/build/external/hptt/libhptt.a \
-  -DTENSOR_HEADER_PATH=$HOME/TensorToolkit/include \
-  -DMPS_HEADER_PATH=$HOME/UltraDMRG/include \
-  -DPEPS_HEADER_PATH=$HOME/PEPS/include
+  -DCMAKE_PREFIX_PATH=$HOME/.local
 make -j4
 ```
 
