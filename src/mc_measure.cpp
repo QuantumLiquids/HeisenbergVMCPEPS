@@ -52,7 +52,8 @@ int main(int argc, char **argv) {
   const std::string tps_final_dir = params.io_params.wavefunction_base + "final";
   if (qlmps::IsPathExist(tps_final_dir)) {
     if (rank == 0) std::cout << "Loading SplitIndexTPS from: " << tps_final_dir << std::endl;
-    sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx);
+    sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx,
+                                         params.physical_params.BoundaryCondition);
     sitps.Load(tps_final_dir);
     if (sitps.GetBoundaryCondition() != params.physical_params.BoundaryCondition) {
       if (rank == 0) {

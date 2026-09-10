@@ -61,7 +61,7 @@ else ()
 endif ()
 
 
-find_package(PEPS 0.1 CONFIG REQUIRED)
+find_package(PEPS 0.2 CONFIG REQUIRED)
 
 # PEPS::PEPS carries the complete public dependency chain, including
 # UltraDMRG, TensorToolkit, MPI, the numeric backend, HPTT, and optional

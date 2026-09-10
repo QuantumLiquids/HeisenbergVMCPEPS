@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
   }
   heisenberg_params::PhysicalParams phys(argv[1]);
   double magnitude = std::strtod(argv[2], nullptr);
-  SplitIndexTPS<TenElemT, QNT> split_index_tps(phys.Ly, phys.Lx);
+  SplitIndexTPS<TenElemT, QNT> split_index_tps(phys.Ly, phys.Lx, phys.BoundaryCondition);
   bool is_load = split_index_tps.Load();
   if (!is_load) {
     std::cout << "Loading TPS files fails." << std::endl;

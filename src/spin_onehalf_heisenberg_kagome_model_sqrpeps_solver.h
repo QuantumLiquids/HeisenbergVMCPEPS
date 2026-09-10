@@ -28,7 +28,7 @@ SplitIndexTPS<TenElemT, QNT> KagomeSquarePEPSToSplitIndexTPS(
   size_t rows = peps.Rows() / 2, cols = peps.Cols() / 2;
   size_t phy_dim = tps({0, 0}).GetIndex(4).dim(); //2
   size_t combined_phy_dim = phy_dim * phy_dim * phy_dim;
-  SplitIndexTPS<TenElemT, QNT> split_idx_tps(rows, cols);
+  SplitIndexTPS<TenElemT, QNT> split_idx_tps(rows, cols, peps.GetBoundaryCondition());
   using Tensor = QLTensor<TenElemT, QNT>;
   for (size_t row = 0; row < rows; row++) {
     for (size_t col = 0; col < cols; col++) {

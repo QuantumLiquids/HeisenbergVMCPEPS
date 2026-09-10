@@ -121,7 +121,8 @@ int main(int argc, char **argv) {
   if (qlmps::IsPathExist(tps_final)) {
     if (rank == 0) std::cout << "Loading SplitIndexTPS from: " << tps_final << std::endl;
     // Debug-only probe: try load single-site tensor (0,0) first
-    sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx);
+    sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx,
+                                         params.physical_params.BoundaryCondition);
     sitps.Load(tps_final);
     if (sitps.GetBoundaryCondition() != params.physical_params.BoundaryCondition) {
       if (rank == 0) {

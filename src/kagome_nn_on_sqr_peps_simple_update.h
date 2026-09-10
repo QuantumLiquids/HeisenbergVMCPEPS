@@ -56,7 +56,7 @@ class KagomeNNModelSquarePEPSSimpleUpdateExecutor : public SimpleUpdateExecutor<
 template<typename TenElemT, typename QNT>
 double KagomeNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>::SimpleUpdateSweep_(void) {
   Timer simple_update_sweep_timer("simple_update_sweep");
-  SimpleUpdateTruncatePara para(this->update_para.Dmin, this->update_para.Dmax, this->update_para.Trunc_err);
+  SimpleUpdateTruncatePara para = this->update_para.MakeTruncatePara();
   double e0 = 0.0;
 
   //first row, horizontal bond link
