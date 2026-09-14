@@ -86,3 +86,8 @@ Legacy snapshots remain under `tutorials/deprecated/`.
 ## Author
 
 Hao-Xin Wang — [wanghaoxin1996@gmail.com](mailto:wanghaoxin1996@gmail.com)
+
+## Simple update MPI
+
+Multiple ranks automatically enable tiled NN/NNN simple update; single-rank execution
+keeps the existing serial algorithm. See [usage and verification](docs/simple_update_mpi.md).

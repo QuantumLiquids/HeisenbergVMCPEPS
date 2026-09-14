@@ -16,6 +16,7 @@
 #include "qlpeps/api/conversions.h"
 #include "./qldouble.h"
 #include "./common_params.h"
+#include <mpi.h>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -190,9 +191,12 @@ void DumpSitpsAndPeps(
 
 }  // namespace
 
-int main(int argc, char **argv) {
+/** @brief Run one serial or collective update; only rank zero reads/writes PEPS files. */
+int RunSimpleUpdate(int argc, char **argv, bool use_mpi, int rank) {
   if (argc != 3) {
-    std::cout << "Usage: " << argv[0] << " <physics_params.json> <simple_update_algorithm_params.json>" << std::endl;
+    if (rank == 0) {
+      std::cout << "Usage: " << argv[0] << " <physics_params.json> <simple_update_algorithm_params.json>" << std::endl;
+    }
     return -1;
   }
   
@@ -201,10 +205,15 @@ int main(int argc, char **argv) {
   // Model/data dispatch hints (Square XY handled by separate gate below)
   const std::string model = params.physical_params.ModelType;
   const bool is_triangle = (model.find("Triangle") != std::string::npos);
+  if (use_mpi && is_triangle) {
+    throw std::invalid_argument("MPI execution supports square NN/NNN simple update only; triangle models require serial execution");
+  }
   const bool is_xy = (!is_triangle && (model == "SquareXY"));
   const auto bc = params.physical_params.BoundaryCondition;
   if (is_triangle && bc == qlpeps::BoundaryCondition::Periodic) {
-    std::cerr << "ERROR: Triangle simple update with PBC is not supported." << std::endl;
+    if (rank == 0) {
+      std::cerr << "ERROR: Triangle simple update with PBC is not supported." << std::endl;
+    }
     return -2;
   }
 
@@ -282,41 +291,43 @@ int main(int argc, char **argv) {
       : params.CreateSimpleUpdatePara();
 
   qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.physical_params.Ly, params.physical_params.Lx, bc);
-  if (qlmps::IsPathExist(peps_path)) {
-    peps0.Load(peps_path);
-  } else {
-    if (is_triangle) {
-      // Three-sublattice ordered initial state for triangle lattice
-      for (size_t y = 0; y < params.physical_params.Ly; y++) {
-        for (size_t x = 0; x < params.physical_params.Lx; x++) {
-          size_t sublattice_num;
-          if (y >= x) {
-            sublattice_num = (y - x) % 3;
-          } else {
-            sublattice_num = (3 - (x - y) % 3) % 3;
-          }
-          switch (sublattice_num) {
-            case 0: peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = 0;
-                    peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = 1; // spin down
-                    break;
-            case 1: peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = -std::sqrt(3.0) / 2.0;
-                    peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = -1.0 / 2.0;
-                    break;
-            case 2: peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = std::sqrt(3.0) / 2.0;
-                    peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = -1.0 / 2.0;
-                    break;
-          }
-        }
-      }
+  if (rank == 0) {
+    if (qlmps::IsPathExist(peps_path)) {
+      peps0.Load(peps_path);
     } else {
-      std::vector<std::vector<size_t>> activates(params.physical_params.Ly, std::vector<size_t>(params.physical_params.Lx));
-      for (size_t y = 0; y < params.physical_params.Ly; y++) {
-        for (size_t x = 0; x < params.physical_params.Lx; x++) {
-          size_t sz_int = x + y;
-          activates[y][x] = sz_int % 2;
+      if (is_triangle) {
+        // Three-sublattice ordered initial state for triangle lattice
+        for (size_t y = 0; y < params.physical_params.Ly; y++) {
+          for (size_t x = 0; x < params.physical_params.Lx; x++) {
+            size_t sublattice_num;
+            if (y >= x) {
+              sublattice_num = (y - x) % 3;
+            } else {
+              sublattice_num = (3 - (x - y) % 3) % 3;
+            }
+            switch (sublattice_num) {
+              case 0: peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = 0;
+                      peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = 1; // spin down
+                      break;
+              case 1: peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = -std::sqrt(3.0) / 2.0;
+                      peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = -1.0 / 2.0;
+                      break;
+              case 2: peps0.Gamma({y, x})({0, 0, 0, 0, 0}) = std::sqrt(3.0) / 2.0;
+                      peps0.Gamma({y, x})({0, 0, 0, 0, 1}) = -1.0 / 2.0;
+                      break;
+            }
+          }
         }
+      } else {
+        std::vector<std::vector<size_t>> activates(params.physical_params.Ly, std::vector<size_t>(params.physical_params.Lx));
+        for (size_t y = 0; y < params.physical_params.Ly; y++) {
+          for (size_t x = 0; x < params.physical_params.Lx; x++) {
+            size_t sz_int = x + y;
+            activates[y][x] = sz_int % 2;
+          }
+        }
+        peps0.Initial(activates);
       }
-      peps0.Initial(activates);
     }
   }
 
@@ -329,17 +340,32 @@ int main(int argc, char **argv) {
     su_exe = std::make_unique<qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT>>(update_para, peps0, ham_nn, ham_nnn);
   }
 
+  // The base executor also covers serial-only models; dispatch MPI only to supported types.
+  const auto execute = [&] {
+    if (!use_mpi) {
+      su_exe->Execute();
+    } else if (auto *nn = dynamic_cast<qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT> *>(su_exe.get())) {
+      nn->ExecuteMPI(MPI_COMM_WORLD);
+    } else if (auto *nnn = dynamic_cast<qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT> *>(su_exe.get())) {
+      nnn->ExecuteMPI(MPI_COMM_WORLD);
+    } else {
+      throw std::logic_error("Selected simple-update executor does not support MPI");
+    }
+  };
+
   const std::string sitps_final = "tpsfinal";
   int return_code = 0;
   if (!tau_schedule_enabled) {
-    su_exe->Execute();
+    execute();
     if (params.advanced_stop.has_value()) {
       const auto &summary = su_exe->GetLastRunSummary();
       const std::string stop_reason = StopReasonToString(summary.stop_reason);
-      std::cout << "Advanced stop summary: converged=" << std::boolalpha << summary.converged
-                << ", stop_reason=" << stop_reason
-                << ", executed_steps=" << summary.executed_steps
-                << "/" << params.Step << std::endl;
+      if (rank == 0) {
+        std::cout << "Advanced stop summary: converged=" << std::boolalpha << summary.converged
+                  << ", stop_reason=" << stop_reason
+                  << ", executed_steps=" << summary.executed_steps
+                  << "/" << params.Step << std::endl;
+      }
     }
   } else {
     const auto &schedule = params.tau_schedule.value();
@@ -350,19 +376,23 @@ int main(int argc, char **argv) {
       const size_t stage_index = stage + 1;
       const double stage_tau = schedule.taus[stage];
       const size_t stage_step_cap = schedule.step_caps[stage];
-      std::cout << "=== Tau stage " << stage_index << "/" << schedule.taus.size()
-                << ": tau=" << stage_tau
-                << ", step_cap=" << stage_step_cap
-                << " ===" << std::endl;
+      if (rank == 0) {
+        std::cout << "=== Tau stage " << stage_index << "/" << schedule.taus.size()
+                  << ": tau=" << stage_tau
+                  << ", step_cap=" << stage_step_cap
+                  << " ===" << std::endl;
+      }
 
       su_exe->update_para = params.CreateSimpleUpdateParaForStage(stage_tau, stage_step_cap);
-      su_exe->Execute();
+      execute();
       const auto &summary = su_exe->GetLastRunSummary();
       const std::string stop_reason = StopReasonToString(summary.stop_reason);
-      std::cout << "=== Stage result: converged=" << std::boolalpha << summary.converged
-                << ", executed_steps=" << summary.executed_steps
-                << ", stop_reason=" << stop_reason
-                << " ===" << std::endl;
+      if (rank == 0) {
+        std::cout << "=== Stage result: converged=" << std::boolalpha << summary.converged
+                  << ", executed_steps=" << summary.executed_steps
+                  << ", stop_reason=" << stop_reason
+                  << " ===" << std::endl;
+      }
 
       stage_summaries.push_back(StageSummaryRecord{
           stage_index,
@@ -373,7 +403,7 @@ int main(int argc, char **argv) {
           summary.executed_steps
       });
 
-      if (schedule.dump_each_stage) {
+      if (rank == 0 && schedule.dump_each_stage) {
         const std::filesystem::path stage_dir =
             std::filesystem::path(schedule.dump_dir) /
             BuildStageDirName(stage_index, schedule.taus.size(), stage_tau);
@@ -395,22 +425,60 @@ int main(int argc, char **argv) {
       }
     }
 
-    WriteScheduleSummaryJson(
-        schedule.dump_dir,
-        true,
-        schedule.taus.size(),
-        schedule.require_converged,
-        schedule.abort_on_stage_failure,
-        overall_success,
-        stage_summaries);
-    WriteScheduleSummaryCsv(schedule.dump_dir, stage_summaries);
+    if (rank == 0) {
+      WriteScheduleSummaryJson(
+          schedule.dump_dir,
+          true,
+          schedule.taus.size(),
+          schedule.require_converged,
+          schedule.abort_on_stage_failure,
+          overall_success,
+          stage_summaries);
+      WriteScheduleSummaryCsv(schedule.dump_dir, stage_summaries);
+    }
   }
 
-  DumpSitpsAndPeps(*su_exe, sitps_final, peps_path, true);
+  if (rank == 0) { DumpSitpsAndPeps(*su_exe, sitps_final, peps_path, true); }
 
-  std::cout << "Simple Update completed." << std::endl;
-  std::cout << "SplitIndexTPS saved to: " << sitps_final << std::endl;
-  std::cout << "PEPS saved to: " << peps_path << std::endl;
+  if (rank == 0) {
+    std::cout << "Simple Update completed." << std::endl;
+  }
+  if (rank == 0) {
+    std::cout << "SplitIndexTPS saved to: " << sitps_final << std::endl;
+  }
+  if (rank == 0) {
+    std::cout << "PEPS saved to: " << peps_path << std::endl;
+  }
 
   return return_code;
+}
+
+/** @brief Initialize MPI, select layered execution for multiple ranks, and fail collectively on errors. */
+int main(int argc, char **argv) {
+  // Numerical kernels may use threads; only the main thread calls MPI.
+  int provided = MPI_THREAD_SINGLE;
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+  if (provided < MPI_THREAD_FUNNELED) {
+    std::cerr << "Simple update requires MPI_THREAD_FUNNELED support" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    return 1;
+  }
+  int rank = 0, ranks = 1;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &ranks);
+  int result = 0;
+  try {
+    const bool use_mpi = ranks > 1;
+    result = RunSimpleUpdate(argc, argv, use_mpi, rank);
+  } catch (const std::exception &error) {
+    std::cerr << "Simple update rank " << rank << ": " << error.what() << std::endl;
+    if (ranks > 1) { MPI_Abort(MPI_COMM_WORLD, 1); }
+    result = 1;
+  } catch (...) {
+    std::cerr << "Simple update rank " << rank << ": unknown failure" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    result = 1;
+  }
+  MPI_Finalize();
+  return result;
 }
