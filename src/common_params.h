@@ -17,6 +17,7 @@
 #include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
 #include "qlpeps/two_dim_tn/common/boundary_condition.h"
 #include "qlpeps/two_dim_tn/tensor_network_2d/trg/trg_contractor.h"
+#include "qlpeps/two_dim_tn/tensor_network_2d/hotrg/hotrg_contractor.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -208,6 +209,40 @@ inline qlpeps::BoundaryCondition ParseBoundaryCondition(const std::string &value
   if (key == "open" || key == "obc") return qlpeps::BoundaryCondition::Open;
   if (key == "periodic" || key == "pbc") return qlpeps::BoundaryCondition::Periodic;
   throw std::invalid_argument("BoundaryCondition must be Open/OBC or Periodic/PBC.");
+}
+
+/**
+ * @brief Contraction backend used for periodic boundary conditions.
+ *
+ * TRG is the historical default and only accepts square lattices with linear
+ * size 2^k or 3*2^k. HOTRG accepts any rows x cols with both dimensions >= 2.
+ */
+enum class PBCContractorKind {
+  TRG,
+  HOTRG,
+};
+
+/** @brief Parse the `PBCContractor` value; accepts "TRG" and "HOTRG" case-insensitively. */
+inline PBCContractorKind ParsePBCContractorKind(const std::string &value) {
+  std::string key = TrimAsciiWhitespace(value);
+  std::transform(key.begin(), key.end(), key.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  if (key == "trg") return PBCContractorKind::TRG;
+  if (key == "hotrg") return PBCContractorKind::HOTRG;
+  throw std::invalid_argument("PBCContractor must be TRG or HOTRG.");
+}
+
+/**
+ * @brief Read the optional `PBCContractor` key from an algorithm parameter file.
+ *
+ * The key is optional and defaults to TRG, so parameter files written before
+ * HOTRG existed keep selecting the TRG backend.
+ */
+inline PBCContractorKind ReadPBCContractorKind(qlmps::CaseParamsParserBasic &algorithm_parser) {
+  if (!algorithm_parser.Has("PBCContractor")) {
+    return PBCContractorKind::TRG;
+  }
+  return ParsePBCContractorKind(algorithm_parser.ParseStr("PBCContractor"));
 }
 
 inline qlpeps::CompressMPSScheme ParseCompressMPSScheme(const std::string &value) {
@@ -656,29 +691,53 @@ inline std::pair<qlpeps::Configuration, bool> InitOrLoadConfigWithStrategy(
   return {config, false};
 }
 
+/** @brief Build TRG truncation parameters from TRGDmin, TRGDmax, TRGTruncErr, TRGInvRelativeEps. */
+inline qlpeps::PEPSParams CreateTRGPEPSParams_(qlmps::CaseParamsParserBasic &algorithm_parser) {
+  if (!(algorithm_parser.Has("TRGDmin") && algorithm_parser.Has("TRGDmax") &&
+        algorithm_parser.Has("TRGTruncErr"))) {
+    throw std::invalid_argument(
+        "PBC requested but TRG params are missing in algorithm JSON. "
+        "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
+  }
+  const size_t d_min = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmin"));
+  const size_t d_max = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmax"));
+  const double trunc_err = algorithm_parser.ParseDouble("TRGTruncErr");
+  const double inv_eps = algorithm_parser.ParseDoubleOr("TRGInvRelativeEps", 1e-12);
+  return qlpeps::PEPSParams(
+      qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
+}
+
+/** @brief Build HOTRG truncation parameters from HOTRGDmin, HOTRGDmax, HOTRGTruncErr. */
+inline qlpeps::PEPSParams CreateHOTRGPEPSParams_(qlmps::CaseParamsParserBasic &algorithm_parser) {
+  if (!(algorithm_parser.Has("HOTRGDmin") && algorithm_parser.Has("HOTRGDmax") &&
+        algorithm_parser.Has("HOTRGTruncErr"))) {
+    throw std::invalid_argument(
+        "PBC with PBCContractor=HOTRG requested but HOTRG params are missing in algorithm JSON. "
+        "Require: HOTRGDmin, HOTRGDmax, HOTRGTruncErr.");
+  }
+  const size_t d_min = static_cast<size_t>(algorithm_parser.ParseInt("HOTRGDmin"));
+  const size_t d_max = static_cast<size_t>(algorithm_parser.ParseInt("HOTRGDmax"));
+  const double trunc_err = algorithm_parser.ParseDouble("HOTRGTruncErr");
+  return qlpeps::PEPSParams(
+      qlpeps::HOTRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err));
+}
+
 /**
- * @brief Create PEPSParams selecting TRG (PBC) or BMPS (OBC) backend.
+ * @brief Create PEPSParams selecting a PBC backend (TRG or HOTRG) or BMPS (OBC).
  *
- * For PBC, requires TRGDmin, TRGDmax, TRGTruncErr in the algorithm_parser.
- * For OBC, requires BMPSParams to have valid Dbmps_max.
+ * For PBC, the optional key `PBCContractor` selects the backend and defaults to
+ * TRG. TRG requires TRGDmin, TRGDmax, TRGTruncErr; HOTRG requires HOTRGDmin,
+ * HOTRGDmax, HOTRGTruncErr. For OBC, requires BMPSParams to have valid Dbmps_max.
  */
 inline qlpeps::PEPSParams CreatePEPSParams(
     qlpeps::BoundaryCondition bc,
     const BMPSParams &bmps,
     qlmps::CaseParamsParserBasic &algorithm_parser) {
   if (bc == qlpeps::BoundaryCondition::Periodic) {
-    if (!(algorithm_parser.Has("TRGDmin") && algorithm_parser.Has("TRGDmax") &&
-          algorithm_parser.Has("TRGTruncErr"))) {
-      throw std::invalid_argument(
-          "PBC requested but TRG params are missing in algorithm JSON. "
-          "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
+    if (ReadPBCContractorKind(algorithm_parser) == PBCContractorKind::HOTRG) {
+      return CreateHOTRGPEPSParams_(algorithm_parser);
     }
-    const size_t d_min = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmin"));
-    const size_t d_max = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmax"));
-    const double trunc_err = algorithm_parser.ParseDouble("TRGTruncErr");
-    const double inv_eps = algorithm_parser.ParseDoubleOr("TRGInvRelativeEps", 1e-12);
-    return qlpeps::PEPSParams(
-        qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
+    return CreateTRGPEPSParams_(algorithm_parser);
   }
 
   if (!bmps.HasBMPSRequiredKeys()) {

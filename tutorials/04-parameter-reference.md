@@ -171,10 +171,23 @@ OBC/BMPS:
   - `BMPSConvergenceTol` (used by variational schemes)
   - `BMPSIterMax` (used by variational schemes)
 
-PBC/TRG:
+PBC (backend selected by `PBCContractor`):
+
+- `PBCContractor` (optional, default `TRG`; accepts `TRG` or `HOTRG`,
+  case-insensitive)
+
+PBC/TRG (`PBCContractor` absent or `TRG`):
 
 - required: `TRGDmin`, `TRGDmax`, `TRGTruncErr`
 - optional: `TRGInvRelativeEps` (default `1e-12`)
+- geometry: square lattice with linear size `2^k` or `3*2^k`
+
+PBC/HOTRG (`"PBCContractor": "HOTRG"`):
+
+- required: `HOTRGDmin`, `HOTRGDmax`, `HOTRGTruncErr`
+- no inversion parameter: HOTRG inverts nothing, so `TRGInvRelativeEps` has no
+  HOTRG counterpart
+- geometry: any `Ly x Lx` with both dimensions at least 2
 
 #### 4.3 IO keys
 
@@ -289,7 +302,8 @@ Required baseline keys:
 
 Backend keys:
 
-- same BMPS/TRG requirement as VMC, selected by `BoundaryCondition`
+- same BMPS (OBC) / TRG or HOTRG (PBC) requirement as VMC, selected by
+  `BoundaryCondition` and, for PBC, by `PBCContractor`
 
 Optional keys:
 
@@ -316,6 +330,8 @@ Runtime effects:
 | Invalid `BoundaryCondition` text | Throws invalid argument |
 | OBC without `Dbmps_max` | Throws invalid argument (`OBC requested but BMPS params are missing`) |
 | PBC without TRG required keys | Throws invalid argument (`TRGDmin`, `TRGDmax`, `TRGTruncErr` required) |
+| PBC with `PBCContractor=HOTRG` but without HOTRG required keys | Throws invalid argument (`HOTRGDmin`, `HOTRGDmax`, `HOTRGTruncErr` required) |
+| Invalid `PBCContractor` text | Throws invalid argument (`PBCContractor must be TRG or HOTRG.`) |
 | Missing `MC_total_samples` / `WarmUp` / `MCLocalUpdateSweepsBetweenSample` | Parse failure in MC param parser |
 | SR optimizer without CG required keys | Parse failure in enhanced optimizer parser |
 | Step selectors used with non-SGD/SR optimizer | Throws invalid argument |

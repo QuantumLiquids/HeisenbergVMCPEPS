@@ -1,5 +1,48 @@
 # Changelog: Upstream PEPS API Changes
 
+## PEPS v0.2.1 - HOTRG PBC contractor - Applied 2026-09-21
+
+Upstream PEPS 0.2.1 adds `qlpeps::HOTRGContractor`, a second periodic-boundary
+contraction backend alongside `qlpeps::TRGContractor`. It plugs into
+`VMCPEPSOptimizer` and `MCPEPSMeasurer` at the same template slot, and the
+existing PBC updater and J1-J2 XXZ PBC solver accept either one.
+
+### Why it matters
+
+TRG only accepts a square lattice with linear size `2^k` or `3*2^k`. HOTRG
+accepts any `Ly x Lx` with both dimensions at least 2, so rectangles and odd
+sizes such as 5x5 are now reachable under PBC. Accuracy guidance is unchanged:
+the environment bond dimension should be at least `D^2`.
+
+### New JSON keys (VMC and measure algorithm files)
+
+- `PBCContractor` — optional, `TRG` (default) or `HOTRG`, case-insensitive.
+- `HOTRGDmin`, `HOTRGDmax`, `HOTRGTruncErr` — required when `PBCContractor` is
+  `HOTRG`. HOTRG inverts nothing, so there is no counterpart to
+  `TRGInvRelativeEps`.
+
+Selecting `HOTRG` without those three keys throws
+`PBC with PBCContractor=HOTRG requested but HOTRG params are missing in
+algorithm JSON. Require: HOTRGDmin, HOTRGDmax, HOTRGTruncErr.`
+Any other `PBCContractor` value throws `PBCContractor must be TRG or HOTRG.`
+
+### Build
+
+`CMakeLists.txt` now requires `find_package(PEPS 0.2.1 CONFIG REQUIRED)`.
+Point `-DPEPS_DIR` at a PEPS 0.2.1 install.
+
+### Backward compatibility
+
+`PBCContractor` defaults to `TRG`, so existing PBC parameter files keep
+selecting TRG and produce the same runs as before. No OBC path changed.
+
+### Example parameter files
+
+- `params/quickstart/vmc_local_2x2_pbc_hotrg_n1.json`
+- `params/quickstart/measure_local_2x2_pbc_hotrg_n1.json`
+
+---
+
 ## PEPS commit e572888 - Applied 2026-03-03
 
 Cluster binary rebuilt 2026-03-02 20:58. **Jobs submitted before this date

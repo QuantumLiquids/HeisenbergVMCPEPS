@@ -16,11 +16,11 @@ Main workflow:
 | `ModelType` | `BoundaryCondition` | Contraction backend | Status |
 |---|---|---|---|
 | `SquareHeisenberg` | `Open` / `OBC` | BMPS | Supported |
-| `SquareHeisenberg` | `Periodic` / `PBC` | TRG | Supported |
+| `SquareHeisenberg` | `Periodic` / `PBC` | TRG (default) or HOTRG | Supported |
 | `SquareXY` | `Open` / `OBC` | BMPS | Supported |
-| `SquareXY` | `Periodic` / `PBC` | TRG | Supported |
+| `SquareXY` | `Periodic` / `PBC` | TRG (default) or HOTRG | Supported |
 | `TriangleHeisenberg` | `Open` / `OBC` | BMPS | Supported |
-| `TriangleHeisenberg` | `Periodic` / `PBC` | TRG | Not supported |
+| `TriangleHeisenberg` | `Periodic` / `PBC` | TRG (default) or HOTRG | Not supported |
 
 ### 2) Two-file Parameter Model
 
@@ -40,7 +40,7 @@ Program shape is always:
 `algorithm_params.json`:
 
 - command-specific numerics
-- backend knobs (BMPS or TRG)
+- backend knobs (BMPS for OBC; TRG or HOTRG for PBC, selected by `PBCContractor`)
 - MC/optimizer knobs (where relevant)
 - IO overrides (`WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`)
 

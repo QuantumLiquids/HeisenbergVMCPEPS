@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
                   << ((params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
                   << "\n  SITPS BoundaryCondition   = "
                   << ((sitps.GetBoundaryCondition() == qlpeps::BoundaryCondition::Periodic) ? "Periodic" : "Open")
-                  << "\nIf you want PBC, generate TPS/SITPS with PBC and TRG params." << std::endl;
+                  << "\nIf you want PBC, generate TPS/SITPS with PBC and TRG or HOTRG params." << std::endl;
       }
       MPI_Finalize();
       return -3;

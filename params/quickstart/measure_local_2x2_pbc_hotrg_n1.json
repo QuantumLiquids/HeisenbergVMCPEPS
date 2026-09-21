@@ -1,0 +1,15 @@
+{
+  "CaseParams": {
+    "ThreadNum": 1,
+    "PBCContractor": "HOTRG",
+    "HOTRGDmin": 2,
+    "HOTRGDmax": 4,
+    "HOTRGTruncErr": 1e-10,
+    "MC_total_samples": 2000,
+    "WarmUp": 20,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+    "WavefunctionBase": "tps",
+    "ConfigurationLoadDir": "tpsfinal",
+    "ConfigurationDumpDir": "tpsfinal"
+  }
+}

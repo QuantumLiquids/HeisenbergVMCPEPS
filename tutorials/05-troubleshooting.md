@@ -114,6 +114,10 @@ Reason:
 Action:
 
 - Choose target size satisfying TRG constraints for PBC runs.
+- Or switch the PBC backend to HOTRG, which accepts any `Ly x Lx` with both
+  dimensions at least 2. Set `"PBCContractor": "HOTRG"` in the VMC and measure
+  algorithm JSON and replace the TRG keys with `HOTRGDmin`, `HOTRGDmax`,
+  `HOTRGTruncErr`.
 - Or use OBC workflow if non-TRG sizes are required.
 
 ### 3) Output and Plot Issues

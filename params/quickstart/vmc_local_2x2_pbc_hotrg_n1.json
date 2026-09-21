@@ -1,0 +1,23 @@
+{
+  "CaseParams": {
+    "ThreadNum": 1,
+    "PBCContractor": "HOTRG",
+    "HOTRGDmin": 2,
+    "HOTRGDmax": 4,
+    "HOTRGTruncErr": 1e-10,
+    "MC_total_samples": 1000,
+    "WarmUp": 20,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+    "OptimizerType": "SR",
+    "MaxIterations": 30,
+    "LearningRate": 0.05,
+    "CGMaxIter": 20,
+    "CGRelativeTolerance": 1e-3,
+    "CGResidualRecomputeInterval": 10,
+    "SRDiagShift": 1e-4,
+    "NormalizeUpdate": false,
+    "WavefunctionBase": "tps",
+    "ConfigurationLoadDir": "tpsfinal",
+    "ConfigurationDumpDir": "tpsfinal"
+  }
+}

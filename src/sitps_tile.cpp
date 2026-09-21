@@ -547,10 +547,14 @@ int main(int argc, char **argv) {
   if (bc == BoundaryCondition::Periodic) {
     if (opts.target_ly != opts.target_lx) {
       std::cerr << "WARNING: PBC target is not square (" << opts.target_ly << "x" << opts.target_lx
-                << "); TRG backend may reject it." << std::endl;
+                << "); the TRG backend may reject it. The HOTRG backend "
+                   "(\"PBCContractor\": \"HOTRG\") accepts any size with both dimensions >= 2."
+                << std::endl;
     }
     if (!IsTrgSupportedLinearSize(opts.target_ly) || !IsTrgSupportedLinearSize(opts.target_lx)) {
-      std::cerr << "WARNING: PBC target size is not in L=2^k or L=3*2^k family; TRG backend may reject it."
+      std::cerr << "WARNING: PBC target size is not in the L=2^k or L=3*2^k family; the TRG backend "
+                   "may reject it. The HOTRG backend (\"PBCContractor\": \"HOTRG\") accepts any "
+                   "size with both dimensions >= 2."
                 << std::endl;
     }
   }

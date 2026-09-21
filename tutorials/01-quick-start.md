@@ -156,8 +156,12 @@ At each iteration it:
 4. Updates parameters using Stochastic Reconfiguration (SR), which
    preconditions the gradient with the quantum Fisher information matrix
 
-PBC systems use the Tensor Renormalization Group (TRG) to contract the
-environment, controlled by `TRGDmin/TRGDmax` parameters.
+PBC systems contract the environment with a real-space renormalization
+backend. TRG (Tensor Renormalization Group) is the default, controlled by
+`TRGDmin/TRGDmax`. Setting `"PBCContractor": "HOTRG"` selects the higher-order
+variant instead, controlled by `HOTRGDmin/HOTRGDmax`. TRG only accepts square
+lattices with linear size `2^k` or `3*2^k`; HOTRG accepts any `Ly x Lx` with
+both dimensions at least 2.
 
 **Algorithm params** (`params/quickstart/vmc_local_2x2_pbc_n1.json`):
 
@@ -634,7 +638,8 @@ publication-quality results:
    minimum for research; D=6-8 captures more entanglement.
 
 2. **Increase environment bond dimension** (OBC: `Dbmps_max`; PBC:
-   `TRGDmax`). Should be at least `D^2` for accurate contraction.
+   `TRGDmax`, or `HOTRGDmax` when `PBCContractor` is `HOTRG`). Should be at
+   least `D^2` for accurate contraction.
 
 3. **Increase MC statistics** (`MC_total_samples`). More samples reduce the
    energy error bar. Use at least 10,000-50,000 for production.

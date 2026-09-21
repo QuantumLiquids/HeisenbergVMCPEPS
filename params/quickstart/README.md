@@ -9,6 +9,8 @@
 - `params/quickstart/loop_update_local_2x2_pbc_advanced_stop.json` (advanced-stop variant)
 - `params/quickstart/vmc_local_2x2_pbc_n1.json`
 - `params/quickstart/measure_local_2x2_pbc_n1.json`
+- `params/quickstart/vmc_local_2x2_pbc_hotrg_n1.json` (HOTRG contractor variant)
+- `params/quickstart/measure_local_2x2_pbc_hotrg_n1.json` (HOTRG contractor variant)
 
 `cluster44_obc` (cluster-oriented run):
 - `params/quickstart/physics_cluster_4x4_obc.json`

@@ -111,15 +111,17 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
   }
 }
 
-template<typename TenElemT, typename QNT>
-inline void RunVmcByModelPBC_(EnhancedVMCUpdateParams &params,
-                              qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
-                              MPI_Comm comm,
-                              int rank) {
+/** @brief PBC model dispatch for one fixed contraction backend (TRG or HOTRG). */
+template<typename TenElemT,
+         typename QNT,
+         template<typename, typename> class ContractorT>
+inline void RunVmcByModelPBCWith_(const qlpeps::VMCPEPSOptimizerParams &opt_params,
+                                  const heisenberg_params::PhysicalParams &phys,
+                                  qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
+                                  MPI_Comm comm) {
   using MCUpdaterT = qlpeps::MCUpdateSquareNNExchangePBC;
-  const std::string model_type = params.physical_params.ModelType.empty() ? "SquareHeisenberg"
-                                                                          : params.physical_params.ModelType;
-  const double j2 = params.physical_params.J2;
+  const std::string model_type = phys.ModelType.empty() ? "SquareHeisenberg" : phys.ModelType;
+  const double j2 = phys.J2;
 
   if (model_type == "TriangleHeisenberg") {
     throw std::invalid_argument("TriangleHeisenberg PBC is not supported in current PEPS backend.");
@@ -128,18 +130,34 @@ inline void RunVmcByModelPBC_(EnhancedVMCUpdateParams &params,
   if (model_type == "SquareXY") {
     using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelPBC; // XY on PBC via XXZ PBC
     Model solver(/*jz1=*/0.0, /*jxy1=*/1.0, /*jz2=*/0.0, /*jxy2=*/j2, /*pinning=*/0.0);
-    heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT, Model, qlpeps::TRGContractor>(
-        params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
+    heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT, Model, ContractorT>(
+        opt_params, sitps, comm, solver);
     return;
   }
 
-  // Default: SquareHeisenberg semantics on PBC/TRG.
+  // Default: SquareHeisenberg semantics on PBC.
   {
-    using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelPBC; // PBC TRG
+    using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelPBC;
     Model solver(j2);
-    heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT, Model, qlpeps::TRGContractor>(
-        params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
+    heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT, Model, ContractorT>(
+        opt_params, sitps, comm, solver);
   }
+}
+
+/** @brief Run PBC VMC, choosing the backend held by the parsed PEPSParams. */
+template<typename TenElemT, typename QNT>
+inline void RunVmcByModelPBC_(EnhancedVMCUpdateParams &params,
+                              qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
+                              MPI_Comm comm,
+                              int rank) {
+  const qlpeps::VMCPEPSOptimizerParams opt_params = params.CreateVMCOptimizerParams(rank);
+  if (opt_params.peps_params.IsHOTRG()) {
+    RunVmcByModelPBCWith_<TenElemT, QNT, qlpeps::HOTRGContractor>(
+        opt_params, params.physical_params, sitps, comm);
+    return;
+  }
+  RunVmcByModelPBCWith_<TenElemT, QNT, qlpeps::TRGContractor>(
+      opt_params, params.physical_params, sitps, comm);
 }
 
 /** @brief Optimize the coherent spin-inversion state with shared PEPS parameters. */
@@ -233,11 +251,14 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
   }
 }
 
-template<typename TenElemT, typename QNT>
-inline void RunMeasureByModelPBC_(const heisenberg_params::PhysicalParams &phys,
-                                  const qlpeps::MCMeasurementParams &measurement_params,
-                                  qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
-                                  MPI_Comm comm) {
+/** @brief PBC measurement dispatch for one fixed contraction backend (TRG or HOTRG). */
+template<typename TenElemT,
+         typename QNT,
+         template<typename, typename> class ContractorT>
+inline void RunMeasureByModelPBCWith_(const heisenberg_params::PhysicalParams &phys,
+                                      const qlpeps::MCMeasurementParams &measurement_params,
+                                      qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
+                                      MPI_Comm comm) {
   using MCUpdaterT = qlpeps::MCUpdateSquareNNExchangePBC;
   const std::string model_type = phys.ModelType.empty() ? "SquareHeisenberg" : phys.ModelType;
   const double j2 = phys.J2;
@@ -249,18 +270,33 @@ inline void RunMeasureByModelPBC_(const heisenberg_params::PhysicalParams &phys,
   if (model_type == "SquareXY") {
     using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelPBC; // XY on PBC via XXZ PBC
     Model solver(/*jz1=*/0.0, /*jxy1=*/1.0, /*jz2=*/0.0, /*jxy2=*/j2, /*pinning=*/0.0);
-    heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT, Model, qlpeps::TRGContractor>(
+    heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT, Model, ContractorT>(
         sitps, measurement_params, comm, solver);
     return;
   }
 
-  // Default: SquareHeisenberg semantics on PBC/TRG.
+  // Default: SquareHeisenberg semantics on PBC.
   {
     using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelPBC;
     Model solver(j2);
-    heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT, Model, qlpeps::TRGContractor>(
+    heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT, Model, ContractorT>(
         sitps, measurement_params, comm, solver);
   }
+}
+
+/** @brief Run PBC measurement, choosing the backend held by the parsed PEPSParams. */
+template<typename TenElemT, typename QNT>
+inline void RunMeasureByModelPBC_(const heisenberg_params::PhysicalParams &phys,
+                                  const qlpeps::MCMeasurementParams &measurement_params,
+                                  qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
+                                  MPI_Comm comm) {
+  if (measurement_params.peps_params.IsHOTRG()) {
+    RunMeasureByModelPBCWith_<TenElemT, QNT, qlpeps::HOTRGContractor>(
+        phys, measurement_params, sitps, comm);
+    return;
+  }
+  RunMeasureByModelPBCWith_<TenElemT, QNT, qlpeps::TRGContractor>(
+      phys, measurement_params, sitps, comm);
 }
 
 } // namespace heisenberg_vmcpeps::detail

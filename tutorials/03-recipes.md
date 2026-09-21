@@ -113,7 +113,7 @@ mpirun -n 1 ./vmc_optimize ../params/physics_params.json ../params/vmc_algorithm
 mpirun -n 1 ./mc_measure ../params/physics_params.json ../params/measure_algorithm_params.json
 ```
 
-### Recipe B: Square Heisenberg PBC/TRG (when you need periodic boundary)
+### Recipe B: Square Heisenberg PBC (when you need periodic boundary)
 
 Use this only after Recipe A is stable.
 
@@ -140,10 +140,24 @@ Include TRG keys in VMC and measure algorithm JSON:
 - `TRGTruncErr`
 - optional `TRGInvRelativeEps`
 
+Alternatively select the HOTRG backend and give its own key set:
+
+- `"PBCContractor": "HOTRG"`
+- `HOTRGDmin`
+- `HOTRGDmax`
+- `HOTRGTruncErr`
+
 Notes:
 
 - PBC requires SITPS generated consistently for PBC.
 - If `tpsfinal/` boundary condition differs from physics JSON, run aborts by design.
+- `PBCContractor` is optional and defaults to `TRG`, so existing PBC parameter
+  files keep their current backend.
+- HOTRG lifts the TRG size restriction: TRG needs a square lattice with linear
+  size `2^k` or `3*2^k`, while HOTRG accepts any `Ly x Lx` with both dimensions
+  at least 2, rectangles and odd sizes included.
+- Accuracy guidance is the same for both: `HOTRGDmax` (or `TRGDmax`) should be
+  at least `D^2`.
 
 ### Recipe B0: 2x2 PBC tau schedule (large -> small tau)
 
