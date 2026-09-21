@@ -252,6 +252,33 @@ Constraints:
 - `MCRestrictU1` (default `true`, currently informational in unified drivers)
 - `InitialConfigStrategy` (default `Random`; accepts `Random`, `Neel`, `ThreeSublatticePolarizedSeed`)
 
+#### 4.7 Spin-inversion projection (opt-in)
+
+`SpinInversionParity` is an integer in the VMC algorithm file: `0` (default)
+keeps the plain PEPS path; `+1` or `-1` optimizes the coherent amplitude
+`psi(x) + parity * psi(Fx)`, where `F` swaps up/down at every site.
+This is spin inversion, not a singlet projection. Parameters are shared between
+both branches; sampling, energies, gradients, SR and MinSR use their coherent sum.
+
+The initial implementation requires `SquareHeisenberg` or `SquareXY`, OBC,
+`J2=0`, no removed corners, `MCRestrictU1=true`, `Lx,Ly >= 2`, and even `Lx*Ly`.
+Loaded configurations must have exactly equal up/down counts on every rank.
+The model has no pinning field. All physical tensor slices must be populated
+and nonzero because the BMPS backend cannot compress zero boundary tensors.
+There is no automatic repair of a vanishing total projected amplitude.
+Configured `WarmUp` runs even for loaded configurations, since a plain-chain
+configuration is not certified thermalized for the projected distribution.
+
+Projected final/lowest outputs use `WavefunctionBase` and carry
+`spin_inversion_parity.txt`; periodic checkpoints inherit the same marker from
+`CheckpointBasePath`. Resume with the same parity. Keep this marker with any
+copied tensors; when copying a periodic `step_N` directory by itself, also copy
+its parent's marker into it. Existing plain `mc_measure` rejects marked states
+and nonzero `SpinInversionParity`: projected measurements are not implemented.
+Unmarked legacy inputs remain accepted as starting PEPS tensors. A legacy state
+which was projected outside this driver must have its parity supplied explicitly.
+Both branches currently run sequentially within each MPI chain.
+
 ### 5) `measure_algorithm_params.json`
 
 Required baseline keys:

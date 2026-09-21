@@ -115,6 +115,9 @@ int main(int argc, char **argv) {
   std::string base = params.io_params.wavefunction_base; // default "tps"
   std::string tps_final = base + "final";
   // Note: we do not auto-fallback to lowest; user may manually copy lowest → final
+  spin_inversion_io::Collective(comm, rank, [&] {
+    spin_inversion_io::RequireParity(tps_final, params.spin_inversion_parity);
+  });
 
   SplitIndexTPS<TenElemT, QNT> sitps;
   

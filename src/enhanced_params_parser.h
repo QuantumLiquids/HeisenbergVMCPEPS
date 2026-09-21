@@ -25,6 +25,11 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       physical_params(physics_file),
       mc_params(algorithm_file),
       bmps_params(algorithm_file) {
+    const double requested_parity = ParseDoubleOr("SpinInversionParity", 0.0);
+    if (requested_parity != 0.0 && requested_parity != 1.0 && requested_parity != -1.0) {
+      throw std::invalid_argument("SpinInversionParity must be 0, +1, or -1.");
+    }
+    spin_inversion_parity = static_cast<int>(requested_parity);
     
     // Parse optimizer configuration with default values
     optimizer_type = NormalizeOptimizerType_(this->ParseStrOr("OptimizerType", "StochasticReconfiguration"));
@@ -137,12 +142,26 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
 
     // Parse IO configuration
     io_params.Parse(*this);
+    if (spin_inversion_parity != 0) {
+      const auto &physics = physical_params;
+      if (physics.BoundaryCondition != qlpeps::BoundaryCondition::Open ||
+          (physics.ModelType != "SquareHeisenberg" && physics.ModelType != "SquareXY") ||
+          physics.J2 != 0.0 || physics.RemoveCorner || !mc_params.MCRestrictU1 ||
+          physics.Lx < 2 || physics.Ly < 2 || (physics.Lx * physics.Ly) % 2 != 0) {
+        throw std::invalid_argument(
+            "SpinInversionParity requires a full square OBC lattice, Lx,Ly >= 2, "
+            "even Lx*Ly, SquareHeisenberg or SquareXY, J2=0, and MCRestrictU1=true.");
+      }
+    }
   }
 
   heisenberg_params::PhysicalParams physical_params;
   heisenberg_params::MonteCarloNumericalParams mc_params;
   heisenberg_params::BMPSParams bmps_params;
   
+  /// Zero preserves plain PEPS; +/-1 selects psi(x) +/- psi(Fx).
+  int spin_inversion_parity = 0;
+
   // Optimizer configuration
   std::string optimizer_type;
   size_t max_iterations;

@@ -23,6 +23,12 @@ int main(int argc, char **argv) {
   }
 
   EnhancedMCMeasureParams params(argv[1], argv[2]);
+  spin_inversion_io::Collective(comm, rank, [&] {
+    if (params.ParseDoubleOr("SpinInversionParity", 0.0) != 0.0) {
+      throw std::invalid_argument("mc_measure does not yet support spin-inversion projected states.");
+    }
+    spin_inversion_io::RequireParity(params.io_params.wavefunction_base + "final", 0);
+  });
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.bmps_params.ThreadNum);
 

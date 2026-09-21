@@ -8,6 +8,10 @@
 #include <iostream>
 #include <stdexcept>
 #include "enhanced_params_parser.h"
+#include "spin_inversion_checkpoint.h"
+#include "qlpeps/vmc_basic/spin_inversion_projected_sample.h"
+#include "qlpeps/vmc_basic/configuration_update_strategies/spin_inversion_square_nn_updater.h"
+#include "qlpeps/algorithm/vmc_update/model_solvers/spin_inversion_square_xxz_obc.h"
 #include "qlpeps/qlpeps.h"
 
 // We keep the actual call sites in the drivers (e.g., square_vmc_update.cpp),
@@ -32,6 +36,9 @@ inline void ExecuteVmc_(const qlpeps::VMCPEPSOptimizerParams &opt_params,
                         const MPI_Comm &comm,
                         const EnergySolverT &solver) {
   using ExecT = qlpeps::VMCPEPSOptimizer<TenElemT, QNT, MCUpdaterT, EnergySolverT, ContractorT>;
+  int rank = 0;
+  ::MPI_Comm_rank(comm, &rank);
+  spin_inversion_io::PrepareOutputs(opt_params, 0, comm, rank);
   ExecT executor(opt_params, sitps, comm, solver, MCUpdaterT{});
   executor.Execute();
 }
@@ -135,6 +142,43 @@ inline void RunVmcByModelPBC_(EnhancedVMCUpdateParams &params,
   }
 }
 
+/** @brief Optimize the coherent spin-inversion state with shared PEPS parameters. */
+template<typename TenElemT, typename QNT, int Parity>
+inline void RunSpinInversionVmc_(EnhancedVMCUpdateParams &params,
+                                 const qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
+                                 MPI_Comm comm, int rank) {
+  using Sample = qlpeps::SpinInversionProjectedSample<TenElemT, QNT, Parity>;
+  using Updater = qlpeps::MCUpdateSquareNNSpinInversionExchange<Parity>;
+  using Model = qlpeps::SpinInversionSquareXXZModelOBC;
+  using Executor = qlpeps::VMCPEPSOptimizer<TenElemT, QNT, Updater, Model,
+                                          qlpeps::BMPSContractor, Sample>;
+  auto optimizer_params = params.CreateVMCOptimizerParams(rank);
+  const auto &config = optimizer_params.mc_params.initial_config;
+  size_t up = 0, down = 0;
+  for (size_t row = 0; row < config.rows(); ++row) {
+    for (size_t col = 0; col < config.cols(); ++col) {
+      up += config({row, col}) == 0;
+      down += config({row, col}) == 1;
+    }
+  }
+  int invalid = (up != down || up + down != config.rows() * config.cols());
+  int any_invalid = 0;
+  ::MPI_Allreduce(&invalid, &any_invalid, 1, MPI_INT, MPI_MAX, comm);
+  if (any_invalid) throw std::invalid_argument("Spin inversion requires Sz=0 configurations on every rank.");
+  optimizer_params.mc_params.assume_initial_config_thermalized = false;
+  optimizer_params.tps_dump_base_name = params.io_params.wavefunction_base;
+  Model model(params.physical_params.ModelType == "SquareXY" ? 0.0 : 1.0, 1.0);
+  Executor executor(optimizer_params, sitps, comm, model, Updater{});
+  spin_inversion_io::PrepareOutputs(optimizer_params, Parity, comm, rank);
+  if (rank == 0) {
+    std::cout << "SpinInversionParity=" << Parity
+              << ": optimizing psi(x) + parity*psi(Fx); configured warm-up is always run.\n"
+              << "Saved tensors require this parity; plain mc_measure is unsupported."
+              << std::endl;
+  }
+  executor.Execute();
+}
+
 // ---------------- Measurement dispatcher (by model) ----------------
 template<typename TenElemT, typename QNT>
 inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
@@ -227,6 +271,12 @@ inline void RunVmcByModel(EnhancedVMCUpdateParams &params,
                           qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                           MPI_Comm comm,
                           int rank) {
+  if (params.spin_inversion_parity == 1) {
+    return heisenberg_vmcpeps::detail::RunSpinInversionVmc_<TenElemT, QNT, 1>(params, sitps, comm, rank);
+  }
+  if (params.spin_inversion_parity == -1) {
+    return heisenberg_vmcpeps::detail::RunSpinInversionVmc_<TenElemT, QNT, -1>(params, sitps, comm, rank);
+  }
   const bool is_pbc = (params.physical_params.BoundaryCondition == qlpeps::BoundaryCondition::Periodic);
   if (is_pbc) {
     heisenberg_vmcpeps::detail::RunVmcByModelPBC_<TenElemT, QNT>(params, sitps, comm, rank);
