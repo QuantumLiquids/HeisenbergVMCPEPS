@@ -7,6 +7,7 @@
 #include "./qldouble.h"
 #include "enhanced_measure_params_parser.h"
 #include "model_updater_factory.h"
+#include "qlpeps/state/spin_inversion_metadata.h"
 
 using namespace qlpeps;
 
@@ -23,12 +24,10 @@ int main(int argc, char **argv) {
   }
 
   EnhancedMCMeasureParams params(argv[1], argv[2]);
-  spin_inversion_io::Collective(comm, rank, [&] {
-    if (params.ParseDoubleOr("SpinInversionParity", 0.0) != 0.0) {
-      throw std::invalid_argument("mc_measure does not yet support spin-inversion projected states.");
-    }
-    spin_inversion_io::RequireParity(params.io_params.wavefunction_base + "final", 0);
-  });
+  RequireCollectivelyValid(params.ParseDoubleOr("SpinInversionParity", 0.0) == 0.0,
+                           comm, "mc_measure does not yet support spin-inversion projected states.");
+  RequireSpinInversionMetadataCollectively(
+      params.io_params.wavefunction_base + "final", std::nullopt, comm);
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.bmps_params.ThreadNum);
 
@@ -39,14 +38,8 @@ int main(int argc, char **argv) {
       params.io_params.configuration_load_dir,
       rank);
 
-  MonteCarloParams mc_params_obj(
-      params.mc_params.MC_total_samples,
-      params.mc_params.WarmUp,
-      params.mc_params.MCLocalUpdateSweepsBetweenSample,
-      init_config,
-      warmed_up,
-      params.io_params.configuration_dump_dir
-  );
+  auto mc_params_obj = params.mc_params.CreateMonteCarloParams(
+      init_config, warmed_up, params.io_params.configuration_dump_dir);
   PEPSParams peps_params_obj(params.CreatePEPSParams());
   MCMeasurementParams measurement_params(mc_params_obj, peps_params_obj, "./");
 

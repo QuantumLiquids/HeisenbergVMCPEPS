@@ -8,7 +8,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "enhanced_params_parser.h"
-#include "spin_inversion_checkpoint.h"
+#include "qlpeps/state/spin_inversion_metadata.h"
 #include "qlpeps/vmc_basic/spin_inversion_projected_sample.h"
 #include "qlpeps/vmc_basic/configuration_update_strategies/spin_inversion_square_nn_updater.h"
 #include "qlpeps/algorithm/vmc_update/model_solvers/spin_inversion_square_xxz_obc.h"
@@ -36,9 +36,6 @@ inline void ExecuteVmc_(const qlpeps::VMCPEPSOptimizerParams &opt_params,
                         const MPI_Comm &comm,
                         const EnergySolverT &solver) {
   using ExecT = qlpeps::VMCPEPSOptimizer<TenElemT, QNT, MCUpdaterT, EnergySolverT, ContractorT>;
-  int rank = 0;
-  ::MPI_Comm_rank(comm, &rank);
-  spin_inversion_io::PrepareOutputs(opt_params, 0, comm, rank);
   ExecT executor(opt_params, sitps, comm, solver, MCUpdaterT{});
   executor.Execute();
 }
@@ -187,7 +184,6 @@ inline void RunSpinInversionVmc_(EnhancedVMCUpdateParams &params,
   optimizer_params.tps_dump_base_name = params.io_params.wavefunction_base;
   Model model(params.physical_params.ModelType == "SquareXY" ? 0.0 : 1.0, 1.0);
   Executor executor(optimizer_params, sitps, comm, model, Updater{});
-  spin_inversion_io::PrepareOutputs(optimizer_params, Parity, comm, rank);
   if (rank == 0) {
     std::cout << "SpinInversionParity=" << Parity
               << ": optimizing psi(x) + parity*psi(Fx); configured warm-up is always run.\n"

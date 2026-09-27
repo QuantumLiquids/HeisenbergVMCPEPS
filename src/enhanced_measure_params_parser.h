@@ -30,7 +30,7 @@ struct EnhancedMCMeasureParams : public qlmps::CaseParamsParserBasic {
    */
   qlpeps::PEPSParams CreatePEPSParams() {
     return heisenberg_params::CreatePEPSParams(
-        physical_params.BoundaryCondition, bmps_params, *this);
+        physical_params.BoundaryCondition, bmps_params, bmps_params.algorithm_values);
   }
 };
 

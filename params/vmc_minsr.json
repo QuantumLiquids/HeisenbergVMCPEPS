@@ -14,8 +14,8 @@
     "OptimizerType": "MinSR",
     "MaxIterations": 30,
     "LearningRate": 0.1,
-    "MinSRRPinv": 1e-12,
-    "MinSRAPinv": 0.0,
+    "MinSRRelativePInv": 1e-12,
+    "MinSRAbsolutePInv": 0.0,
     "MinSRSoftCutoff": true,
     "MinSRSolverMode": "Auto"
   }

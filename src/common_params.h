@@ -11,6 +11,8 @@
 #define HEISENBERGVMCPEPS_COMMON_PARAMS_H
 
 #include "qlmps/case_params_parser.h"
+#include "qlpeps/api/config/contractor_params_parser.h"
+#include "qlpeps/api/config/monte_carlo_params_parser.h"
 #include "qlpeps/algorithm/loop_update/loop_update.h"
 #include "qlpeps/one_dim_tn/boundary_mps/bmps.h"
 #include "qlpeps/algorithm/simple_update/simple_update.h"
@@ -87,33 +89,6 @@ inline double ParseCGRelativeTolerance(
     return converted;
   }
   return parser.ParseDoubleOr("CGRelativeTolerance", default_value);
-}
-
-/**
- * @brief Parse required CG tolerance (no default) with legacy sqrt() conversion.
- */
-inline double ParseCGRelativeToleranceRequired(
-    qlmps::CaseParamsParserBasic &parser) {
-  const bool has_new = parser.Has("CGRelativeTolerance");
-  const bool has_old = parser.Has("CGTol");
-  if (has_new && has_old) {
-    throw std::invalid_argument(
-        "Ambiguous: both 'CGTol' (deprecated) and 'CGRelativeTolerance' "
-        "are present. Remove 'CGTol'.");
-  }
-  if (has_old) {
-    const double old_val = parser.ParseDouble("CGTol");
-    const double converted = std::sqrt(old_val);
-    std::cerr << "[warn] JSON key 'CGTol' is deprecated; use "
-                 "'CGRelativeTolerance' instead. Auto-converting: sqrt("
-              << old_val << ") = " << converted << std::endl;
-    return converted;
-  }
-  if (!has_new) {
-    throw std::invalid_argument(
-        "Missing required key 'CGRelativeTolerance' (or deprecated 'CGTol').");
-  }
-  return parser.ParseDouble("CGRelativeTolerance");
 }
 
 inline std::string TrimAsciiWhitespace(std::string s) {
@@ -238,32 +213,11 @@ inline PBCContractorKind ParsePBCContractorKind(const std::string &value) {
  * The key is optional and defaults to TRG, so parameter files written before
  * HOTRG existed keep selecting the TRG backend.
  */
-inline PBCContractorKind ReadPBCContractorKind(qlmps::CaseParamsParserBasic &algorithm_parser) {
-  if (!algorithm_parser.Has("PBCContractor")) {
-    return PBCContractorKind::TRG;
-  }
-  return ParsePBCContractorKind(algorithm_parser.ParseStr("PBCContractor"));
+inline PBCContractorKind ReadPBCContractorKind(const qlpeps::config::Json &values) {
+  return ParsePBCContractorKind(qlpeps::config::ReadString(values, "PBCContractor", "TRG"));
 }
 
-inline qlpeps::CompressMPSScheme ParseCompressMPSScheme(const std::string &value) {
-  std::string key = value;
-  std::transform(key.begin(), key.end(), key.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-  if (key == "svd" || key == "svd_compress" || key == "svdcompression" ||
-      key == "svd compression") {
-    return qlpeps::CompressMPSScheme::SVD_COMPRESS;
-  }
-  if (key == "var2" || key == "variational2site" || key == "variation2site" ||
-      key == "two-site variational compression" || key == "two_site_variational") {
-    return qlpeps::CompressMPSScheme::VARIATION2Site;
-  }
-  if (key == "var1" || key == "variational1site" || key == "variation1site" ||
-      key == "single-site variational compression" || key == "one_site_variational") {
-    return qlpeps::CompressMPSScheme::VARIATION1Site;
-  }
-  throw std::invalid_argument("MPSCompressScheme must be one of: SVD, Variational2Site, Variational1Site.");
-}
+using qlpeps::config::ParseCompressMPSScheme;
 
 enum class InitialConfigStrategy {
   Random,
@@ -422,12 +376,23 @@ struct NumericalParams : public qlmps::CaseParamsParserBasic {
  */
 struct MonteCarloNumericalParams : public qlmps::CaseParamsParserBasic {
   MonteCarloNumericalParams(const char *f) : CaseParamsParserBasic(f) {
-    MC_total_samples = ParseInt("MC_total_samples");
-    WarmUp = ParseInt("WarmUp");
-    MCLocalUpdateSweepsBetweenSample = ParseInt("MCLocalUpdateSweepsBetweenSample");
+    const auto values = qlpeps::config::ReadCaseParamsFile(f);
+    MC_total_samples = qlpeps::config::ReadSize(values, "MC_total_samples");
+    WarmUp = qlpeps::config::ReadSize(values, "WarmUp");
+    MCLocalUpdateSweepsBetweenSample = qlpeps::config::ReadSize(values, "MCLocalUpdateSweepsBetweenSample");
+    if (MC_total_samples == 0) throw std::invalid_argument("MC_total_samples must be positive.");
     MCRestrictU1 = ParseBoolOr("MCRestrictU1", true);
     initial_config_strategy = ParseInitialConfigStrategy(
         ParseStrOr("InitialConfigStrategy", "Random"));
+  }
+
+  /** @brief Build common sampling parameters after the application chooses its initial state. */
+  qlpeps::MonteCarloParams CreateMonteCarloParams(
+      const qlpeps::Configuration &config, bool warmed_up, const std::string &dump_path) const {
+    return qlpeps::config::ParseMonteCarloParams(
+        {{"MC_total_samples", MC_total_samples}, {"WarmUp", WarmUp},
+         {"MCLocalUpdateSweepsBetweenSample", MCLocalUpdateSweepsBetweenSample}},
+        config, warmed_up, dump_path);
   }
 
   size_t MC_total_samples;                  ///< Total Monte Carlo samples across all MPI ranks
@@ -441,82 +406,43 @@ struct MonteCarloNumericalParams : public qlmps::CaseParamsParserBasic {
  * @brief Boundary MPS specific parameters
  */
 struct BMPSParams : public qlmps::CaseParamsParserBasic {
-  BMPSParams(const char *f) : CaseParamsParserBasic(f) {
-    // Boundary MPS bond dimensions
-    // NOTE:
-    // These keys are required for OBC(BMPS), but not required for PBC(TRG).
-    // We parse them opportunistically here and validate later in the driver based on boundary condition.
-    Db_max = this->Has("Dbmps_max") ? static_cast<size_t>(ParseInt("Dbmps_max")) : 0;
-    if (this->Has("Dbmps_min")) {
-      Db_min = static_cast<size_t>(ParseInt("Dbmps_min"));
-    } else {
-      Db_min = Db_max;
-    }
-    if (this->Has("MPSCompressScheme")) {
-      MPSCompressScheme = ParseCompressMPSScheme(ParseStr("MPSCompressScheme"));
-      has_mps_compress_scheme_ = true;
-    } else {
-      has_mps_compress_scheme_ = false;
-      MPSCompressScheme = qlpeps::CompressMPSScheme::SVD_COMPRESS;
-    }
-    // Numerical controls specific to BMPS.
-    // Default behavior if omitted: trunc_err = 0 (no truncation-by-error).
-    TruncErr = ParseDoubleOr("BMPSTruncErr", 0.0);
-    ThreadNum = static_cast<size_t>(ParseIntOr("ThreadNum", 1));
-
-    // Variational compression controls (only used when MPSCompressScheme is variational).
-    // Defaults keep current behavior (iter_max=10, convergence_tol=TruncErr).
-    if (this->Has("BMPSConvergenceTol")) {
-      bmps_convergence_tol_ = ParseDouble("BMPSConvergenceTol");
-    }
-    if (this->Has("BMPSIterMax")) {
-      bmps_iter_max_ = static_cast<size_t>(ParseInt("BMPSIterMax"));
-    }
+  explicit BMPSParams(const char *f)
+      : CaseParamsParserBasic(f), algorithm_values(qlpeps::config::ReadCaseParamsFile(f)) {
+    // OBC requires Dbmps_max; PBC parameter files may omit all BMPS dimensions.
+    Db_max = qlpeps::config::ReadSize(algorithm_values, "Dbmps_max", 0);
+    Db_min = qlpeps::config::ReadSize(algorithm_values, "Dbmps_min", Db_max);
+    MPSCompressScheme = ParseCompressMPSScheme(
+        qlpeps::config::ReadString(algorithm_values, "MPSCompressScheme", "SVD"));
+    TruncErr = qlpeps::config::ReadDouble(algorithm_values, "BMPSTruncErr", 0.0);
+    ThreadNum = qlpeps::config::ReadSize(algorithm_values, "ThreadNum", 1);
+    if (ThreadNum == 0) throw std::invalid_argument("ThreadNum must be positive.");
+    if (Db_max > 0) (void) CreateTruncatePara();
   }
 
-  size_t Db_min;                              ///< Minimum boundary MPS bond dimension
-  size_t Db_max;                              ///< Maximum boundary MPS bond dimension
-  qlpeps::CompressMPSScheme MPSCompressScheme; ///< MPS compression scheme
-  double TruncErr;                             ///< Truncation error threshold for boundary MPS
-  size_t ThreadNum;                            ///< Number of threads for tensor operations
-  bool HasBMPSRequiredKeys() const { return (Db_max > 0); }
+  qlpeps::config::Json algorithm_values;  ///< Original algorithm keys, including PBC settings.
+  size_t Db_min;
+  size_t Db_max;
+  qlpeps::CompressMPSScheme MPSCompressScheme;
+  double TruncErr;
+  size_t ThreadNum;
+  bool HasBMPSRequiredKeys() const { return Db_max > 0; }
 
-  /**
-   * @brief Create BMPSTruncatePara from these parameters
-   */
-  qlpeps::BMPSTruncateParams<qlten::QLTEN_Double> CreateTruncatePara(double trunc_err) const {
-    return CreateTruncateParamsImpl_(trunc_err);
-  }
-
-  /**
-   * @brief Create BMPSTruncatePara using internal TruncErr
-   */
-  qlpeps::BMPSTruncateParams<qlten::QLTEN_Double> CreateTruncatePara() const {
-    return CreateTruncateParamsImpl_(TruncErr);
-  }
-
- private:
-  bool has_mps_compress_scheme_ = false;
-  std::optional<double> bmps_convergence_tol_;
-  std::optional<size_t> bmps_iter_max_;
-
-  qlpeps::BMPSTruncateParams<qlten::QLTEN_Double> CreateTruncateParamsImpl_(double trunc_err) const {
-    // Convergence tolerance is an algorithmic knob; don't make it "accidentally zero" when trunc_err=0.
-    const double default_tol = (trunc_err > 0.0) ? trunc_err : 1e-12;
-    const double tol = bmps_convergence_tol_.value_or(default_tol);
-    const size_t it = bmps_iter_max_.value_or(static_cast<size_t>(10));
-
-    switch (MPSCompressScheme) {
-      case qlpeps::CompressMPSScheme::SVD_COMPRESS:
-        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::SVD(Db_min, Db_max, trunc_err);
-      case qlpeps::CompressMPSScheme::VARIATION2Site:
-        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::Variational2Site(Db_min, Db_max, trunc_err, tol, it);
-      case qlpeps::CompressMPSScheme::VARIATION1Site:
-        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::Variational1Site(Db_min, Db_max, trunc_err, tol, it);
-      default:
-        // Fall back to SVD semantics to avoid undefined behavior if enum extends.
-        return qlpeps::BMPSTruncateParams<qlten::QLTEN_Double>::SVD(Db_min, Db_max, trunc_err);
+  /** @brief Preserve the caller's truncation override and historical variational defaults. */
+  qlpeps::BMPSTruncateParams<double> CreateTruncatePara(double trunc_err) const {
+    auto values = algorithm_values;
+    values["Dbmps_min"] = Db_min;
+    values["Dbmps_max"] = Db_max;
+    values["BMPSTruncErr"] = trunc_err;
+    values["MPSCompressScheme"] = qlpeps::CompressMPSSchemeString(MPSCompressScheme);
+    if (MPSCompressScheme == qlpeps::CompressMPSScheme::SVD_COMPRESS) {
+      values.erase("BMPSConvergenceTol");
+      values.erase("BMPSIterMax");
     }
+    return qlpeps::config::ParseBMPSParams(values);
+  }
+
+  qlpeps::BMPSTruncateParams<double> CreateTruncatePara() const {
+    return CreateTruncatePara(TruncErr);
   }
 };
 
@@ -691,55 +617,16 @@ inline std::pair<qlpeps::Configuration, bool> InitOrLoadConfigWithStrategy(
   return {config, false};
 }
 
-/** @brief Build TRG truncation parameters from TRGDmin, TRGDmax, TRGTruncErr, TRGInvRelativeEps. */
-inline qlpeps::PEPSParams CreateTRGPEPSParams_(qlmps::CaseParamsParserBasic &algorithm_parser) {
-  if (!(algorithm_parser.Has("TRGDmin") && algorithm_parser.Has("TRGDmax") &&
-        algorithm_parser.Has("TRGTruncErr"))) {
-    throw std::invalid_argument(
-        "PBC requested but TRG params are missing in algorithm JSON. "
-        "Require: TRGDmin, TRGDmax, TRGTruncErr (optional: TRGInvRelativeEps).");
-  }
-  const size_t d_min = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmin"));
-  const size_t d_max = static_cast<size_t>(algorithm_parser.ParseInt("TRGDmax"));
-  const double trunc_err = algorithm_parser.ParseDouble("TRGTruncErr");
-  const double inv_eps = algorithm_parser.ParseDoubleOr("TRGInvRelativeEps", 1e-12);
-  return qlpeps::PEPSParams(
-      qlpeps::TRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err, inv_eps));
-}
-
-/** @brief Build HOTRG truncation parameters from HOTRGDmin, HOTRGDmax, HOTRGTruncErr. */
-inline qlpeps::PEPSParams CreateHOTRGPEPSParams_(qlmps::CaseParamsParserBasic &algorithm_parser) {
-  if (!(algorithm_parser.Has("HOTRGDmin") && algorithm_parser.Has("HOTRGDmax") &&
-        algorithm_parser.Has("HOTRGTruncErr"))) {
-    throw std::invalid_argument(
-        "PBC with PBCContractor=HOTRG requested but HOTRG params are missing in algorithm JSON. "
-        "Require: HOTRGDmin, HOTRGDmax, HOTRGTruncErr.");
-  }
-  const size_t d_min = static_cast<size_t>(algorithm_parser.ParseInt("HOTRGDmin"));
-  const size_t d_max = static_cast<size_t>(algorithm_parser.ParseInt("HOTRGDmax"));
-  const double trunc_err = algorithm_parser.ParseDouble("HOTRGTruncErr");
-  return qlpeps::PEPSParams(
-      qlpeps::HOTRGTruncateParams<qlten::QLTEN_Double>(d_min, d_max, trunc_err));
-}
-
-/**
- * @brief Create PEPSParams selecting a PBC backend (TRG or HOTRG) or BMPS (OBC).
- *
- * For PBC, the optional key `PBCContractor` selects the backend and defaults to
- * TRG. TRG requires TRGDmin, TRGDmax, TRGTruncErr; HOTRG requires HOTRGDmin,
- * HOTRGDmax, HOTRGTruncErr. For OBC, requires BMPSParams to have valid Dbmps_max.
- */
+/** @brief Keep the application's required PBC keys while using common algorithm validation. */
 inline qlpeps::PEPSParams CreatePEPSParams(
-    qlpeps::BoundaryCondition bc,
-    const BMPSParams &bmps,
-    qlmps::CaseParamsParserBasic &algorithm_parser) {
+    qlpeps::BoundaryCondition bc, const BMPSParams &bmps,
+    const qlpeps::config::Json &algorithm_values) {
   if (bc == qlpeps::BoundaryCondition::Periodic) {
-    if (ReadPBCContractorKind(algorithm_parser) == PBCContractorKind::HOTRG) {
-      return CreateHOTRGPEPSParams_(algorithm_parser);
+    if (ReadPBCContractorKind(algorithm_values) == PBCContractorKind::HOTRG) {
+      return qlpeps::PEPSParams(qlpeps::config::ParseHOTRGParams(algorithm_values));
     }
-    return CreateTRGPEPSParams_(algorithm_parser);
+    return qlpeps::PEPSParams(qlpeps::config::ParseTRGParams(algorithm_values));
   }
-
   if (!bmps.HasBMPSRequiredKeys()) {
     throw std::invalid_argument(
         "OBC requested but BMPS params are missing in algorithm JSON. "

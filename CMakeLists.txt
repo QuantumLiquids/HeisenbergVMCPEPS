@@ -61,7 +61,7 @@ else ()
 endif ()
 
 
-find_package(PEPS 0.2.1 CONFIG REQUIRED)
+find_package(PEPS 0.2.2 CONFIG REQUIRED)
 
 # PEPS::PEPS carries the complete public dependency chain, including
 # UltraDMRG, TensorToolkit, MPI, the numeric backend, HPTT, and optional
@@ -125,3 +125,9 @@ option(BUILD_TXT_TO_TPS_SITPS "Build TXT->TPS->SplitIndexTPS converter (temporar
 if (BUILD_TXT_TO_TPS_SITPS)
     add_heisenberg_executable(txt_to_tps_sitps src/txt_to_tps_sitps.cpp)
 endif ()
+
+# Fast regression for application defaults and temporary configuration aliases.
+enable_testing()
+add_heisenberg_executable(test_optimizer_config tests/test_optimizer_config.cpp)
+add_test(NAME test_optimizer_config COMMAND test_optimizer_config)
+set_tests_properties(test_optimizer_config PROPERTIES LABELS "utility;fast")

@@ -39,7 +39,7 @@ Notes:
 
 - C++20 compiler
 - CMake >= 3.27
-- An installed `PEPS` CMake package, together with its `UltraDMRG` and
+- An installed `PEPS >= 0.2.2` CMake package, together with its `UltraDMRG` and
   `TensorToolkit` package dependencies
 
 The upstream package targets select and propagate MPI, OpenMP, BLAS/LAPACK,

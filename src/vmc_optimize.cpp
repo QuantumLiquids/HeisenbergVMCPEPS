@@ -12,28 +12,25 @@
 #include "qlpeps/qlpeps.h"
 #include "model_updater_factory.h"
 #include <fstream>
+#include <variant>
+#include "qlpeps/state/spin_inversion_metadata.h"
 
 using namespace qlpeps;
 
 namespace {
-const char* LBFGSStepModeToString(qlpeps::LBFGSStepMode mode) {
+const char *LBFGSStepModeToString(LBFGSStepMode mode) {
   switch (mode) {
-    case qlpeps::LBFGSStepMode::kFixed:
-      return "Fixed";
-    case qlpeps::LBFGSStepMode::kStrongWolfe:
-      return "StrongWolfe";
+    case LBFGSStepMode::kFixed: return "Fixed";
+    case LBFGSStepMode::kStrongWolfe: return "StrongWolfe";
   }
   return "Unknown";
 }
 
-const char* MinSRSolverModeToString(qlpeps::MinSRSolverMode mode) {
+const char *MinSRSolverModeToString(MinSRSolverMode mode) {
   switch (mode) {
-    case qlpeps::MinSRSolverMode::kAuto:
-      return "Auto";
-    case qlpeps::MinSRSolverMode::kReplicated:
-      return "Replicated";
-    case qlpeps::MinSRSolverMode::kDistributed:
-      return "Distributed";
+    case MinSRSolverMode::kAuto: return "Auto";
+    case MinSRSolverMode::kReplicated: return "Replicated";
+    case MinSRSolverMode::kDistributed: return "Distributed";
   }
   return "Unknown";
 }
@@ -58,55 +55,61 @@ int main(int argc, char **argv) {
 
   if (rank == 0) {
     std::cout << "=== VMC Optimization ===" << std::endl;
-    std::cout << "Optimizer: " << params.optimizer_type << std::endl;
-    std::cout << "Learning Rate: " << params.learning_rate << std::endl;
-    std::cout << "Max Iterations: " << params.max_iterations << std::endl;
-    if (!params.lr_scheduler_type.empty()) {
-      std::cout << "LR Scheduler: " << params.lr_scheduler_type << std::endl;
+    const auto &optimizer = params.optimizer_params;
+    std::cout << "Optimizer: " << qlpeps::config::OptimizerTypeName(optimizer.algorithm_params)
+              << std::endl;
+    std::cout << "Learning Rate: " << optimizer.base_params.learning_rate << std::endl;
+    std::cout << "Max Iterations: " << optimizer.base_params.max_iterations << std::endl;
+    const auto &base = optimizer.base_params;
+    if (base.lr_scheduler) {
+      std::cout << "LR Scheduler: " << base.lr_scheduler->Name()
+                << " (" << base.lr_scheduler->Describe() << ")" << std::endl;
     }
-    if (params.clip_norm || params.clip_value) {
+    if (base.clip_norm || base.clip_value) {
       std::cout << "Gradient Clipping: ";
-      if (params.clip_norm) std::cout << "norm=" << *params.clip_norm << " ";
-      if (params.clip_value) std::cout << "value=" << *params.clip_value << " ";
+      if (base.clip_norm) std::cout << "norm=" << *base.clip_norm << " ";
+      if (base.clip_value) std::cout << "value=" << *base.clip_value << " ";
       std::cout << std::endl;
     }
-    if (params.optimizer_type == "LBFGS") {
-      std::cout << "LBFGS Config: history=" << params.lbfgs_history_size
-                << ", step_mode=" << LBFGSStepModeToString(params.lbfgs_step_mode)
-                << ", max_eval=" << params.lbfgs_max_eval << std::endl;
-      if (params.lbfgs_step_mode == qlpeps::LBFGSStepMode::kStrongWolfe) {
-        std::cout << "  Strong-Wolfe: c1=" << params.lbfgs_wolfe_c1
-                  << ", c2=" << params.lbfgs_wolfe_c2
-                  << ", tol_grad=" << params.lbfgs_tolerance_grad
-                  << ", tol_change=" << params.lbfgs_tolerance_change << std::endl;
+    if (const auto *lbfgs = std::get_if<LBFGSParams>(&optimizer.algorithm_params)) {
+      std::cout << "LBFGS Config: history=" << lbfgs->history_size
+                << ", step_mode=" << LBFGSStepModeToString(lbfgs->step_mode)
+                << ", max_eval=" << lbfgs->max_eval << std::endl;
+      if (lbfgs->step_mode == LBFGSStepMode::kStrongWolfe) {
+        std::cout << "  Strong-Wolfe: c1=" << lbfgs->wolfe_c1
+                  << ", c2=" << lbfgs->wolfe_c2
+                  << ", tol_grad=" << lbfgs->tolerance_grad
+                  << ", tol_change=" << lbfgs->tolerance_change << std::endl;
       }
     }
-    if (params.optimizer_type == "MinSR") {
-      std::cout << "MinSR Config: r_pinv=" << params.minsr_r_pinv
-                << ", a_pinv=" << params.minsr_a_pinv
-                << ", soft_cutoff=" << params.minsr_soft_cutoff
-                << ", solver_mode=" << MinSRSolverModeToString(params.minsr_solver_mode)
+    if (const auto *minsr = std::get_if<MinSRParams>(&optimizer.algorithm_params)) {
+      std::cout << "MinSR Config: r_pinv=" << minsr->r_pinv
+                << ", a_pinv=" << minsr->a_pinv
+                << ", soft_cutoff=" << minsr->soft_cutoff
+                << ", solver_mode=" << MinSRSolverModeToString(minsr->solver_mode)
                 << std::endl;
     }
-    if (params.initial_step_selector_enabled || params.auto_step_selector_enabled) {
+    const auto &initial = base.initial_step_selector;
+    const auto &periodic = base.periodic_step_selector;
+    if (initial.enabled || periodic.enabled) {
       std::cout << "Step Selectors:" << std::endl;
-      std::cout << "  Initial: enabled=" << params.initial_step_selector_enabled
-                << ", max_line_search_steps=" << params.initial_step_selector_max_line_search_steps
-                << ", deterministic=" << params.initial_step_selector_enable_in_deterministic
-                << std::endl;
-      std::cout << "  Periodic: enabled=" << params.auto_step_selector_enabled
-                << ", every_n_steps=" << params.auto_step_selector_every_n_steps
-                << ", phase_switch_ratio=" << params.auto_step_selector_phase_switch_ratio
-                << ", deterministic=" << params.auto_step_selector_enable_in_deterministic
-                << std::endl;
+      std::cout << "  Initial: enabled=" << initial.enabled
+                << ", max_line_search_steps=" << initial.max_line_search_steps
+                << ", deterministic=" << initial.enable_in_deterministic << std::endl;
+      std::cout << "  Periodic: enabled=" << periodic.enabled
+                << ", every_n_steps=" << periodic.every_n_steps
+                << ", phase_switch_ratio=" << periodic.phase_switch_ratio
+                << ", deterministic=" << periodic.enable_in_deterministic << std::endl;
     }
-    if (params.spike_auto_recover) {
-      std::cout << "Spike Recovery: enabled (max_retries=" << params.spike_max_retries << ")" << std::endl;
-      if (params.spike_enable_rollback) {
-        std::cout << "  Rollback: enabled (sigma_k=" << params.spike_sigma_k << ")" << std::endl;
-      }
+    const auto &spike = optimizer.spike_recovery_params;
+    if (spike.enable_auto_recover) {
+      std::cout << "Spike Recovery: enabled (max_retries=" << spike.redo_mc_max_retries
+                << ")" << std::endl;
     } else {
       std::cout << "Spike Recovery: disabled" << std::endl;
+    }
+    if (spike.enable_rollback) {
+      std::cout << "  Rollback: enabled (sigma_k=" << spike.sigma_k << ")" << std::endl;
     }
     std::cout << "=================================" << std::endl;
   }
@@ -115,9 +118,8 @@ int main(int argc, char **argv) {
   std::string base = params.io_params.wavefunction_base; // default "tps"
   std::string tps_final = base + "final";
   // Note: we do not auto-fallback to lowest; user may manually copy lowest → final
-  spin_inversion_io::Collective(comm, rank, [&] {
-    spin_inversion_io::RequireParity(tps_final, params.spin_inversion_parity);
-  });
+  RequireSpinInversionMetadataCollectively(
+      tps_final, MakeSpinInversionMetadata(params.spin_inversion_parity), comm);
 
   SplitIndexTPS<TenElemT, QNT> sitps;
   
@@ -154,7 +156,7 @@ int main(int argc, char **argv) {
   // TODO(MCRestrictU1): dispatch updater by params.mc_params.MCRestrictU1 as well.
   LogSamplerChoice(params.mc_params);
   if (rank == 0) {
-    std::cout << "Starting " << params.optimizer_type << " optimization..." << std::endl;
+    std::cout << "Starting optimization..." << std::endl;
   }
   RunVmcByModel<TenElemT, QNT>(params, sitps, comm, rank);
   if (rank == 0) {
