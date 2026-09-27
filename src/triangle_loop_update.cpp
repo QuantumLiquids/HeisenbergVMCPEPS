@@ -9,6 +9,7 @@
 #define PLAIN_TRANSPOSE 1
 
 #include "qlpeps/algorithm/loop_update/loop_update.h"
+#include "qlpeps/api/conversions.h"
 #include "./qldouble.h"
 #include "./params_parser.h"
 
@@ -172,19 +173,19 @@ int main(int argc, char **argv) {
       }
     }
   }
-  auto *loop_exe = new LoopUpdateExecutor<QLTEN_Double, QNT>(LoopUpdateTruncatePara(
-                                                                 arnoldi_params,
-                                                                 1e-8,
-                                                                 fet_params),
-                                                             params.Step,
-                                                             params.Tau,
+  auto *loop_exe = new LoopUpdateExecutor<QLTEN_Double, QNT>(LoopUpdatePara(LoopUpdateTruncatePara(
+                                                                                arnoldi_params,
+                                                                                1e-8,
+                                                                                fet_params),
+                                                                            params.Step,
+                                                                            params.Tau),
                                                              evolve_gates,
                                                              peps0);
 
   loop_exe->Execute();
   auto peps_res = loop_exe->GetPEPS();
   loop_exe->DumpResult(peps_path, true);
-  auto tps = qlpeps::TPS<TenElemT, QNT>(peps_res);
+  auto tps = qlpeps::ToTPS(peps_res);
   tps.Dump();
   delete loop_exe;
   return 0;

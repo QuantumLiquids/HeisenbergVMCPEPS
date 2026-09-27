@@ -10,6 +10,7 @@
 //#define PLAIN_TRANSPOSE 1
 
 #include "qlpeps/algorithm/simple_update/square_lattice_nn_simple_update.h"
+#include "qlpeps/api/conversions.h"
 #include "./qldouble.h"
 #include "./params_parser.h"
 
@@ -59,7 +60,7 @@ int main(int argc, char **argv) {
   auto su_exe = new qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
                                                                                ham_hei_nn);
   su_exe->Execute();
-  auto tps2 = qlpeps::TPS<TenElemT, QNT>(su_exe->GetPEPS());
+  auto tps2 = qlpeps::ToTPS(su_exe->GetPEPS());
   SplitIndexTPS<TenElemT, QNT> split_index_tps2(tps2);
   split_index_tps2.Dump();
   return 0;

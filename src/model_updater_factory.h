@@ -69,7 +69,7 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
       using Model = qlpeps::SquareSpinOneHalfXXZModelOBC; // Heisenberg J2=0 (OBC)
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, Model{});
     } else {
-      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModel; // Heisenberg J2!=0 (OBC)
+      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC; // Heisenberg J2!=0 (OBC)
       Model solver(j2);
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
     }
@@ -82,7 +82,7 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*pinning=*/0.0);
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
     } else {
-      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModel; // XY J2!=0 => jz=0, jxy=1, jz2=0, jxy2=j2
+      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC; // XY J2!=0 => jz=0, jxy=1, jz2=0, jxy2=j2
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*jz2=*/0.0, /*jxy2=*/j2, /*pinning=*/0.0);
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
     }
@@ -208,7 +208,7 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
       using Model = qlpeps::SquareSpinOneHalfXXZModelOBC;
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, Model{});
     } else {
-      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModel;
+      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC;
       Model solver(j2);
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
     }
@@ -221,7 +221,7 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*pinning=*/0.0);
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
     } else {
-      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModel; // XY with J2
+      using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC; // XY with J2
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*jz2=*/0.0, /*jxy2=*/j2, /*pinning=*/0.0);
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
     }
