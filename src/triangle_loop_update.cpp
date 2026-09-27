@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
       }
     }
   }
-  auto *loop_exe = new LoopUpdateExecutor<QLTEN_Double, QNT>(LoopUpdatePara(LoopUpdateTruncatePara(
+  auto *loop_exe = new LoopUpdateExecutor<qlten::QLTEN_Double, QNT>(LoopUpdatePara(LoopUpdateTruncatePara(
                                                                                 arnoldi_params,
                                                                                 1e-8,
                                                                                 fet_params),

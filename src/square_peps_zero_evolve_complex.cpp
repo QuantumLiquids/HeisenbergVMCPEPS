@@ -14,6 +14,7 @@
 #include "./qlcomplex.h"
 #include "./params_parser.h"
 
+using namespace qlten;
 using namespace qlpeps;
 int main(int argc, char **argv) {
   SimpleUpdateParams params(argv[1]);

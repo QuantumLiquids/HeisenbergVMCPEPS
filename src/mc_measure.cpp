@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     }
   } else {
     if (rank == 0) std::cout << "SplitIndexTPS not found. Loading TPS and splitting indices..." << std::endl;
-    TPS<QLTEN_Double, QNT> tps(params.physical_params.Ly, params.physical_params.Lx,
+    TPS<qlten::QLTEN_Double, QNT> tps(params.physical_params.Ly, params.physical_params.Lx,
                                params.physical_params.BoundaryCondition);
     if (!tps.Load()) {
       if (rank == 0) std::cerr << "ERROR: Failed to load TPS from current directory." << std::endl;
