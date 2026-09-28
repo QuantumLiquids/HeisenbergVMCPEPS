@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
 
   auto mc_params_obj = params.mc_params.CreateMonteCarloParams(
       init_config, warmed_up, params.io_params.configuration_dump_dir);
-  PEPSParams peps_params_obj(params.CreatePEPSParams());
-  MCMeasurementParams measurement_params(mc_params_obj, peps_params_obj, "./");
+  ContractorParams contractor_params_obj(params.CreateContractorParams());
+  MCMeasurementParams measurement_params(mc_params_obj, contractor_params_obj, "./");
 
   // TODO(MCRestrictU1): dispatch MCUpdater by params.mc_params.MCRestrictU1
   LogSamplerChoice(params.mc_params);

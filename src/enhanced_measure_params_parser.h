@@ -26,10 +26,10 @@ struct EnhancedMCMeasureParams : public qlmps::CaseParamsParserBasic {
   heisenberg_params::IOParams io_params;
 
   /**
-   * @brief Create PEPSParams (BMPS for OBC, TRG for PBC).
+   * @brief Create ContractorParams (BMPS for OBC, TRG or HOTRG for PBC).
    */
-  qlpeps::PEPSParams CreatePEPSParams() {
-    return heisenberg_params::CreatePEPSParams(
+  qlpeps::ContractorParams CreateContractorParams() {
+    return heisenberg_params::CreateContractorParams(
         physical_params.BoundaryCondition, bmps_params, bmps_params.algorithm_values);
   }
 };

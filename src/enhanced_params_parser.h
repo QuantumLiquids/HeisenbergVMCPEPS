@@ -84,10 +84,10 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
     auto mc_params_obj = mc_params.CreateMonteCarloParams(
         config, warmed_up, io_params.configuration_dump_dir);
 
-    const qlpeps::PEPSParams peps_params_obj = heisenberg_params::CreatePEPSParams(
+    const qlpeps::ContractorParams contractor_params_obj = heisenberg_params::CreateContractorParams(
         physical_params.BoundaryCondition, bmps_params, bmps_params.algorithm_values);
 
-    return qlpeps::VMCPEPSOptimizerParams(optimizer_params, mc_params_obj, peps_params_obj);
+    return qlpeps::VMCPEPSOptimizerParams(optimizer_params, mc_params_obj, contractor_params_obj);
   }
 
 };

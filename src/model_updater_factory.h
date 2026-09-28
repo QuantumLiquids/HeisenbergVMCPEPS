@@ -141,14 +141,14 @@ inline void RunVmcByModelPBCWith_(const qlpeps::VMCPEPSOptimizerParams &opt_para
   }
 }
 
-/** @brief Run PBC VMC, choosing the backend held by the parsed PEPSParams. */
+/** @brief Run PBC VMC, choosing the backend held by the parsed ContractorParams. */
 template<typename TenElemT, typename QNT>
 inline void RunVmcByModelPBC_(EnhancedVMCUpdateParams &params,
                               qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                               MPI_Comm comm,
                               int rank) {
   const qlpeps::VMCPEPSOptimizerParams opt_params = params.CreateVMCOptimizerParams(rank);
-  if (opt_params.peps_params.IsHOTRG()) {
+  if (opt_params.contractor_params.IsHOTRG()) {
     RunVmcByModelPBCWith_<TenElemT, QNT, qlpeps::HOTRGContractor>(
         opt_params, params.physical_params, sitps, comm);
     return;
@@ -280,13 +280,13 @@ inline void RunMeasureByModelPBCWith_(const heisenberg_params::PhysicalParams &p
   }
 }
 
-/** @brief Run PBC measurement, choosing the backend held by the parsed PEPSParams. */
+/** @brief Run PBC measurement, choosing the backend held by the parsed ContractorParams. */
 template<typename TenElemT, typename QNT>
 inline void RunMeasureByModelPBC_(const heisenberg_params::PhysicalParams &phys,
                                   const qlpeps::MCMeasurementParams &measurement_params,
                                   qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                                   MPI_Comm comm) {
-  if (measurement_params.peps_params.IsHOTRG()) {
+  if (measurement_params.contractor_params.IsHOTRG()) {
     RunMeasureByModelPBCWith_<TenElemT, QNT, qlpeps::HOTRGContractor>(
         phys, measurement_params, sitps, comm);
     return;

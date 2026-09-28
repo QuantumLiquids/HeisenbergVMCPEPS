@@ -618,21 +618,21 @@ inline std::pair<qlpeps::Configuration, bool> InitOrLoadConfigWithStrategy(
 }
 
 /** @brief Keep the application's required PBC keys while using common algorithm validation. */
-inline qlpeps::PEPSParams CreatePEPSParams(
+inline qlpeps::ContractorParams CreateContractorParams(
     qlpeps::BoundaryCondition bc, const BMPSParams &bmps,
     const qlpeps::config::Json &algorithm_values) {
   if (bc == qlpeps::BoundaryCondition::Periodic) {
     if (ReadPBCContractorKind(algorithm_values) == PBCContractorKind::HOTRG) {
-      return qlpeps::PEPSParams(qlpeps::config::ParseHOTRGParams(algorithm_values));
+      return qlpeps::ContractorParams(qlpeps::config::ParseHOTRGParams(algorithm_values));
     }
-    return qlpeps::PEPSParams(qlpeps::config::ParseTRGParams(algorithm_values));
+    return qlpeps::ContractorParams(qlpeps::config::ParseTRGParams(algorithm_values));
   }
   if (!bmps.HasBMPSRequiredKeys()) {
     throw std::invalid_argument(
         "OBC requested but BMPS params are missing in algorithm JSON. "
         "Require: Dbmps_max (Dbmps_min optional; MPSCompressScheme optional, default=SVD).");
   }
-  return qlpeps::PEPSParams(bmps.CreateTruncatePara());
+  return qlpeps::ContractorParams(bmps.CreateTruncatePara());
 }
 
 /**
