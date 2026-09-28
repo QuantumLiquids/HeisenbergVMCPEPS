@@ -11,7 +11,7 @@
 
 #include "qlpeps/algorithm/simple_update/square_lattice_nn_simple_update.h"
 #include "qlpeps/algorithm/simple_update/square_lattice_nnn_simple_update.h"
-#include "qlpeps/algorithm/simple_update/triangle_nn_on_sqr_peps_simple_update.h"
+#include "qlpeps/algorithm/simple_update/triangular_lattice_nn_simple_update.h"
 #include "qlpeps/qlpeps.h"
 #include "qlpeps/api/conversions.h"
 #include "./qldouble.h"
@@ -333,7 +333,7 @@ int RunSimpleUpdate(int argc, char **argv, bool use_mpi, int rank) {
 
   std::unique_ptr<qlpeps::SimpleUpdateExecutor<TenElemT, QNT>> su_exe;
   if (is_triangle) {
-    su_exe = std::make_unique<qlpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>>(update_params, peps0, ham_hei_nn, ham_hei_tri);
+    su_exe = std::make_unique<qlpeps::TriangularLatticeNNSimpleUpdateExecutor<TenElemT, QNT>>(update_params, peps0, ham_hei_nn, ham_hei_tri);
   } else if (std::abs(params.physical_params.J2) < 1e-15) {
     su_exe = std::make_unique<qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>>(update_params, peps0, ham_nn);
   } else {
