@@ -17,15 +17,15 @@
 using namespace qlten;
 using namespace qlpeps;
 int main(int argc, char **argv) {
-  SimpleUpdateParams params(argv[1]);
+  ::SimpleUpdateParams params(argv[1]);  // legacy params_parser.h struct, not qlpeps::SimpleUpdateParams
   Tensor ham_hei_nn = Tensor({pb_in, pb_out, pb_in, pb_out});
   Tensor ham_hei_tri = Tensor({pb_in, pb_out, pb_in, pb_out, pb_in, pb_out});
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.ThreadNum);
 
-  qlpeps::SimpleUpdatePara update_para(params.Step, 1,
-                                       params.Dmax, params.Dmax,
-                                       params.TruncErr);
+  qlpeps::SimpleUpdateParams update_params(params.Step, 1,
+                                           params.Dmax, params.Dmax,
+                                           params.TruncErr);
 
   SplitIndexTPS<TenElemT, QNT> split_index_tps(params.Ly, params.Lx);
   if (!split_index_tps.Load()) {
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  auto su_exe = new qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>(update_para, peps0,
+  auto su_exe = new qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>(update_params, peps0,
                                                                                ham_hei_nn);
   su_exe->Execute();
   auto tps2 = qlpeps::ToTPS(su_exe->GetPEPS());

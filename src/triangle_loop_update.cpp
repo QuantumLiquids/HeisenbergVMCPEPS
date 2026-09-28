@@ -119,7 +119,7 @@ void GenerateTriangleHeisenbergAllEvolveGates(
 
 int main(int argc, char **argv) {
   using namespace qlpeps;
-  SimpleUpdateParams params(argv[1]);
+  ::SimpleUpdateParams params(argv[1]);  // legacy params_parser.h struct, not qlpeps::SimpleUpdateParams
 
   qlten::hp_numeric::SetTensorManipulationThreads(1);
   omp_set_num_threads(params.ThreadNum);
@@ -129,9 +129,9 @@ int main(int argc, char **argv) {
   qlpeps::DuoMatrix<LoopGateT> evolve_gates(Ly - 1, Lx - 1);
   GenerateTriangleHeisenbergAllEvolveGates(params.Tau, evolve_gates);
 
-  qlpeps::SimpleUpdatePara update_para(params.Step, params.Tau,
-                                       params.Dmin, params.Dmax,
-                                       params.TruncErr);
+  qlpeps::SimpleUpdateParams update_params(params.Step, params.Tau,
+                                           params.Dmin, params.Dmax,
+                                           params.TruncErr);
 
   ArnoldiParams arnoldi_params(1e-10, 200);
   double fet_tol = 1e-12;
@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
       }
     }
   }
-  auto *loop_exe = new LoopUpdateExecutor<qlten::QLTEN_Double, QNT>(LoopUpdatePara(LoopUpdateTruncatePara(
+  auto *loop_exe = new LoopUpdateExecutor<qlten::QLTEN_Double, QNT>(LoopUpdateParams(LoopUpdateTruncateParams(
                                                                                 arnoldi_params,
                                                                                 1e-8,
                                                                                 fet_params),

@@ -723,18 +723,18 @@ struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
   /**
    * @brief Build qlpeps simple-update parameters from parsed driver inputs.
    */
-  qlpeps::SimpleUpdatePara CreateSimpleUpdatePara() const {
-    return CreateSimpleUpdateParaForStage(Tau, Step);
+  qlpeps::SimpleUpdateParams CreateSimpleUpdateParams() const {
+    return CreateSimpleUpdateParamsForStage(Tau, Step);
   }
 
   /**
    * @brief Build per-stage qlpeps simple-update parameters for tau-schedule mode.
    */
-  qlpeps::SimpleUpdatePara CreateSimpleUpdateParaForStage(
+  qlpeps::SimpleUpdateParams CreateSimpleUpdateParamsForStage(
       double tau,
       size_t step_cap) const {
     if (!advanced_stop.has_value()) {
-      return qlpeps::SimpleUpdatePara(
+      return qlpeps::SimpleUpdateParams(
           step_cap,
           tau,
           numerical_params.Dmin,
@@ -742,7 +742,7 @@ struct SimpleUpdateParams : public qlmps::CaseParamsParserBasic {
           numerical_params.TruncErr);
     }
     const auto &cfg = advanced_stop.value();
-    return qlpeps::SimpleUpdatePara::Advanced(
+    return qlpeps::SimpleUpdateParams::Advanced(
         step_cap,
         tau,
         numerical_params.Dmin,
@@ -870,7 +870,7 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
   /**
    * @brief Build qlpeps loop-update truncation parameters.
    */
-  qlpeps::LoopUpdateTruncatePara CreateLoopUpdateTruncatePara() const {
+  qlpeps::LoopUpdateTruncateParams CreateLoopUpdateTruncateParams() const {
     qlpeps::ArnoldiParams arnoldi_params(
         truncation.arnoldi_tol,
         truncation.arnoldi_max_iter);
@@ -886,7 +886,7 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
         truncation.fet_tolerance,
         truncation.fet_max_iter,
         cg_params);
-    return qlpeps::LoopUpdateTruncatePara(
+    return qlpeps::LoopUpdateTruncateParams(
         arnoldi_params,
         truncation.loop_inv_tol,
         fet_params);
@@ -895,14 +895,14 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
   /**
    * @brief Build qlpeps loop-update driver parameters.
    */
-  qlpeps::LoopUpdatePara CreateLoopUpdatePara() const {
-    const auto truncate_para = CreateLoopUpdateTruncatePara();
+  qlpeps::LoopUpdateParams CreateLoopUpdateParams() const {
+    const auto truncate_params = CreateLoopUpdateTruncateParams();
     if (!advanced_stop.has_value()) {
-      return qlpeps::LoopUpdatePara(truncate_para, Step, Tau);
+      return qlpeps::LoopUpdateParams(truncate_params, Step, Tau);
     }
     const auto &cfg = advanced_stop.value();
-    return qlpeps::LoopUpdatePara::Advanced(
-        truncate_para,
+    return qlpeps::LoopUpdateParams::Advanced(
+        truncate_params,
         Step,
         Tau,
         cfg.energy_abs_tol,

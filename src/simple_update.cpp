@@ -284,11 +284,11 @@ int RunSimpleUpdate(int argc, char **argv, bool use_mpi, int rank) {
   qlten::hp_numeric::SetTensorManipulationThreads(params.numerical_params.ThreadNum);
 
   const bool tau_schedule_enabled = params.tau_schedule.has_value();
-  qlpeps::SimpleUpdatePara update_para = tau_schedule_enabled
-      ? params.CreateSimpleUpdateParaForStage(
+  qlpeps::SimpleUpdateParams update_params = tau_schedule_enabled
+      ? params.CreateSimpleUpdateParamsForStage(
             params.tau_schedule.value().taus.front(),
             params.tau_schedule.value().step_caps.front())
-      : params.CreateSimpleUpdatePara();
+      : params.CreateSimpleUpdateParams();
 
   qlpeps::SquareLatticePEPS<TenElemT, QNT> peps0(pb_out, params.physical_params.Ly, params.physical_params.Lx, bc);
   if (rank == 0) {
@@ -333,11 +333,11 @@ int RunSimpleUpdate(int argc, char **argv, bool use_mpi, int rank) {
 
   std::unique_ptr<qlpeps::SimpleUpdateExecutor<TenElemT, QNT>> su_exe;
   if (is_triangle) {
-    su_exe = std::make_unique<qlpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>>(update_para, peps0, ham_hei_nn, ham_hei_tri);
+    su_exe = std::make_unique<qlpeps::TriangleNNModelSquarePEPSSimpleUpdateExecutor<TenElemT, QNT>>(update_params, peps0, ham_hei_nn, ham_hei_tri);
   } else if (std::abs(params.physical_params.J2) < 1e-15) {
-    su_exe = std::make_unique<qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>>(update_para, peps0, ham_nn);
+    su_exe = std::make_unique<qlpeps::SquareLatticeNNSimpleUpdateExecutor<TenElemT, QNT>>(update_params, peps0, ham_nn);
   } else {
-    su_exe = std::make_unique<qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT>>(update_para, peps0, ham_nn, ham_nnn);
+    su_exe = std::make_unique<qlpeps::SquareLatticeNNNSimpleUpdateExecutor<TenElemT, QNT>>(update_params, peps0, ham_nn, ham_nnn);
   }
 
   // The base executor also covers serial-only models; dispatch MPI only to supported types.
@@ -383,7 +383,7 @@ int RunSimpleUpdate(int argc, char **argv, bool use_mpi, int rank) {
                   << " ===" << std::endl;
       }
 
-      su_exe->update_para = params.CreateSimpleUpdateParaForStage(stage_tau, stage_step_cap);
+      su_exe->SetUpdateParams(params.CreateSimpleUpdateParamsForStage(stage_tau, stage_step_cap));
       execute();
       const auto &summary = su_exe->GetLastRunSummary();
       const std::string stop_reason = StopReasonToString(summary.stop_reason);

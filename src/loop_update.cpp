@@ -156,9 +156,9 @@ int main(int argc, char **argv) {
       throw std::runtime_error("Failed to load PEPS from: " + peps_path);
     }
 
-    const auto loop_para = params.CreateLoopUpdatePara();
+    const auto loop_params = params.CreateLoopUpdateParams();
     auto loop_exe = std::make_unique<qlpeps::LoopUpdateExecutor<TenElemT, QNT>>(
-        loop_para, evolve_gates, peps0);
+        loop_params, evolve_gates, peps0);
     loop_exe->Execute();
 
     if (params.advanced_stop.has_value()) {

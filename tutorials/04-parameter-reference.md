@@ -132,7 +132,7 @@ Current scope constraints (hard-fail if violated):
 
 Runtime effects:
 
-- Driver runs loop-update sweeps with `LoopUpdatePara` built from this JSON.
+- Driver runs loop-update sweeps with `qlpeps::LoopUpdateParams` built from this JSON.
 - Advanced-stop (when active) can terminate before `Step`; otherwise run executes to `Step`.
 - Output always targets `tpsfinal/` (SITPS) and `peps/`.
 - Driver logs include an optional advanced-stop summary:

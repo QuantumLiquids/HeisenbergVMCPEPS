@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     std::cout << "Loading TPS files fails." << std::endl;
     exit(-1);
   }
-  if (!split_index_tps.IsBondDimensionEven()) {
+  if (!split_index_tps.IsBondDimensionUniform()) {
     std::cout << "warning : D is not even." << std::endl;
   }
 
