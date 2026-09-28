@@ -433,7 +433,7 @@ struct BMPSParams : public qlmps::CaseParamsParserBasic {
     values["Dbmps_min"] = Db_min;
     values["Dbmps_max"] = Db_max;
     values["BMPSTruncErr"] = trunc_err;
-    values["MPSCompressScheme"] = qlpeps::CompressMPSSchemeString(MPSCompressScheme);
+    values["MPSCompressScheme"] = qlpeps::CompressMPSSchemeName(MPSCompressScheme);
     if (MPSCompressScheme == qlpeps::CompressMPSScheme::SVD_COMPRESS) {
       values.erase("BMPSConvergenceTol");
       values.erase("BMPSIterMax");
@@ -896,13 +896,13 @@ struct LoopUpdateParams : public qlmps::CaseParamsParserBasic {
    * @brief Build qlpeps loop-update driver parameters.
    */
   qlpeps::LoopUpdateParams CreateLoopUpdateParams() const {
-    const auto truncate_params = CreateLoopUpdateTruncateParams();
+    const auto trunc_params = CreateLoopUpdateTruncateParams();
     if (!advanced_stop.has_value()) {
-      return qlpeps::LoopUpdateParams(truncate_params, Step, Tau);
+      return qlpeps::LoopUpdateParams(trunc_params, Step, Tau);
     }
     const auto &cfg = advanced_stop.value();
     return qlpeps::LoopUpdateParams::Advanced(
-        truncate_params,
+        trunc_params,
         Step,
         Tau,
         cfg.energy_abs_tol,
