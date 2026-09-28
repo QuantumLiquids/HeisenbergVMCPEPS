@@ -9,8 +9,8 @@
 #include <stdexcept>
 #include "enhanced_params_parser.h"
 #include "qlpeps/state/spin_inversion_metadata.h"
-#include "qlpeps/vmc_basic/spin_inversion_projected_sample.h"
-#include "qlpeps/vmc_basic/configuration_update_strategies/spin_inversion_square_nn_updater.h"
+#include "qlpeps/vmc_basic/spin_inversion_projected_sample_obc.h"
+#include "qlpeps/vmc_basic/mc_updaters/square_nn_spin_inversion_updater_obc.h"
 #include "qlpeps/algorithm/vmc_update/model_solvers/spin_inversion_square_xxz_obc.h"
 #include "qlpeps/qlpeps.h"
 
@@ -59,7 +59,7 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
                               qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                               MPI_Comm comm,
                               int rank) {
-  using MCUpdaterT = qlpeps::MCUpdateSquareTNN3SiteExchange;
+  using MCUpdaterT = qlpeps::MCUpdateSquareTNN3SiteExchangeOBC;
   const std::string model_type = params.physical_params.ModelType.empty() ? "SquareHeisenberg"
                                                                           : params.physical_params.ModelType;
   const double j2 = params.physical_params.J2;
@@ -162,8 +162,8 @@ template<typename TenElemT, typename QNT, int Parity>
 inline void RunSpinInversionVmc_(EnhancedVMCUpdateParams &params,
                                  const qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                                  MPI_Comm comm, int rank) {
-  using Sample = qlpeps::SpinInversionProjectedSample<TenElemT, QNT, Parity>;
-  using Updater = qlpeps::MCUpdateSquareNNSpinInversionExchange<Parity>;
+  using Sample = qlpeps::SpinInversionProjectedSampleOBC<TenElemT, QNT, Parity>;
+  using Updater = qlpeps::MCUpdateSquareNNSpinInversionExchangeOBC<Parity>;
   using Model = qlpeps::SpinInversionSquareXXZModelOBC;
   using Executor = qlpeps::VMCPEPSOptimizer<TenElemT, QNT, Updater, Model,
                                           qlpeps::BMPSContractor, Sample>;
@@ -199,7 +199,7 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
                                   const qlpeps::MCMeasurementParams &measurement_params,
                                   qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                                   MPI_Comm comm) {
-  using MCUpdaterT = qlpeps::MCUpdateSquareTNN3SiteExchange;
+  using MCUpdaterT = qlpeps::MCUpdateSquareTNN3SiteExchangeOBC;
   const std::string model_type = phys.ModelType.empty() ? "SquareHeisenberg" : phys.ModelType;
   const double j2 = phys.J2;
 
