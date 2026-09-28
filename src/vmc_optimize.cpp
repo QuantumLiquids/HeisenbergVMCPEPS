@@ -13,7 +13,7 @@
 #include "model_updater_factory.h"
 #include <fstream>
 #include <variant>
-#include "qlpeps/state/spin_inversion_metadata.h"
+#include "qlpeps/vmc_basic/spin_inversion_metadata.h"
 
 using namespace qlpeps;
 

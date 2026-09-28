@@ -17,7 +17,7 @@
 #include "qlpeps/one_dim_tn/boundary_mps/bmps_truncate_params.h"
 #include "qlpeps/algorithm/simple_update/simple_update.h"
 #include "qlpeps/algorithm/vmc_update/monte_carlo_peps_params.h"
-#include "qlpeps/two_dim_tn/common/boundary_condition.h"
+#include "qlpeps/base/boundary_condition.h"
 #include "qlpeps/two_dim_tn/tensor_network_2d/trg/trg_truncate_params.h"
 #include "qlpeps/two_dim_tn/tensor_network_2d/hotrg/hotrg_truncate_params.h"
 #include <algorithm>

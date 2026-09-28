@@ -7,7 +7,7 @@
 #include "./qldouble.h"
 #include "enhanced_measure_params_parser.h"
 #include "model_updater_factory.h"
-#include "qlpeps/state/spin_inversion_metadata.h"
+#include "qlpeps/vmc_basic/spin_inversion_metadata.h"
 
 using namespace qlpeps;
 

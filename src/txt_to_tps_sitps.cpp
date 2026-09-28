@@ -20,7 +20,7 @@
 
 #include "./qldouble.h"
 #include "qlpeps/api/conversions.h"
-#include "qlpeps/two_dim_tn/common/boundary_condition.h"
+#include "qlpeps/base/boundary_condition.h"
 #include "qlpeps/two_dim_tn/tps/split_index_tps.h"
 #include "qlpeps/two_dim_tn/tps/tps.h"
 

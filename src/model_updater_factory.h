@@ -8,7 +8,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "enhanced_params_parser.h"
-#include "qlpeps/state/spin_inversion_metadata.h"
+#include "qlpeps/vmc_basic/spin_inversion_metadata.h"
 #include "qlpeps/vmc_basic/spin_inversion_projected_sample_obc.h"
 #include "qlpeps/vmc_basic/mc_updaters/square_nn_spin_inversion_updater_obc.h"
 #include "qlpeps/algorithm/vmc_update/model_solvers/spin_inversion_square_xxz_obc.h"
