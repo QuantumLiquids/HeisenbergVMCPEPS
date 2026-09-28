@@ -91,10 +91,10 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
 
   if (model_type == "TriangleHeisenberg") {
     if (std::abs(j2) < 1e-15) {
-      using Model = qlpeps::SpinOneHalfTriHeisenbergSqrPEPS; // J2=0
+      using Model = qlpeps::TriangularSpinOneHalfHeisenbergModelOBC; // J2=0
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, Model{});
     } else {
-      using Model = qlpeps::SpinOneHalfTriJ1J2HeisenbergSqrPEPS; // J2!=0
+      using Model = qlpeps::TriangularSpinOneHalfJ1J2HeisenbergModelOBC; // J2!=0
       Model solver(j2);
       heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
     }
@@ -230,10 +230,10 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
 
   if (model_type == "TriangleHeisenberg") {
     if (std::abs(j2) < 1e-15) {
-      using Model = qlpeps::SpinOneHalfTriHeisenbergSqrPEPS;
+      using Model = qlpeps::TriangularSpinOneHalfHeisenbergModelOBC;
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, Model{});
     } else {
-      using Model = qlpeps::SpinOneHalfTriJ1J2HeisenbergSqrPEPS;
+      using Model = qlpeps::TriangularSpinOneHalfJ1J2HeisenbergModelOBC;
       Model solver(j2);
       heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
     }
