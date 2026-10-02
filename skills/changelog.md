@@ -1,5 +1,61 @@
 # Changelog: Upstream PEPS API Changes
 
+## PEPS main 68452fe - Row/column axis update - Applied 2026-10-02
+
+Upstream PEPS `main` adds `qlpeps::MCUpdateSquareAxisAutoregressiveOBC`, a rejection-free
+row/column ("axis") autoregressive sweep updater for finite OBC states, the composite
+`qlpeps::MCUpdateSequence`, and `qlpeps::LabelCountTable`, which keeps a count that dense
+tensors do not carry (here N_up) fixed during sampling. `vmc_optimize` and `mc_measure` can now
+run it before the local `MCUpdateSquareTNN3SiteExchangeOBC` sweep.
+
+### Why it matters
+
+A row or column move redraws a whole slice from its boundary-MPS window, which can shorten
+autocorrelation times where the local 3-site exchange mixes slowly. It is not cheap. Besides
+sampling every slice, the axis pass performs its own BMPS compressions, and its row pass
+consumes the lower boundary MPS as it moves down, which the 3-site sweep then regrows. On the 12x12
+D=8 Heisenberg fixtures with `Dbmps_max = MCAxisUpdateDmax = 32`, a sweep with the axis update
+took 2.9 times (dense with the count table) and 3.8 times (`-DU1SYM`) as long as a 3-site sweep
+alone, with 77 instead of 33 BMPS compressions (PEPS `profiler/README.md`, section "Measured",
+workload `heisenberg-sector`; per-sample figures in `tutorials/04-parameter-reference.md`,
+section 4.8). Compare autocorrelation per wall-clock time.
+
+### New JSON keys (VMC and measure algorithm files)
+
+- `MCAxisUpdate` — optional JSON bool, default `false`. When `true`, every OBC sweep runs
+  `MCUpdateSequence<MCUpdateSquareAxisAutoregressiveOBC, MCUpdateSquareTNN3SiteExchangeOBC>`.
+- `MCAxisUpdateDmin` (default `1`), `MCAxisUpdateDmax` (default `Dbmps_max`),
+  `MCAxisUpdateTruncErr` (default `0.0`) — the slice-MPS truncation
+  (`qlpeps::BMPSSliceSamplerParams`). No Metropolis-Hastings key: the update is rejection-free,
+  so scan `MCAxisUpdateDmax` upward.
+
+With `MCAxisUpdate=true` the parsers throw `std::invalid_argument` for PBC, nonzero
+`SpinInversionParity`, `MCAxisUpdateDmax == 0`, `MCAxisUpdateDmin` outside
+`[1, MCAxisUpdateDmax]`, `MCAxisUpdateTruncErr` outside `[0, 1)`, and, when S_z is conserved
+(`-DU1SYM` or `MCRestrictU1=true`), `MCAxisUpdateDmax < floor(max(Lx, Ly) / 2) + 1` (PEPS
+design section 5.4). On dense tensors `MCRestrictU1=true` adds the N_up table `{{1},{0}}`;
+the axis update is the only sampler that honours `MCRestrictU1`. Logs, the dense versus
+`-DU1SYM` table and the hidden-S_z caveat: `tutorials/04-parameter-reference.md`, section 4.8.
+
+### Build
+
+Requires PEPS `main` at or after `68452fe` (the row/column axis update series). PEPS still
+reports version 0.2.2 there, as before these headers existed, so
+`find_package(PEPS 0.2.2 CONFIG REQUIRED)` also accepts an older 0.2.2 install;
+`src/model_updater_factory.h` then stops the build with an `#error` that names the
+requirement. The version requirement moves up with the next PEPS release.
+
+### Backward compatibility
+
+Off by default. With `MCAxisUpdate` absent or `false`, OBC runs use the same
+default-constructed `MCUpdateSquareTNN3SiteExchangeOBC` and print the same logs as before;
+PBC and spin-inversion runs are unchanged. Existing parameter files need no change.
+`RunMeasureByModel` gained `(axis_update, mc_params)` arguments. New fast tests:
+`test_axis_update_params` (keys, validation, mapping, logs) and `test_axis_update_sweep`
+(sweeps of the enabled updater on a small simple-update state of this build's types).
+
+---
+
 ## PEPS v0.2.1 - HOTRG PBC contractor - Applied 2026-09-21
 
 Upstream PEPS 0.2.1 adds `qlpeps::HOTRGContractor`, a second periodic-boundary

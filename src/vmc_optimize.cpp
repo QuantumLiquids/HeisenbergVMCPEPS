@@ -153,8 +153,10 @@ int main(int argc, char **argv) {
   }
 
   // Create and run VMC optimizer (backend-consistent dispatch).
-  // TODO(MCRestrictU1): dispatch updater by params.mc_params.MCRestrictU1 as well.
-  LogSamplerChoice(params.mc_params);
+  // TODO(MCRestrictU1): the local updaters ignore MCRestrictU1 (they always conserve S_z); only
+  // the opt-in axis update (MCAxisUpdate=true, OBC) honours it, through its N_up count table on
+  // dense tensors.
+  LogSamplerChoice<QNT>(params.mc_params, params.axis_update_params, rank);
   if (rank == 0) {
     std::cout << "Starting optimization..." << std::endl;
   }

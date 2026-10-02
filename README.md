@@ -32,6 +32,8 @@ Notes:
 - `ModelType` controls solver dispatch: `SquareHeisenberg`, `SquareXY`, `TriangleHeisenberg`.
 - `simple_update` supports optional advanced convergence stop via `AdvancedStop*` parameters in simple-update JSON.
 - `loop_update` currently supports only `ModelType=SquareHeisenberg` with `J2=0`.
+- `vmc_optimize` and `mc_measure` offer an opt-in row/column ("axis") update for OBC sampling
+  (`MCAxisUpdate`, default off; see `tutorials/04-parameter-reference.md`, section 4.8).
 - Triangle PBC is not supported in current PEPS backend.
 - `src/kagome*` code is deprecated and corresponding binaries are disabled in default CMake.
 

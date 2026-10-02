@@ -446,6 +446,150 @@ struct BMPSParams : public qlmps::CaseParamsParserBasic {
   }
 };
 
+/// True in a build configured with -DU1SYM, whose tensors carry the U(1) S_z charge (QNT = U1QN, see qldouble.h).
+inline constexpr bool kU1SymmetricBuild =
+#ifdef U1SYM
+    true;
+#else
+    false;
+#endif
+
+/**
+ * @brief Opt-in row/column ("axis") autoregressive update of OBC sampling (VMC and measurement).
+ *
+ * Keys of the VMC and measurement algorithm files:
+ * - `MCAxisUpdate` (JSON bool, default false). When true, every OBC Monte Carlo sweep runs the
+ *   PEPS rejection-free `MCUpdateSquareAxisAutoregressiveOBC` (each row, then each column, is
+ *   redrawn from its boundary-MPS window) followed by the usual local
+ *   `MCUpdateSquareTNN3SiteExchangeOBC` sweep, composed by `qlpeps::MCUpdateSequence`.
+ * - `MCAxisUpdateDmin` (non-negative integer, default 1): D_min of the slice MPS.
+ * - `MCAxisUpdateDmax` (non-negative integer, default `Dbmps_max`): D_max of the slice MPS, chi_r.
+ * - `MCAxisUpdateTruncErr` (finite number, default 0.0): truncation error of the slice MPS.
+ *
+ * The keys are always type-checked (qlpeps::config readers). They are validated only when
+ * `MCAxisUpdate` is true; with `MCAxisUpdate` absent or false the drivers run exactly as before
+ * (the local updater alone, same seeds, same logs). There is no Metropolis-Hastings key: the
+ * PEPS axis update is rejection-free (its slice-MPS truncation bias vanishes when the slice MPS
+ * is untruncated; scan `MCAxisUpdateDmax`).
+ *
+ * Members are named after their keys, as in MonteCarloNumericalParams.
+ */
+struct AxisUpdateParams {
+  bool MCAxisUpdate = false;           ///< Run the axis update before the local sweep (OBC only).
+  size_t MCAxisUpdateDmin = 1;         ///< Slice-MPS D_min.
+  size_t MCAxisUpdateDmax = 0;         ///< Slice-MPS D_max (chi_r); `Dbmps_max` when the key is absent.
+  double MCAxisUpdateTruncErr = 0.0;   ///< Slice-MPS truncation error.
+  /// True when the file has no `MCAxisUpdateDmax` key, so that `MCAxisUpdateDmax` holds its
+  /// default `Dbmps_max` (0 without `Dbmps_max`). Only the messages of Validate() read it.
+  bool dmax_from_dbmps_max = false;
+
+  /// Disabled: the drivers run the local updater alone.
+  AxisUpdateParams() = default;
+
+  /**
+   * @brief Read the four keys from @p algorithm_file and, when `MCAxisUpdate` is true, validate them.
+   *
+   * @param algorithm_file VMC or measurement algorithm JSON (`CaseParams` object).
+   * @param physics Physics parameters (boundary condition, lattice size).
+   * @param mc Monte Carlo parameters (`MCRestrictU1`).
+   * @param bmps BMPS parameters; `Dbmps_max` is the default of `MCAxisUpdateDmax`.
+   * @param spin_inversion_projected True when `SpinInversionParity` is nonzero.
+   * @param u1_symmetric_build True when the tensors carry the S_z charge (default: this build).
+   * @throws std::invalid_argument for a key of the wrong JSON type, and when enabled for the
+   *         conditions listed at Validate().
+   */
+  AxisUpdateParams(const char *algorithm_file,
+                   const PhysicalParams &physics,
+                   const MonteCarloNumericalParams &mc,
+                   const BMPSParams &bmps,
+                   bool spin_inversion_projected,
+                   bool u1_symmetric_build = kU1SymmetricBuild) {
+    const auto values = qlpeps::config::ReadCaseParamsFile(algorithm_file);
+    MCAxisUpdate = qlpeps::config::ReadBool(values, "MCAxisUpdate", false);
+    MCAxisUpdateDmin = qlpeps::config::ReadSize(values, "MCAxisUpdateDmin", size_t{1});
+    MCAxisUpdateDmax = qlpeps::config::ReadSize(values, "MCAxisUpdateDmax", bmps.Db_max);
+    dmax_from_dbmps_max = !values.contains("MCAxisUpdateDmax");
+    MCAxisUpdateTruncErr = qlpeps::config::ReadDouble(values, "MCAxisUpdateTruncErr", 0.0);
+    Validate(physics, mc.MCRestrictU1, spin_inversion_projected, u1_symmetric_build);
+  }
+
+  /**
+   * @brief Smallest `MCAxisUpdateDmax` accepted when the sampling conserves S_z:
+   *        floor(max(Lx, Ly) / 2) + 1.
+   *
+   * PEPS design docs/dev/design/algorithms/axis-autoregressive-sampling.md, section 5.4: for one
+   * spin-1/2 count (or a U(1) spin-1/2 charge) a slice bond of a slice of length L carries at most
+   * floor(L / 2) + 1 nonzero sector blocks, and every block keeps at least one value, so the
+   * library requires D_max >= the block count of every bond. Rows have length Lx, columns Ly.
+   */
+  static size_t SectorBlockBound(const PhysicalParams &physics) {
+    return std::max(physics.Lx, physics.Ly) / 2 + 1;
+  }
+
+  /**
+   * @brief Check an enabled axis update; a no-op when `MCAxisUpdate` is false.
+   *
+   * @param physics Physics parameters (boundary condition, lattice size).
+   * @param mc_restrict_u1 `MCRestrictU1`: with dense tensors it selects the N_up count table.
+   * @param spin_inversion_projected True when `SpinInversionParity` is nonzero.
+   * @param u1_symmetric_build True when the tensors carry the S_z charge.
+   * @throws std::invalid_argument, naming the key, when enabled with:
+   *         - a periodic boundary condition (the axis update is finite-OBC, BMPS only);
+   *         - a spin-inversion projected state (its sample type has its own updater);
+   *         - `MCAxisUpdateDmax` == 0 (also when it defaults to an absent `Dbmps_max`);
+   *         - `MCAxisUpdateDmin` outside [1, `MCAxisUpdateDmax`];
+   *         - `MCAxisUpdateTruncErr` outside [0, 1);
+   *         - `MCAxisUpdateDmax` < SectorBlockBound() when the sampling conserves S_z
+   *           (@p u1_symmetric_build or @p mc_restrict_u1).
+   *         Messages about `MCAxisUpdateDmax` say whether it was set or took its default
+   *         `Dbmps_max` (`dmax_from_dbmps_max`), and which key to change.
+   */
+  void Validate(const PhysicalParams &physics,
+                bool mc_restrict_u1,
+                bool spin_inversion_projected,
+                bool u1_symmetric_build) const {
+    if (!MCAxisUpdate) return;
+    if (physics.BoundaryCondition != qlpeps::BoundaryCondition::Open) {
+      throw std::invalid_argument(
+          "MCAxisUpdate=true requires BoundaryCondition=Open: the axis update samples finite "
+          "OBC states through boundary MPS only.");
+    }
+    if (spin_inversion_projected) {
+      throw std::invalid_argument(
+          "MCAxisUpdate=true is not supported with SpinInversionParity != 0: the spin-inversion "
+          "projected sample has its own updater.");
+    }
+    // "MCAxisUpdateDmax = <value>", plus where the value came from when the key is absent.
+    const std::string dmax_text =
+        "MCAxisUpdateDmax = " + std::to_string(MCAxisUpdateDmax) +
+        (dmax_from_dbmps_max ? " (the key is absent, so it takes its default Dbmps_max)" : "");
+    if (MCAxisUpdateDmax == 0) {
+      throw std::invalid_argument(
+          "MCAxisUpdate=true requires MCAxisUpdateDmax > 0, got " + dmax_text + "." +
+          (dmax_from_dbmps_max ? " Set MCAxisUpdateDmax, or Dbmps_max." : ""));
+    }
+    if (MCAxisUpdateDmin == 0 || MCAxisUpdateDmin > MCAxisUpdateDmax) {
+      throw std::invalid_argument(
+          "MCAxisUpdateDmin must satisfy 1 <= MCAxisUpdateDmin <= MCAxisUpdateDmax, got "
+          "MCAxisUpdateDmin = " + std::to_string(MCAxisUpdateDmin) + " and " + dmax_text + ".");
+    }
+    if (!(MCAxisUpdateTruncErr >= 0.0 && MCAxisUpdateTruncErr < 1.0)) {
+      throw std::invalid_argument("MCAxisUpdateTruncErr must be in [0, 1).");
+    }
+    const size_t bound = SectorBlockBound(physics);
+    if ((u1_symmetric_build || mc_restrict_u1) && MCAxisUpdateDmax < bound) {
+      throw std::invalid_argument(
+          dmax_text + " is below floor(max(Lx, Ly) / 2) + 1 = " + std::to_string(bound) +
+          ". When the sampling conserves S_z (U1SYM build or MCRestrictU1=true), a slice bond "
+          "can carry that many S_z sector blocks, and every block keeps at least one value, so a "
+          "smaller value can make the PEPS axis update throw during sampling (PEPS design "
+          "docs/dev/design/algorithms/axis-autoregressive-sampling.md, section 5.4). Set "
+          "MCAxisUpdateDmax to at least " + std::to_string(bound) +
+          (dmax_from_dbmps_max ? ", or raise Dbmps_max, which supplies its default." : "."));
+    }
+  }
+};
+
 /**
  * @brief IO configuration for wavefunction and MC configuration paths
  */

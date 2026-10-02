@@ -43,8 +43,10 @@ int main(int argc, char **argv) {
   ContractorParams contractor_params_obj(params.CreateContractorParams());
   MCMeasurementParams measurement_params(mc_params_obj, contractor_params_obj, "./");
 
-  // TODO(MCRestrictU1): dispatch MCUpdater by params.mc_params.MCRestrictU1
-  LogSamplerChoice(params.mc_params);
+  // TODO(MCRestrictU1): the local updaters ignore MCRestrictU1 (they always conserve S_z); only
+  // the opt-in axis update (MCAxisUpdate=true, OBC) honours it, through its N_up count table on
+  // dense tensors.
+  LogSamplerChoice<QNT>(params.mc_params, params.axis_update_params, rank);
 
   // Load SplitIndexTPS from tpsfinal/ if exists; otherwise split from TPS
   SplitIndexTPS<TenElemT, QNT> sitps;
@@ -92,7 +94,8 @@ int main(int argc, char **argv) {
   }
 
   // Dispatch by model (same policy as VMC)
-  RunMeasureByModel<TenElemT, QNT>(params.physical_params, measurement_params, sitps, comm);
+  RunMeasureByModel<TenElemT, QNT>(params.physical_params, params.axis_update_params, params.mc_params,
+                                   measurement_params, sitps, comm);
 
   MPI_Finalize();
   return 0;

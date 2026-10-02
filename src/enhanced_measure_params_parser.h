@@ -18,12 +18,17 @@ struct EnhancedMCMeasureParams : public qlmps::CaseParamsParserBasic {
         mc_params(algorithm_file),
         bmps_params(algorithm_file) {
     io_params.Parse(*this);
+    axis_update_params = heisenberg_params::AxisUpdateParams(
+        algorithm_file, physical_params, mc_params, bmps_params,
+        ParseDoubleOr("SpinInversionParity", 0.0) != 0.0);
   }
 
   heisenberg_params::PhysicalParams physical_params;
   heisenberg_params::MonteCarloNumericalParams mc_params;
   heisenberg_params::BMPSParams bmps_params;
   heisenberg_params::IOParams io_params;
+  /// Opt-in axis update of OBC sampling (`MCAxisUpdate*` keys); disabled by default.
+  heisenberg_params::AxisUpdateParams axis_update_params;
 
   /**
    * @brief Create ContractorParams (BMPS for OBC, TRG or HOTRG for PBC).

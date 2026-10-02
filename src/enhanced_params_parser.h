@@ -58,6 +58,8 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
             "even Lx*Ly, SquareHeisenberg or SquareXY, J2=0, and MCRestrictU1=true.");
       }
     }
+    axis_update_params = heisenberg_params::AxisUpdateParams(
+        algorithm_file, physical_params, mc_params, bmps_params, spin_inversion_parity != 0);
   }
 
   heisenberg_params::PhysicalParams physical_params;
@@ -66,6 +68,9 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   
   /// Zero preserves plain PEPS; +/-1 selects psi(x) +/- psi(Fx).
   int spin_inversion_parity = 0;
+
+  /// Opt-in axis update of OBC sampling (`MCAxisUpdate*` keys); disabled by default.
+  heisenberg_params::AxisUpdateParams axis_update_params;
 
   qlpeps::OptimizerParams optimizer_params;
   heisenberg_params::IOParams io_params;

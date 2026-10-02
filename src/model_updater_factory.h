@@ -7,6 +7,17 @@
 #include <string>
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
+#include <utility>
+
+// The opt-in axis update (VisitOBCUpdater) needs PEPS main at or after 68452fe. PEPS reports
+// version 0.2.2 both before and after these headers arrived, so find_package(PEPS 0.2.2) in
+// CMakeLists.txt cannot reject an older install; this check names the requirement instead.
+#if !__has_include("qlpeps/vmc_basic/mc_updaters/square_axis_autoregressive_updater_obc.h") || \
+    !__has_include("qlpeps/vmc_basic/mc_updaters/mc_update_sequence.h")
+#error "This PEPS install lacks the row/column axis update (MCUpdateSquareAxisAutoregressiveOBC, MCUpdateSequence). Build against PEPS main at or after 68452fe; see skills/changelog.md."
+#endif
+
 #include "enhanced_params_parser.h"
 #include "qlpeps/vmc_basic/spin_inversion_metadata.h"
 #include "qlpeps/vmc_basic/spin_inversion_projected_sample_obc.h"
@@ -14,14 +25,92 @@
 #include "qlpeps/algorithm/vmc_update/model_solvers/spin_inversion_square_xxz_obc.h"
 #include "qlpeps/qlpeps.h"
 
-// We keep the actual call sites in the drivers (e.g., square_vmc_update.cpp),
-// and use this helper only for detection/logging to keep dependencies localized.
-inline void LogSamplerChoice(const heisenberg_params::MonteCarloNumericalParams &mc) {
-  if (!mc.MCRestrictU1) {
-    std::cout << "[info] MCRestrictU1=false (no-U1 sampler requested)."
-                 " Using U1 sampler temporarily; non-U1 variant will be wired in a later step."
-              << std::endl;
+/**
+ * @brief Map the `MCAxisUpdate*` keys to the PEPS axis-update parameters.
+ *
+ * - Slice MPS: `BMPSSliceSamplerParams(MCAxisUpdateDmin, MCAxisUpdateDmax, MCAxisUpdateTruncErr)`.
+ * - Count table: `LabelCountTable({{1}, {0}})` (N_up; label 0 = up, see qldouble.h) only for dense
+ *   tensors (TrivialRepQN) with `MCRestrictU1=true`, so that every axis move keeps the global S_z.
+ *   U1QN tensors carry S_z themselves, so a table would be redundant and none is set. With
+ *   `MCRestrictU1=false` and dense tensors none is set either: the axis moves then change S_z
+ *   while the local 3-site exchange conserves it, so the combined chain samples all S_z sectors.
+ * - Axes: rows and columns (the library default); no exactness self-check.
+ *
+ * @pre @p axis was validated (AxisUpdateParams::Validate); the library throws
+ *      std::invalid_argument for slice-MPS parameters out of range.
+ */
+template<typename QNT>
+inline qlpeps::AxisAutoregressiveUpdateParams MakeAxisAutoregressiveUpdateParams(
+    const heisenberg_params::AxisUpdateParams &axis, bool mc_restrict_u1) {
+  qlpeps::AxisAutoregressiveUpdateParams params(qlpeps::BMPSSliceSamplerParams(
+      axis.MCAxisUpdateDmin, axis.MCAxisUpdateDmax, axis.MCAxisUpdateTruncErr));
+  if (mc_restrict_u1 && std::is_same_v<QNT, qlten::special_qn::TrivialRepQN>) {
+    params.count_constraint = qlpeps::LabelCountTable({{1}, {0}});
   }
+  return params;
+}
+
+/**
+ * @brief Call @p f with the OBC sweep updater the parameters select.
+ *
+ * - `MCAxisUpdate` false (default): `f(qlpeps::MCUpdateSquareTNN3SiteExchangeOBC{})`, the
+ *   historical updater, default-constructed as before.
+ * - `MCAxisUpdate` true: `f(MCUpdateSequence<MCUpdateSquareAxisAutoregressiveOBC,
+ *   MCUpdateSquareTNN3SiteExchangeOBC>)`: per sweep one rejection-free row-and-column pass, then
+ *   one local 3-site exchange sweep, with the parameters of MakeAxisAutoregressiveUpdateParams().
+ *
+ * The two updaters have different types, so @p f must be generic (e.g. `[&](auto updater)`).
+ */
+template<typename QNT, typename F>
+inline void VisitOBCUpdater(const heisenberg_params::AxisUpdateParams &axis,
+                            const heisenberg_params::MonteCarloNumericalParams &mc,
+                            F &&f) {
+  using LocalUpdater = qlpeps::MCUpdateSquareTNN3SiteExchangeOBC;
+  if (!axis.MCAxisUpdate) {
+    std::forward<F>(f)(LocalUpdater{});
+    return;
+  }
+  using AxisUpdater = qlpeps::MCUpdateSquareAxisAutoregressiveOBC;
+  std::forward<F>(f)(qlpeps::MCUpdateSequence<AxisUpdater, LocalUpdater>(
+      AxisUpdater(MakeAxisAutoregressiveUpdateParams<QNT>(axis, mc.MCRestrictU1)), LocalUpdater{}));
+}
+
+/**
+ * @brief Log the sampler choice of the OBC drivers.
+ *
+ * With `MCAxisUpdate` off the output is unchanged: every rank prints the MCRestrictU1=false
+ * notice (the local updater always conserves S_z), nothing otherwise. With `MCAxisUpdate` on,
+ * rank 0 prints the composed updater, the slice-MPS parameters, the count-table choice and the
+ * meaning of the `[MC acceptance]` components.
+ */
+template<typename QNT>
+inline void LogSamplerChoice(const heisenberg_params::MonteCarloNumericalParams &mc,
+                             const heisenberg_params::AxisUpdateParams &axis,
+                             int rank) {
+  if (!axis.MCAxisUpdate) {
+    if (!mc.MCRestrictU1) {
+      std::cout << "[info] MCRestrictU1=false (no-U1 sampler requested)."
+                   " Using U1 sampler temporarily; non-U1 variant will be wired in a later step."
+                << std::endl;
+    }
+    return;
+  }
+  if (rank != 0) return;
+  const auto params = MakeAxisAutoregressiveUpdateParams<QNT>(axis, mc.MCRestrictU1);
+  const char *table = params.count_constraint.has_value()
+      ? "N_up {{1},{0}} (dense tensors, MCRestrictU1=true: S_z is conserved)"
+      : (std::is_same_v<QNT, qlten::special_qn::TrivialRepQN>
+             ? "none (dense tensors, MCRestrictU1=false: axis moves change S_z, all S_z sectors are sampled)"
+             : "none (U1QN tensors conserve S_z)");
+  std::cout << "[info] MCAxisUpdate=true: each OBC sweep runs MCUpdateSquareAxisAutoregressiveOBC "
+               "(rejection-free row and column moves), then MCUpdateSquareTNN3SiteExchangeOBC.\n"
+            << "[info]   slice MPS: D_min=" << params.slice_params.D_min
+            << " D_max=" << params.slice_params.D_max
+            << " trunc_err=" << params.slice_params.trunc_err << "\n"
+            << "[info]   count table: " << table << "\n"
+            << "[info]   [MC acceptance] components: 0 = changed rows / Ly, 1 = changed columns / Lx, "
+               "2 = local 3-site exchange acceptance; [MC updater] lines carry child0.axis.* counts."
+            << std::endl;
 }
 
 namespace heisenberg_vmcpeps::detail {
@@ -34,9 +123,10 @@ template<typename TenElemT,
 inline void ExecuteVmc_(const qlpeps::VMCPEPSOptimizerParams &opt_params,
                         const qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                         const MPI_Comm &comm,
-                        const EnergySolverT &solver) {
+                        const EnergySolverT &solver,
+                        MCUpdaterT updater = MCUpdaterT{}) {
   using ExecT = qlpeps::VMCPEPSOptimizer<TenElemT, QNT, MCUpdaterT, EnergySolverT, ContractorT>;
-  ExecT executor(opt_params, sitps, comm, solver, MCUpdaterT{});
+  ExecT executor(opt_params, sitps, comm, solver, std::move(updater));
   executor.Execute();
 }
 
@@ -48,9 +138,10 @@ template<typename TenElemT,
 inline void ExecuteMeasure_(const qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                             const qlpeps::MCMeasurementParams &measurement_params,
                             const MPI_Comm &comm,
-                            const MeasurementSolverT &solver) {
+                            const MeasurementSolverT &solver,
+                            MCUpdaterT updater = MCUpdaterT{}) {
   using MeasT = qlpeps::MCPEPSMeasurer<TenElemT, QNT, MCUpdaterT, MeasurementSolverT, ContractorT>;
-  MeasT measurer(sitps, measurement_params, comm, solver, MCUpdaterT{});
+  MeasT measurer(sitps, measurement_params, comm, solver, std::move(updater));
   measurer.Execute();
 }
 
@@ -59,19 +150,28 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
                               qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                               MPI_Comm comm,
                               int rank) {
-  using MCUpdaterT = qlpeps::MCUpdateSquareTNN3SiteExchangeOBC;
   const std::string model_type = params.physical_params.ModelType.empty() ? "SquareHeisenberg"
                                                                           : params.physical_params.ModelType;
   const double j2 = params.physical_params.J2;
+  // Every model runs the updater VisitOBCUpdater selects: the 3-site exchange alone (default)
+  // or the axis update followed by it (MCAxisUpdate=true). The initial configuration is built
+  // before the updater, as before.
+  const auto run = [&](const auto &solver) {
+    const qlpeps::VMCPEPSOptimizerParams opt_params = params.CreateVMCOptimizerParams(rank);
+    VisitOBCUpdater<QNT>(params.axis_update_params, params.mc_params, [&](auto updater) {
+      heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, decltype(updater)>(
+          opt_params, sitps, comm, solver, std::move(updater));
+    });
+  };
 
   if (model_type == "SquareHeisenberg") {
     if (std::abs(j2) < 1e-15) {
       using Model = qlpeps::SquareSpinOneHalfXXZModelOBC; // Heisenberg J2=0 (OBC)
-      heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, Model{});
+      run(Model{});
     } else {
       using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC; // Heisenberg J2!=0 (OBC)
       Model solver(j2);
-      heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
+      run(solver);
     }
     return;
   }
@@ -80,11 +180,11 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
     if (std::abs(j2) < 1e-15) {
       using Model = qlpeps::SquareSpinOneHalfXXZModelOBC; // XY J2=0 => jz=0, jxy=1
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*pinning=*/0.0);
-      heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
+      run(solver);
     } else {
       using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC; // XY J2!=0 => jz=0, jxy=1, jz2=0, jxy2=j2
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*jz2=*/0.0, /*jxy2=*/j2, /*pinning=*/0.0);
-      heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
+      run(solver);
     }
     return;
   }
@@ -92,11 +192,11 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
   if (model_type == "TriangleHeisenberg") {
     if (std::abs(j2) < 1e-15) {
       using Model = qlpeps::TriangularSpinOneHalfHeisenbergModelOBC; // J2=0
-      heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, Model{});
+      run(Model{});
     } else {
       using Model = qlpeps::TriangularSpinOneHalfJ1J2HeisenbergModelOBC; // J2!=0
       Model solver(j2);
-      heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, solver);
+      run(solver);
     }
     return;
   }
@@ -104,7 +204,7 @@ inline void RunVmcByModelOBC_(EnhancedVMCUpdateParams &params,
   // Fallback: default to SquareHeisenberg semantics
   {
     using Model = qlpeps::SquareSpinOneHalfXXZModelOBC;
-    heisenberg_vmcpeps::detail::ExecuteVmc_<TenElemT, QNT, MCUpdaterT>(params.CreateVMCOptimizerParams(rank), sitps, comm, Model{});
+    run(Model{});
   }
 }
 
@@ -196,21 +296,29 @@ inline void RunSpinInversionVmc_(EnhancedVMCUpdateParams &params,
 // ---------------- Measurement dispatcher (by model) ----------------
 template<typename TenElemT, typename QNT>
 inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
+                                  const heisenberg_params::AxisUpdateParams &axis_update,
+                                  const heisenberg_params::MonteCarloNumericalParams &mc_params,
                                   const qlpeps::MCMeasurementParams &measurement_params,
                                   qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                                   MPI_Comm comm) {
-  using MCUpdaterT = qlpeps::MCUpdateSquareTNN3SiteExchangeOBC;
   const std::string model_type = phys.ModelType.empty() ? "SquareHeisenberg" : phys.ModelType;
   const double j2 = phys.J2;
+  // Same updater choice as VMC (VisitOBCUpdater).
+  const auto run = [&](const auto &solver) {
+    VisitOBCUpdater<QNT>(axis_update, mc_params, [&](auto updater) {
+      heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, decltype(updater)>(
+          sitps, measurement_params, comm, solver, std::move(updater));
+    });
+  };
 
   if (model_type == "SquareHeisenberg") {
     if (std::abs(j2) < 1e-15) {
       using Model = qlpeps::SquareSpinOneHalfXXZModelOBC;
-      heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, Model{});
+      run(Model{});
     } else {
       using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC;
       Model solver(j2);
-      heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
+      run(solver);
     }
     return;
   }
@@ -219,11 +327,11 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
     if (std::abs(j2) < 1e-15) {
       using Model = qlpeps::SquareSpinOneHalfXXZModelOBC; // XY: jz=0, jxy=1
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*pinning=*/0.0);
-      heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
+      run(solver);
     } else {
       using Model = qlpeps::SquareSpinOneHalfJ1J2XXZModelOBC; // XY with J2
       Model solver(/*jz=*/0.0, /*jxy=*/1.0, /*jz2=*/0.0, /*jxy2=*/j2, /*pinning=*/0.0);
-      heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
+      run(solver);
     }
     return;
   }
@@ -231,11 +339,11 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
   if (model_type == "TriangleHeisenberg") {
     if (std::abs(j2) < 1e-15) {
       using Model = qlpeps::TriangularSpinOneHalfHeisenbergModelOBC;
-      heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, Model{});
+      run(Model{});
     } else {
       using Model = qlpeps::TriangularSpinOneHalfJ1J2HeisenbergModelOBC;
       Model solver(j2);
-      heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, solver);
+      run(solver);
     }
     return;
   }
@@ -243,7 +351,7 @@ inline void RunMeasureByModelOBC_(const heisenberg_params::PhysicalParams &phys,
   // Fallback
   {
     using Model = qlpeps::SquareSpinOneHalfXXZModelOBC;
-    heisenberg_vmcpeps::detail::ExecuteMeasure_<TenElemT, QNT, MCUpdaterT>(sitps, measurement_params, comm, Model{});
+    run(Model{});
   }
 }
 
@@ -317,8 +425,15 @@ inline void RunVmcByModel(EnhancedVMCUpdateParams &params,
   }
 }
 
+/**
+ * @brief Run the measurement of the physics model; OBC sampling uses the updater VisitOBCUpdater
+ *        selects from @p axis_update and @p mc_params (PBC ignores them: an enabled axis update
+ *        is rejected for PBC when the parameters are parsed).
+ */
 template<typename TenElemT, typename QNT>
 inline void RunMeasureByModel(const heisenberg_params::PhysicalParams &phys,
+                              const heisenberg_params::AxisUpdateParams &axis_update,
+                              const heisenberg_params::MonteCarloNumericalParams &mc_params,
                               const qlpeps::MCMeasurementParams &measurement_params,
                               qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                               MPI_Comm comm) {
@@ -326,7 +441,8 @@ inline void RunMeasureByModel(const heisenberg_params::PhysicalParams &phys,
   if (is_pbc) {
     heisenberg_vmcpeps::detail::RunMeasureByModelPBC_<TenElemT, QNT>(phys, measurement_params, sitps, comm);
   } else {
-    heisenberg_vmcpeps::detail::RunMeasureByModelOBC_<TenElemT, QNT>(phys, measurement_params, sitps, comm);
+    heisenberg_vmcpeps::detail::RunMeasureByModelOBC_<TenElemT, QNT>(
+        phys, axis_update, mc_params, measurement_params, sitps, comm);
   }
 }
 

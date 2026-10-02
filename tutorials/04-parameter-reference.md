@@ -262,7 +262,9 @@ Constraints:
 - `ClipNorm`, `ClipValue`
 - spike recovery keys (`Spike*`)
 - checkpoint keys (`CheckpointEveryNSteps`, `CheckpointBasePath`)
-- `MCRestrictU1` (default `true`, currently informational in unified drivers)
+- `MCRestrictU1` (default `true`). The local updaters always conserve S_z, so the key
+  matters only with the opt-in axis update (section 4.8), where it selects the S_z count
+  table for dense tensors.
 - `InitialConfigStrategy` (default `Random`; accepts `Random`, `Neel`, `ThreeSublatticePolarizedSeed`)
 
 #### 4.7 Spin-inversion projection (opt-in)
@@ -291,6 +293,120 @@ and nonzero `SpinInversionParity`: projected measurements are not implemented.
 Unmarked legacy inputs remain accepted as starting PEPS tensors. A legacy state
 which was projected outside this driver must have its parity supplied explicitly.
 Both branches currently run sequentially within each MPI chain.
+The axis update of section 4.8 cannot be combined with it (`MCAxisUpdate=true` throws).
+
+#### 4.8 Axis update (opt-in, OBC)
+
+`MCAxisUpdate=true` adds the PEPS row/column ("axis") autoregressive update to every OBC Monte
+Carlo sweep of `vmc_optimize` and `mc_measure`. One sweep then runs
+`MCUpdateSquareAxisAutoregressiveOBC`, which redraws every row, then every column, from its
+boundary-MPS window and commits the draw without an accept/reject step, followed by the usual
+local `MCUpdateSquareTNN3SiteExchangeOBC` sweep (composed with `qlpeps::MCUpdateSequence`).
+Consider it when the local updater alone mixes slowly (long autocorrelation times).
+
+Keys (VMC and measurement algorithm files):
+
+- `MCAxisUpdate` (JSON bool, default `false`)
+- `MCAxisUpdateDmin` (int, default `1`): `D_min` of the slice MPS
+- `MCAxisUpdateDmax` (int, default `Dbmps_max`): `D_max` of the slice MPS (the slice bond
+  dimension). Recommended: `Dbmps_max`.
+- `MCAxisUpdateTruncErr` (double, default `0.0`): truncation error of the slice MPS
+
+Default off: with `MCAxisUpdate` absent or `false` both programs run exactly as before (the
+local updater alone, the same logs). The other three keys are then only type-checked.
+
+Example (entries of the `CaseParams` object of an OBC VMC or measurement algorithm file):
+
+```json
+"MCAxisUpdate": true,
+"MCAxisUpdateDmax": 16
+```
+
+Constraints when `MCAxisUpdate=true` (checked when the parameters are parsed):
+
+- `BoundaryCondition=Open`; `SpinInversionParity=0`.
+- `MCAxisUpdateDmax > 0` (its default needs `Dbmps_max`), `1 <= MCAxisUpdateDmin <=
+  MCAxisUpdateDmax`, `0 <= MCAxisUpdateTruncErr < 1`.
+- When the sampling conserves S_z (a `-DU1SYM` build, or `MCRestrictU1=true`):
+  `MCAxisUpdateDmax >= floor(max(Lx, Ly) / 2) + 1`, e.g. at least 7 on 12x12. A bond of a row
+  or column can carry that many S_z sectors, and the update keeps at least one singular value
+  per sector, so a smaller value can make it throw during sampling (PEPS design
+  `docs/dev/design/algorithms/axis-autoregressive-sampling.md`, section 5.4).
+
+Dense versus `-DU1SYM` builds:
+
+| Build | `MCRestrictU1` | Axis moves | Combined chain samples |
+|---|---|---|---|
+| dense (default) | `true` (default) | keep S_z through the count table N_up `{{1},{0}}` (label 0 = up) | the S_z sector of the initial configuration |
+| dense | `false` | change S_z (no table) | all S_z sectors; the local 3-site exchange alone keeps S_z |
+| `-DU1SYM` | either | keep S_z, which the tensors carry (no table) | the S_z sector of the tensors |
+
+Keep `MCRestrictU1=true` for a dense state that conserves S_z without carrying it, e.g. one
+obtained by simple update from a Neel start: without the table the axis update does not protect
+that hidden sector. At a small `MCAxisUpdateDmax` the chain can leave it, and even at a moderate
+one it can be confined to part of it, usually with no error (PEPS design, section 5.7).
+
+Accuracy: every draw is committed. With an untruncated slice MPS each move is the exact
+heat-bath move in its window (up to the BMPS truncation all OBC updaters share); a truncated
+slice MPS adds a bias that is not corrected. Scan `MCAxisUpdateDmax` upward: observables should
+not move within error bars. There is no Metropolis-Hastings option.
+
+Cost: the axis update runs in addition to the local sweep and costs more than it.
+
+- Each row or column visit samples its slice. The PEPS design (section 4.13) estimates this
+  sampling at about two BMPS compressions of the slice (two labels per site).
+- The pass also performs its own BMPS compressions: it grows the boundary MPS above and to the
+  left of the visited slice and regrows the one to the right. Its row pass consumes the boundary
+  MPS below as it moves down, so the following 3-site sweep must regrow it.
+- Measured on 12x12, D=8 Heisenberg states with `Dbmps_max = MCAxisUpdateDmax = 32` (PEPS
+  `profiler/README.md`, section "Measured", table "Heisenberg 12x12 D = 8 at N_up = 72", workload
+  `heisenberg-sector`; Release build, one thread): a sweep with the axis update took 2.9 times
+  as long as a 3-site sweep alone with dense tensors and the count table (18.4 s against
+  6.44 s), and 3.8 times with `-DU1SYM` tensors (4.79 s against 1.25 s). It performed 77 BMPS
+  compressions instead of 33.
+- The energy (and gradient) evaluation of a sample does not change, so the cost per sample grows
+  less. With one sweep and one energy evaluation per sample (6.2 s dense, 1.0 s `-DU1SYM` in
+  that measurement) it grew about 1.9 times (dense) and 2.6 times (`-DU1SYM`). More sweeps
+  between samples bring it closer to the sweep ratio.
+
+Compare autocorrelation times per wall-clock time, not per sweep.
+
+Logs with `MCAxisUpdate=true`:
+
+- At start, rank 0 prints the choice, e.g. for a dense build:
+
+  ```text
+  [info] MCAxisUpdate=true: each OBC sweep runs MCUpdateSquareAxisAutoregressiveOBC (rejection-free row and column moves), then MCUpdateSquareTNN3SiteExchangeOBC.
+  [info]   slice MPS: D_min=1 D_max=16 trunc_err=0
+  [info]   count table: N_up {{1},{0}} (dense tensors, MCRestrictU1=true: S_z is conserved)
+  [info]   [MC acceptance] components: 0 = changed rows / Ly, 1 = changed columns / Lx, 2 = local 3-site exchange acceptance; [MC updater] lines carry child0.axis.* counts.
+  ```
+
+- `[MC acceptance] chains=<ranks> component=<i> mean=... min=... max=...
+  zero_rate_fraction=...`, and the optimizer's `Accept rate = [...]`, now have three
+  components instead of one. `mean` averages over chains (MPI ranks) each chain's average over
+  its sweeps.
+  - Component 0: fraction of rows whose labels changed in a sweep; component 1: the same for
+    columns. Every draw is accepted, so these measure how much the slices move, not an
+    acceptance rate. Values near 0 mean the slices rarely change: a strongly ordered state or a
+    stuck chain.
+  - Component 2: acceptance of the local 3-site exchange, the only component without the axis
+    update.
+- `[MC updater] name=child0.axis.<entry> value=<v> reduction=<sum|max>` lines: VMC prints one
+  block per energy evaluation (one per iteration, plus line-search or step-selector
+  evaluations; the first block also covers the warm-up), `mc_measure` one block at the end,
+  after the data are written. Each block covers the sweeps since the previous one.
+  - `row_visits`, `rows_changed`, `col_visits`, `cols_changed` (summed over ranks): the
+    pooled change fraction of rows is `rows_changed / row_visits`, likewise for columns.
+  - `zero_support_old` (sum): changed visits whose old slice had probability exactly 0 in the
+    slice MPS. It should be 0. Otherwise: with dense tensors and `MCRestrictU1=false`, set
+    `MCRestrictU1=true` (the state probably conserves S_z without carrying it; see the paragraph
+    on such states above); else raise `MCAxisUpdateDmax`. A count of 0 does not rule out the
+    confinement described there, which leaves that probability small but not exactly 0.
+  - `max_discarded_weight`, `max_slice_bond_dim`, `max_block_count` (maxima over ranks): the
+    discarded weight of the slice MPS is 0 when untruncated and is a warning signal, not a bias
+    estimate; when it is large, raise `MCAxisUpdateDmax`. `max_block_count` is at most
+    `floor(max(Lx, Ly) / 2) + 1` when S_z is conserved, 1 otherwise.
 
 ### 5) `measure_algorithm_params.json`
 
@@ -310,6 +426,8 @@ Optional keys:
 - `ThreadNum` (default `1`)
 - IO keys (`WavefunctionBase`, `ConfigurationLoadDir`, `ConfigurationDumpDir`) with same defaults as VMC
 - `MCRestrictU1` and `InitialConfigStrategy`
+- axis-update keys `MCAxisUpdate`, `MCAxisUpdateDmin`, `MCAxisUpdateDmax`,
+  `MCAxisUpdateTruncErr` (default off; same semantics and constraints as section 4.8)
 
 Runtime effects:
 
@@ -355,6 +473,10 @@ Runtime effects:
 | `LBFGSHistorySize == 0` | Throws invalid argument |
 | Strong-Wolfe inequalities violated | Throws invalid argument |
 | SITPS boundary != physics boundary (VMC/measure load) | Runtime error and program exit |
+| `MCAxisUpdate=true` with `BoundaryCondition=Periodic` or `SpinInversionParity != 0` | Throws invalid argument |
+| `MCAxisUpdate=true` with `MCAxisUpdateDmax = 0` (also by default without `Dbmps_max`), `MCAxisUpdateDmin` outside `[1, MCAxisUpdateDmax]`, or `MCAxisUpdateTruncErr` outside `[0, 1)` | Throws invalid argument |
+| `MCAxisUpdate=true`, S_z conserved (`-DU1SYM` or `MCRestrictU1=true`), `MCAxisUpdateDmax < floor(max(Lx, Ly) / 2) + 1` | Throws invalid argument (the message states the bound) |
+| `MCAxisUpdate*` key of the wrong JSON type (e.g. `"true"` as a string) | Throws invalid argument, also with `MCAxisUpdate=false` |
 
 ### 8) High-impact runtime notes
 

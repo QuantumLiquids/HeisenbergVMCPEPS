@@ -61,6 +61,8 @@ else ()
 endif ()
 
 
+# The MCAxisUpdate keys need PEPS main at or after 68452fe, which still reports 0.2.2;
+# src/model_updater_factory.h stops an older 0.2.2 install with an #error.
 find_package(PEPS 0.2.2 CONFIG REQUIRED)
 
 # PEPS::PEPS carries the complete public dependency chain, including
@@ -131,3 +133,11 @@ enable_testing()
 add_heisenberg_executable(test_optimizer_config tests/test_optimizer_config.cpp)
 add_test(NAME test_optimizer_config COMMAND test_optimizer_config)
 set_tests_properties(test_optimizer_config PROPERTIES LABELS "utility;fast")
+# Opt-in axis update keys: parsing, validation, PEPS parameter mapping and updater selection.
+add_heisenberg_executable(test_axis_update_params tests/test_axis_update_params.cpp)
+add_test(NAME test_axis_update_params COMMAND test_axis_update_params)
+set_tests_properties(test_axis_update_params PROPERTIES LABELS "utility;fast")
+# Enabled axis update at run time: sweeps of the selected updater on a small simple-update state.
+add_heisenberg_executable(test_axis_update_sweep tests/test_axis_update_sweep.cpp)
+add_test(NAME test_axis_update_sweep COMMAND test_axis_update_sweep)
+set_tests_properties(test_axis_update_sweep PROPERTIES LABELS "utility;fast")
