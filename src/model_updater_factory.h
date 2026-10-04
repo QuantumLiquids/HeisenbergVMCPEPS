@@ -21,6 +21,9 @@
 #include "enhanced_params_parser.h"
 #include "qlpeps/vmc_basic/spin_inversion_metadata.h"
 #include "qlpeps/vmc_basic/spin_inversion_projected_sample_obc.h"
+#include "qlpeps/vmc_basic/point_group_projected_sample_obc.h"
+#include "qlpeps/vmc_basic/mc_updaters/square_nn_point_group_updater_obc.h"
+#include "qlpeps/algorithm/vmc_update/model_solvers/point_group_square_xxz_obc.h"
 #include "qlpeps/vmc_basic/mc_updaters/square_nn_spin_inversion_updater_obc.h"
 #include "qlpeps/algorithm/vmc_update/model_solvers/spin_inversion_square_xxz_obc.h"
 #include "qlpeps/qlpeps.h"
@@ -287,10 +290,92 @@ inline void RunSpinInversionVmc_(EnhancedVMCUpdateParams &params,
   if (rank == 0) {
     std::cout << "SpinInversionParity=" << Parity
               << ": optimizing psi(x) + parity*psi(Fx); configured warm-up is always run.\n"
-              << "Saved tensors require this parity; plain mc_measure is unsupported."
+              << "Measure saved tensors with the same SpinInversionParity."
               << std::endl;
   }
   executor.Execute();
+}
+
+/** @brief Validate every rank's loaded configuration before projected sampling starts. */
+inline void RequireProjectedConfiguration_(const qlpeps::Configuration &config,
+                                          const qlpeps::PointGroupProjectionParams &projection,
+                                          MPI_Comm comm) {
+  size_t up = 0, down = 0;
+  for (size_t row = 0; row < config.rows(); ++row) {
+    for (size_t col = 0; col < config.cols(); ++col) {
+      up += config({row, col}) == 0;
+      down += config({row, col}) == 1;
+    }
+  }
+  const bool valid = up + down == config.rows() * config.cols() &&
+      (projection.spin_inversion_parity == 0 || up == down);
+  qlpeps::RequireCollectivelyValid(valid, comm,
+      "Projected sampling requires binary configurations and Sz=0 when spin inversion is enabled.");
+}
+
+/** @brief XXZ couplings matching the unprojected Heisenberg/XY J1-J2 models. */
+inline qlpeps::PointGroupSquareXXZModelOBC MakePointGroupModel_(
+    const heisenberg_params::PhysicalParams &physics) {
+  const bool xy = physics.ModelType == "SquareXY";
+  return qlpeps::PointGroupSquareXXZModelOBC(
+      xy ? 0.0 : 1.0, 1.0, xy ? 0.0 : physics.J2, physics.J2);
+}
+
+/** @brief Report the coherent ansatz and its current contraction cost. */
+inline void LogPointGroupProjection_(const qlpeps::PointGroupProjectionParams &projection,
+                                    MPI_Comm comm) {
+  int rank = 0;
+  ::MPI_Comm_rank(comm, &rank);
+  if (rank != 0) return;
+  std::cout << "PointGroup=" << projection.group << " PointGroupIrrep=" << projection.irrep
+            << " SpinInversionParity=" << projection.spin_inversion_parity
+            << ": coherent projected sampling; configured warm-up is always run.\n"
+            << "Each proposed configuration recomputes all nonzero symmetry branches; "
+               "this reference path is more expensive than the plain cached sampler."
+            << std::endl;
+  if (projection.group == "D4" && projection.irrep == "E") {
+    std::cout << "D4 E projects onto the complete E isotypic subspace; it does not select "
+                 "a rotation eigenvector within the doublet." << std::endl;
+  }
+}
+
+/** @brief Optimize the spatially projected PEPS with one shared set of tensors. */
+template<typename TenElemT, typename QNT>
+inline void RunPointGroupVmc_(EnhancedVMCUpdateParams &params,
+                             const qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
+                             MPI_Comm comm, int rank) {
+  using Sample = qlpeps::PointGroupProjectedSampleOBC<TenElemT, QNT>;
+  using Updater = qlpeps::MCUpdateSquareNNPointGroupExchangeOBC;
+  using Model = qlpeps::PointGroupSquareXXZModelOBC;
+  using Executor = qlpeps::VMCPEPSOptimizer<TenElemT, QNT, Updater, Model,
+                                         qlpeps::BMPSContractor, Sample>;
+  auto optimizer_params = params.CreateVMCOptimizerParams(rank);
+  RequireProjectedConfiguration_(optimizer_params.mc_params.initial_config,
+                                 params.point_group_projection, comm);
+  optimizer_params.tps_dump_base_name = params.io_params.wavefunction_base;
+  const Model model = MakePointGroupModel_(params.physical_params);
+  LogPointGroupProjection_(params.point_group_projection, comm);
+  Executor executor(optimizer_params, sitps, comm, model, Updater{});
+  executor.Execute();
+}
+
+/** @brief Measure the same coherent state used for spatial or spin-only VMC. */
+template<typename TenElemT, typename QNT>
+inline void RunPointGroupMeasure_(const heisenberg_params::PhysicalParams &physics,
+                                 const qlpeps::MCMeasurementParams &measurement_params,
+                                 const qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
+                                 MPI_Comm comm) {
+  using Sample = qlpeps::PointGroupProjectedSampleOBC<TenElemT, QNT>;
+  using Updater = qlpeps::MCUpdateSquareNNPointGroupExchangeOBC;
+  using Model = qlpeps::PointGroupSquareXXZModelOBC;
+  using Measurer = qlpeps::MCPEPSMeasurer<TenElemT, QNT, Updater, Model,
+                                        qlpeps::BMPSContractor, Sample>;
+  const auto &projection = measurement_params.mc_params.point_group_projection;
+  RequireProjectedConfiguration_(measurement_params.mc_params.initial_config, projection, comm);
+  LogPointGroupProjection_(projection, comm);
+  const Model model = MakePointGroupModel_(physics);
+  Measurer measurer(sitps, measurement_params, comm, model, Updater{});
+  measurer.Execute();
 }
 
 // ---------------- Measurement dispatcher (by model) ----------------
@@ -411,6 +496,9 @@ inline void RunVmcByModel(EnhancedVMCUpdateParams &params,
                           qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                           MPI_Comm comm,
                           int rank) {
+  if (params.point_group_projection.group != "None") {
+    return heisenberg_vmcpeps::detail::RunPointGroupVmc_<TenElemT, QNT>(params, sitps, comm, rank);
+  }
   if (params.spin_inversion_parity == 1) {
     return heisenberg_vmcpeps::detail::RunSpinInversionVmc_<TenElemT, QNT, 1>(params, sitps, comm, rank);
   }
@@ -437,6 +525,10 @@ inline void RunMeasureByModel(const heisenberg_params::PhysicalParams &phys,
                               const qlpeps::MCMeasurementParams &measurement_params,
                               qlpeps::SplitIndexTPS<TenElemT, QNT> &sitps,
                               MPI_Comm comm) {
+  if (heisenberg_params::HasProjection(measurement_params.mc_params.point_group_projection)) {
+    return heisenberg_vmcpeps::detail::RunPointGroupMeasure_<TenElemT, QNT>(
+        phys, measurement_params, sitps, comm);
+  }
   const bool is_pbc = (phys.BoundaryCondition == qlpeps::BoundaryCondition::Periodic);
   if (is_pbc) {
     heisenberg_vmcpeps::detail::RunMeasureByModelPBC_<TenElemT, QNT>(phys, measurement_params, sitps, comm);

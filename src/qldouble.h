@@ -10,7 +10,11 @@
 
 #include "qlten/qlten.h"
 
+#ifdef USE_COMPLEX
+using TenElemT = qlten::QLTEN_Complex;
+#else
 using TenElemT = qlten::QLTEN_Double;
+#endif
 #ifdef U1SYM
 using QNT = qlten::special_qn::U1QN;
 const QNT qn0 = QNT(0); //N(particle number), Sz

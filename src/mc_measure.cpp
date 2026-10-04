@@ -8,6 +8,7 @@
 #include "enhanced_measure_params_parser.h"
 #include "model_updater_factory.h"
 #include "qlpeps/vmc_basic/spin_inversion_metadata.h"
+#include "qlpeps/vmc_basic/point_group_metadata.h"
 
 using namespace qlpeps;
 
@@ -24,10 +25,12 @@ int main(int argc, char **argv) {
   }
 
   EnhancedMCMeasureParams params(argv[1], argv[2]);
-  RequireCollectivelyValid(params.ParseDoubleOr("SpinInversionParity", 0.0) == 0.0,
-                           comm, "mc_measure does not yet support spin-inversion projected states.");
   RequireSpinInversionMetadataCollectively(
-      params.io_params.wavefunction_base + "final", std::nullopt, comm);
+      params.io_params.wavefunction_base + "final",
+      MakeSpinInversionMetadata(params.point_group_projection.spin_inversion_parity), comm);
+  RequirePointGroupMetadataCollectively(
+      params.io_params.wavefunction_base + "final", params.point_group_projection.group == "None"
+          ? std::nullopt : std::optional(params.point_group_projection), comm);
 
   qlten::hp_numeric::SetTensorManipulationThreads(params.bmps_params.ThreadNum);
 
@@ -40,6 +43,10 @@ int main(int argc, char **argv) {
 
   auto mc_params_obj = params.mc_params.CreateMonteCarloParams(
       init_config, warmed_up, params.io_params.configuration_dump_dir);
+  if (heisenberg_params::HasProjection(params.point_group_projection)) {
+    mc_params_obj.point_group_projection = params.point_group_projection;
+    mc_params_obj.assume_initial_config_thermalized = false;
+  }
   ContractorParams contractor_params_obj(params.CreateContractorParams());
   MCMeasurementParams measurement_params(mc_params_obj, contractor_params_obj, "./");
 
@@ -55,7 +62,9 @@ int main(int argc, char **argv) {
     if (rank == 0) std::cout << "Loading SplitIndexTPS from: " << tps_final_dir << std::endl;
     sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx,
                                          params.physical_params.BoundaryCondition);
-    sitps.Load(tps_final_dir);
+    RequireCollectivelyValid(sitps.Load(tps_final_dir), comm,
+        "Failed to load SplitIndexTPS. All tensor files must exist and match this executable's scalar type; "
+        "RealCode=OFF requires complex tensors and does not convert a real checkpoint.");
     if (sitps.GetBoundaryCondition() != params.physical_params.BoundaryCondition) {
       if (rank == 0) {
         std::cerr << "ERROR: BoundaryCondition mismatch between physics_params.json and loaded SplitIndexTPS.\n"
@@ -70,7 +79,7 @@ int main(int argc, char **argv) {
     }
   } else {
     if (rank == 0) std::cout << "SplitIndexTPS not found. Loading TPS and splitting indices..." << std::endl;
-    TPS<qlten::QLTEN_Double, QNT> tps(params.physical_params.Ly, params.physical_params.Lx,
+    TPS<TenElemT, QNT> tps(params.physical_params.Ly, params.physical_params.Lx,
                                params.physical_params.BoundaryCondition);
     if (!tps.Load()) {
       if (rank == 0) std::cerr << "ERROR: Failed to load TPS from current directory." << std::endl;

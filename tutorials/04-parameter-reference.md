@@ -285,15 +285,71 @@ Configured `WarmUp` runs even for loaded configurations, since a plain-chain
 configuration is not certified thermalized for the projected distribution.
 
 Projected final/lowest outputs use `WavefunctionBase` and carry
-`spin_inversion_parity.txt`; periodic checkpoints inherit the same marker from
+`spin_inversion_metadata.txt`; periodic checkpoints inherit the same marker from
 `CheckpointBasePath`. Resume with the same parity. Keep this marker with any
 copied tensors; when copying a periodic `step_N` directory by itself, also copy
-its parent's marker into it. Existing plain `mc_measure` rejects marked states
-and nonzero `SpinInversionParity`: projected measurements are not implemented.
+its parent's marker into it. `mc_measure` supports these states when configured with the same
+`SpinInversionParity`; plain measurement still rejects marked projected tensors.
 Unmarked legacy inputs remain accepted as starting PEPS tensors. A legacy state
 which was projected outside this driver must have its parity supplied explicitly.
 Both branches currently run sequentially within each MPI chain.
 The axis update of section 4.8 cannot be combined with it (`MCAxisUpdate=true` throws).
+
+#### Spatial C4/D4 projection (VMC and measurement)
+
+Both algorithm files accept `PointGroup` (`None`, the default; `C4`; or `D4`),
+`PointGroupIrrep`, and the independent `SpinInversionParity` described above.
+`C4` contains the four rotations; `D4` adds the four in-plane reflections.
+Spin inversion is an independent label operation, not a spatial reflection.
+
+| Group | `PointGroupIrrep` | Meaning |
+| --- | --- | --- |
+| `None` | `A1` (default) | No spatial projection |
+| `C4` | `0` (default), `1`, `2`, `3` as JSON strings | Rotation eigenvalue `i^k` |
+| `D4` | `A1` (default), `A2`, `B1`, `B2` | One-dimensional spatial irreps |
+| `D4` | `E` | Central projection onto the entire two-dimensional E isotypic subspace |
+
+For D4, `M(r,c)=(r,L-1-c)` defines the reflection: A1/A2 have rotation eigenvalue
++1, B1/B2 have rotation eigenvalue -1, and the suffix 1/2 gives reflection parity
++1/-1. E does not select a rotation eigenvector within its doublet.
+
+Spatial projection requires `Lx=Ly >= 2`, OBC, no removed corners, and
+`SquareHeisenberg` or `SquareXY`, and `MCRestrictU1=true` because the projected
+exchange updater preserves spin counts. Isotropic J1-J2 couplings are supported, with
+J2 on both diagonals. Spin inversion can be independently disabled (`0`) or
+assigned parity `+1`/`-1`; when enabled, even site count, `MCRestrictU1=true`,
+and Sz=0 loaded configurations on every MPI rank are required. `MCAxisUpdate`
+must remain false. Without spatial projection, the existing spin-only VMC
+restriction J2=0 remains in effect.
+
+C4 sectors 1 and 3 need complex tensors: configure with `-DRealCode=OFF` and
+create/load a complex TPS with that build. Real builds reject these sectors.
+D4 and C4 sectors 0/2 also work in the default real build. Tensor file scalar
+types must match the executable; changing the build flag does not convert old
+wavefunctions.
+
+The coherent amplitude is `sum_g chi(g)* psi(g^-1 x)`, with conjugated
+characters and the conventional irrep-dimension/group-order normalization.
+All branches share the same base tensors. VMC energy, gradient, SR/MinSR, and
+measurement use that amplitude, including interference between branches.
+The current reference implementation recomputes canonical contractions for every
+proposed configuration; C4/D4 runs are substantially more expensive than the
+plain cached sampler. Configured warmup always runs, including for loaded chains.
+A starting state annihilated by the chosen projector fails explicitly; choose a
+seed with nonzero weight in the desired sector. Increasing contraction accuracy
+is still necessary to control BMPS truncation error.
+
+Use matching projection settings for optimization, continuation, and measurement.
+Spatial final/lowest and periodic snapshots carry `point_group_metadata.txt`,
+including the group, irrep, and spin parity. Keep the marker with copied tensors.
+When spin inversion is also enabled, retain its `spin_inversion_metadata.txt`
+marker too. A mismatching or plain driver rejects marked tensors; unmarked base
+PEPS tensors remain valid starting parameters for projection.
+
+Complete 4x4 D4 A1, spin-even algorithm examples are
+`params/quickstart/vmc_cluster_4x4_obc_d4_a1_spin_even_n16.json` and
+`params/quickstart/measure_cluster_4x4_obc_d4_a1_spin_even_n16.json`.
+Use both with the same 4x4 open-boundary physics file and wavefunction base.
 
 #### 4.8 Axis update (opt-in, OBC)
 

@@ -14,6 +14,7 @@
 #include <fstream>
 #include <variant>
 #include "qlpeps/vmc_basic/spin_inversion_metadata.h"
+#include "qlpeps/vmc_basic/point_group_metadata.h"
 
 using namespace qlpeps;
 
@@ -121,6 +122,10 @@ int main(int argc, char **argv) {
   RequireSpinInversionMetadataCollectively(
       tps_final, MakeSpinInversionMetadata(params.spin_inversion_parity), comm);
 
+  RequirePointGroupMetadataCollectively(
+      tps_final, params.point_group_projection.group == "None"
+          ? std::nullopt : std::optional(params.point_group_projection), comm);
+
   SplitIndexTPS<TenElemT, QNT> sitps;
   
   if (qlmps::IsPathExist(tps_final)) {
@@ -128,7 +133,9 @@ int main(int argc, char **argv) {
     // Debug-only probe: try load single-site tensor (0,0) first
     sitps = SplitIndexTPS<TenElemT, QNT>(params.physical_params.Ly, params.physical_params.Lx,
                                          params.physical_params.BoundaryCondition);
-    sitps.Load(tps_final);
+    RequireCollectivelyValid(sitps.Load(tps_final), comm,
+        "Failed to load SplitIndexTPS. All tensor files must exist and match this executable's scalar type; "
+        "RealCode=OFF requires complex tensors and does not convert a real checkpoint.");
     if (sitps.GetBoundaryCondition() != params.physical_params.BoundaryCondition) {
       if (rank == 0) {
         std::cerr << "ERROR: BoundaryCondition mismatch between physics_params.json and loaded SplitIndexTPS.\n"

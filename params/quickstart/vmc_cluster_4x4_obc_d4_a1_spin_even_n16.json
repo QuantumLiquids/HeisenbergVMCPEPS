@@ -1,0 +1,26 @@
+{
+  "CaseParams": {
+    "BMPSTruncErr": 1e-10,
+    "ThreadNum": 1,
+    "MC_total_samples": 3200,
+    "WarmUp": 100,
+    "MCLocalUpdateSweepsBetweenSample": 1,
+    "Dbmps_min": 4,
+    "Dbmps_max": 8,
+    "MPSCompressScheme": "SVD",
+    "OptimizerType": "SR",
+    "MaxIterations": 30,
+    "LearningRate": 0.1,
+    "CGMaxIter": 20,
+    "CGRelativeTolerance": 0.001,
+    "CGResidualRecomputeInterval": 10,
+    "SRDiagShift": 0.0001,
+    "NormalizeUpdate": false,
+    "WavefunctionBase": "tps",
+    "ConfigurationLoadDir": "tpsfinal",
+    "ConfigurationDumpDir": "tpsfinal",
+    "PointGroup": "D4",
+    "PointGroupIrrep": "A1",
+    "SpinInversionParity": 1
+  }
+}

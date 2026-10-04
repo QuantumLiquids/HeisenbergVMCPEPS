@@ -11,6 +11,7 @@
 #include "qlpeps/optimizer/optimizer_params.h"
 #include "qlpeps/api/config/optimizer_params_parser.h"
 #include "common_params.h"
+#include "projection_params.h"
 #include <algorithm>
 #include <cctype>
 #include <optional>
@@ -39,27 +40,13 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
       mc_params(algorithm_file),
       bmps_params(algorithm_file),
       optimizer_params(heisenberg_params::ReadOptimizerParams(algorithm_file)) {
-    const double requested_parity = ParseDoubleOr("SpinInversionParity", 0.0);
-    if (requested_parity != 0.0 && requested_parity != 1.0 && requested_parity != -1.0) {
-      throw std::invalid_argument("SpinInversionParity must be 0, +1, or -1.");
-    }
-    spin_inversion_parity = static_cast<int>(requested_parity);
-    
-    // Parse IO configuration
+    point_group_projection = heisenberg_params::ReadProjectionParams(
+        algorithm_file, physical_params, mc_params);
+    spin_inversion_parity = point_group_projection.spin_inversion_parity;
     io_params.Parse(*this);
-    if (spin_inversion_parity != 0) {
-      const auto &physics = physical_params;
-      if (physics.BoundaryCondition != qlpeps::BoundaryCondition::Open ||
-          (physics.ModelType != "SquareHeisenberg" && physics.ModelType != "SquareXY") ||
-          physics.J2 != 0.0 || physics.RemoveCorner || !mc_params.MCRestrictU1 ||
-          physics.Lx < 2 || physics.Ly < 2 || (physics.Lx * physics.Ly) % 2 != 0) {
-        throw std::invalid_argument(
-            "SpinInversionParity requires a full square OBC lattice, Lx,Ly >= 2, "
-            "even Lx*Ly, SquareHeisenberg or SquareXY, J2=0, and MCRestrictU1=true.");
-      }
-    }
     axis_update_params = heisenberg_params::AxisUpdateParams(
         algorithm_file, physical_params, mc_params, bmps_params, spin_inversion_parity != 0);
+    heisenberg_params::ValidatePointGroupUpdater(point_group_projection, axis_update_params);
   }
 
   heisenberg_params::PhysicalParams physical_params;
@@ -68,6 +55,9 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
   
   /// Zero preserves plain PEPS; +/-1 selects psi(x) +/- psi(Fx).
   int spin_inversion_parity = 0;
+
+  /// Spatial group/irrep and independent spin-inversion parity.
+  qlpeps::PointGroupProjectionParams point_group_projection;
 
   /// Opt-in axis update of OBC sampling (`MCAxisUpdate*` keys); disabled by default.
   heisenberg_params::AxisUpdateParams axis_update_params;
@@ -88,6 +78,10 @@ struct EnhancedVMCUpdateParams : public qlmps::CaseParamsParserBasic {
 
     auto mc_params_obj = mc_params.CreateMonteCarloParams(
         config, warmed_up, io_params.configuration_dump_dir);
+    if (point_group_projection.group != "None") {
+      mc_params_obj.point_group_projection = point_group_projection;
+      mc_params_obj.assume_initial_config_thermalized = false;
+    }
 
     const qlpeps::ContractorParams contractor_params_obj = heisenberg_params::CreateContractorParams(
         physical_params.BoundaryCondition, bmps_params, bmps_params.algorithm_values);

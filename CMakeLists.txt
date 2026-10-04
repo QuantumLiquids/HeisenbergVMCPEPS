@@ -141,3 +141,8 @@ set_tests_properties(test_axis_update_params PROPERTIES LABELS "utility;fast")
 add_heisenberg_executable(test_axis_update_sweep tests/test_axis_update_sweep.cpp)
 add_test(NAME test_axis_update_sweep COMMAND test_axis_update_sweep)
 set_tests_properties(test_axis_update_sweep PROPERTIES LABELS "utility;fast")
+
+# Shared VMC/measurement projection parsing, compatibility and scalar guards.
+add_heisenberg_executable(test_projection_params tests/test_projection_params.cpp)
+add_test(NAME test_projection_params COMMAND test_projection_params)
+set_tests_properties(test_projection_params PROPERTIES LABELS "utility;fast")
