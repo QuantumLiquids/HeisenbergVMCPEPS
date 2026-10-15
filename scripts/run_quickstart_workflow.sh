@@ -173,7 +173,7 @@ case "$profile" in
   local22_pbc)
     default_physics="params/quickstart/physics_local_2x2_pbc.json"
     default_su="params/quickstart/simple_update_local_2x2_pbc.json"
-    default_vmc="params/quickstart/vmc_local_2x2_pbc_n1.json"
+    default_vmc="params/quickstart/vmc_local_2x2_pbc_robust_n1.json"
     default_measure="params/quickstart/measure_local_2x2_pbc_n1.json"
     default_mpi=1
     default_title="Square Heisenberg 2x2 PBC (quick local)"

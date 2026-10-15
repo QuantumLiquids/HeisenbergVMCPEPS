@@ -1,0 +1,48 @@
+{
+  "description": "Representative official local22_pbc workflow with the robust SR preset; energy is the Monte Carlo estimate in the sampled Sz=0 sector.",
+  "run_date": "2026-10-15",
+  "source_run": "20261015_105746_local22_pbc_robust",
+  "commits": {
+    "HeisenbergVMCPEPS": "fb93036966ceb290a947612db1c9810e0dee9e7f",
+    "PEPS-Pro": "22d460fdc16ec65747942d991348e2ca6409c8fd",
+    "UltraDMRG": "7ed427afb840f19fd064e4fab77561b0e11c7138",
+    "TensorToolkit-Pro": "2dc6fe9df49921df63028596f5366c7a61485709"
+  },
+  "toolchain": {
+    "GCC": "14.2",
+    "CMake": "3.31.10",
+    "OpenBLAS": "0.3.29",
+    "LAPACKE": "3.12.1",
+    "OpenMPI": "5.0.7"
+  },
+  "parameters": {
+    "physics": "params/quickstart/physics_local_2x2_pbc.json",
+    "simple_update": "params/quickstart/simple_update_local_2x2_pbc.json",
+    "vmc": "params/quickstart/vmc_local_2x2_pbc_robust_n1.json",
+    "measure": "params/quickstart/measure_local_2x2_pbc_n1.json"
+  },
+  "parameter_sha256": {
+    "physics.json": "32f956b8fcbffdf4c963e1791222da224725d098ba9563d740ced78eaa4476c0",
+    "simple_update.json": "63c9333d3325aa09ca8eee251e784051da629336e9f27c1641644f7adc3c03f0",
+    "vmc.json": "3b5a8faab87b119526b8de457ba037d8f548232db34ccd245a25a90a203ed0b0",
+    "measure.json": "8feea75853afa6b1b0e9c0e8a0d420c174c32cffdc4ba937af6d09e807fb6dd1"
+  },
+  "mpi_ranks": 1,
+  "environment": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1"
+  },
+  "rng_seed": null,
+  "rng_note": "No fixed seed was supplied; new runs need not reproduce individual Monte Carlo samples.",
+  "iterations": 30,
+  "reference_energy_sz0": -4.0,
+  "final_exact_energy_sz0": -3.9999999995272364,
+  "final_exact_energy_error_sz0": 4.727636060408713e-10,
+  "exact_check_note": "The final checkpoint was contracted by a separate exhaustive Sz=0 enumerator; CSV energies and gradient norms are the per-iteration Monte Carlo estimates.",
+  "missing_mcse_iterations": [
+    23,
+    26
+  ],
+  "missing_mcse_note": "NaN energy_error is preserved as unavailable MCSE and omitted from the uncertainty band.",
+  "plot_command": "python3 plot/workflow/plot_energy_trajectory.py --csv tutorials/assets/energy_trajectory_2x2_pbc.csv --out tutorials/assets/energy_trajectory_2x2_pbc.png --title \"Square Heisenberg 2x2 PBC D=2: robust SR, fixed Sz=0\" --ref-energy -4.0 --ref-label exact"
+}

@@ -28,4 +28,7 @@ Required CSV columns:
 Notes:
 
 - Extra columns are ignored.
+- `energy_error` may be `nan` when the Monte Carlo standard error is unavailable;
+  the uncertainty band has a gap at those points. All other values must be finite,
+  and infinities are rejected in every column.
 - Script exits non-zero with actionable error messages on missing/invalid input.

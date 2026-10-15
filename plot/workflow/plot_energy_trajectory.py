@@ -6,6 +6,8 @@ Expected CSV columns:
 - energy
 - energy_error
 - gradient_norm
+
+An unavailable energy_error may be NaN; its uncertainty band is omitted.
 """
 
 from __future__ import annotations
@@ -45,6 +47,8 @@ def parse_float(value: str, column: str, line_no: int) -> float:
   except ValueError as exc:
     raise ValueError(
         f"line {line_no}: column '{column}' is not a float: {value!r}") from exc
+  if math.isnan(parsed) and column == "energy_error":
+    return parsed
   if not math.isfinite(parsed):
     raise ValueError(
         f"line {line_no}: column '{column}' is non-finite: {value!r}")
@@ -82,8 +86,10 @@ def load_csv(path: Path) -> tuple[list[float], list[float], list[float], list[fl
 
       iterations.append(iteration)
       energies.append(energy)
-      # Negative error bars are not meaningful for plotting; clamp to zero.
-      errors.append(max(0.0, energy_error))
+      # Keep unavailable MCSE values as gaps rather than implying zero error.
+      # Negative finite error bars are not meaningful; retain the zero clamp.
+      errors.append(energy_error if math.isnan(energy_error)
+                    else max(0.0, energy_error))
       grad_norms.append(max(0.0, grad_norm))
 
   if not iterations:

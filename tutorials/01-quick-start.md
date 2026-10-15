@@ -24,8 +24,8 @@ The simulation proceeds in three physically distinct steps:
 Build the three binaries following the instructions in the project README:
 
 ```bash
-mkdir -p build && cd build
-cmake .. && make -j4
+cmake -S . -B build
+cmake --build build --target simple_update vmc_optimize mc_measure -j4
 ```
 
 Verify they exist:
@@ -41,9 +41,24 @@ accordingly in all commands below.
 
 ### 1) Laptop Example: 2x2 Square Lattice with PBC
 
-This small system runs in a few seconds on any laptop. Despite its size, it
+This small system is suitable for a local CPU run. Despite its size, it
 exercises the full pipeline and produces the same output structure as production
 runs on larger systems.
+
+Start from a fresh working directory. `simple_update` automatically loads an
+existing `peps/`, and VMC reads and overwrites `tpsfinal/`, so reusing a previous
+run directory changes the starting state. From the repository root:
+
+```bash
+REPO_ROOT="$PWD"
+BUILD_DIR="$REPO_ROOT/build"
+mkdir -p "$REPO_ROOT/run"
+RUN_DIR="$(mktemp -d "$REPO_ROOT/run/local22_pbc.XXXXXX")"
+cd "$RUN_DIR"
+```
+
+The manual commands below use these absolute paths. The automated workflow in
+section 3 creates its own fresh directory.
 
 **Physics setup** (`params/quickstart/physics_local_2x2_pbc.json`):
 
@@ -90,8 +105,8 @@ as the state approaches the ground state.
 **Run it:**
 
 ```bash
-./build/simple_update params/quickstart/physics_local_2x2_pbc.json \
-                      params/quickstart/simple_update_local_2x2_pbc.json
+"$BUILD_DIR/simple_update" "$REPO_ROOT/params/quickstart/physics_local_2x2_pbc.json" \
+  "$REPO_ROOT/params/quickstart/simple_update_local_2x2_pbc.json"
 ```
 
 **What you should see** (abbreviated):
@@ -128,13 +143,14 @@ The key outputs:
 
 **Optional: advanced automatic stop (early termination)**
 
-Use `params/quickstart/simple_update_local_2x2_pbc_advanced_stop.json` to let
+As a separate initialization experiment in another empty working directory,
+use `params/quickstart/simple_update_local_2x2_pbc_advanced_stop.json` to let
 Simple Update stop automatically when energy and lambda convergence criteria are
 met before the hard cap `Step`.
 
 ```bash
-./build/simple_update params/quickstart/physics_local_2x2_pbc.json \
-                      params/quickstart/simple_update_local_2x2_pbc_advanced_stop.json
+"$BUILD_DIR/simple_update" "$REPO_ROOT/params/quickstart/physics_local_2x2_pbc.json" \
+  "$REPO_ROOT/params/quickstart/simple_update_local_2x2_pbc_advanced_stop.json"
 ```
 
 Expected extra log signals:
@@ -163,7 +179,7 @@ variant instead, controlled by `HOTRGDmin/HOTRGDmax`. TRG only accepts square
 lattices with linear size `2^k` or `3*2^k`; HOTRG accepts any `Ly x Lx` with
 both dimensions at least 2.
 
-**Algorithm params** (`params/quickstart/vmc_local_2x2_pbc_n1.json`):
+**Algorithm params** (`params/quickstart/vmc_local_2x2_pbc_robust_n1.json`, abbreviated):
 
 ```json
 {
@@ -173,30 +189,47 @@ both dimensions at least 2.
     "WarmUp": 20,
     "OptimizerType": "SR",
     "MaxIterations": 30,
-    "LearningRate": 0.05,
-    "CGMaxIter": 20, "CGTol": 1e-6, "CGDiagShift": 1e-4
+    "LearningRate": 0.2,
+    "CGMaxIter": 20,
+    "CGRelativeTolerance": 1e-8,
+    "CGResidualRecomputeInterval": 10,
+    "SRDiagShift": 0.01,
+    "NormalizeUpdate": false
   }
 }
 ```
 
 - `MC_total_samples=1000`: number of MC samples per iteration
 - `MaxIterations=30`: optimization steps
-- `LearningRate=0.05`: SR step size
-- `CGMaxIter/CGTol/CGDiagShift`: conjugate gradient solver for the SR linear system
+- `LearningRate=0.2`: SR step size
+- `CGRelativeTolerance=1e-8`: accuracy of the SR conjugate-gradient solve
+- `SRDiagShift=0.01`: regularization of nearly singular SR directions
+
+Use these settings together. Stronger regularization permits the larger step,
+while a tighter CG solve avoids premature termination. The original preset
+`vmc_local_2x2_pbc_n1.json` remains available for comparisons; it is no longer
+the tutorial default. Its old `CGTol=1e-6` means squared relative residual and
+corresponds to `CGRelativeTolerance=1e-3`, not the new `1e-8` setting.
+
+This tutorial samples the six configurations in the fixed total `Sz=0` sector.
+Its energies and gradients describe the wavefunction restricted to that sector.
+Dense tensors can have weight in other sectors; convergence here does not
+establish convergence of the full, unprojected wavefunction.
 
 **Run it** (single process for PBC):
 
 ```bash
-./build/vmc_optimize params/quickstart/physics_local_2x2_pbc.json \
-                     params/quickstart/vmc_local_2x2_pbc_n1.json
+"$BUILD_DIR/vmc_optimize" "$REPO_ROOT/params/quickstart/physics_local_2x2_pbc.json" \
+  "$REPO_ROOT/params/quickstart/vmc_local_2x2_pbc_robust_n1.json"
 ```
 
-**What you should see** (showing selected iterations):
+**Representative output** (selected iterations from a verified run; random
+sampling means your numbers will differ):
 
 ```
 === VMC Optimization ===
 Optimizer: StochasticReconfiguration
-Learning Rate: 0.05
+Learning Rate: 0.2
 Max Iterations: 30
 =================================
 Loading SplitIndexTPS from: tpsfinal
@@ -210,12 +243,12 @@ TRG bond dimension:                     2/4
 Total samples:                          1000
 ...
 
-Iter 0   LR = 5.0e-02  E0 = -3.591763  ± 2.98e-02  Grad norm = 5.6e-01  Accept rate = [0.26 ]
-Iter 5   LR = 5.0e-02  E0 = -3.853844  ± 3.05e-02  Grad norm = 5.0e-02  ...
-Iter 10  LR = 5.0e-02  E0 = -3.991783  ± 6.76e-03  Grad norm = 3.7e-02  ...
-Iter 15  LR = 5.0e-02  E0 = -4.000983  ± 1.20e-03  Grad norm = 9.2e-03  ...
-Iter 20  LR = 5.0e-02  E0 = -3.999846  ± 2.72e-04  Grad norm = 3.4e-03  ...
-Iter 29  LR = 5.0e-02  E0 = -3.999994  ± 8.96e-05  Grad norm = 1.2e-03  ...
+Iter 0   LR = 2.0e-01  E0 = -3.548449  ± 2.83e-02  Grad norm = 4.8e-01  Accept rate = [0.22 ]
+Iter 5   LR = 2.0e-01  E0 = -3.815720  ± 3.15e-02  Grad norm = 1.3e-01  ...
+Iter 10  LR = 2.0e-01  E0 = -3.824822  ± 2.56e-02  Grad norm = 4.2e-02  ...
+Iter 15  LR = 2.0e-01  E0 = -3.988423  ± 7.18e-03  Grad norm = 1.4e-01  ...
+Iter 20  LR = 2.0e-01  E0 = -3.999791  ± 1.49e-04  Grad norm = 6.2e-03  ...
+Iter 29  LR = 2.0e-01  E0 = -4.000000  ± 1.63e-06  Grad norm = 6.4e-05  ...
 
 Optimization completed!
 ```
@@ -223,7 +256,7 @@ Optimization completed!
 **Reading the iteration output:**
 
 ```
-Iter 29  LR = 5.0e-02  E0 = -3.999994  ± 8.96e-05  Grad norm = 1.2e-03  Accept rate = [0.33 ]
+Iter 29  LR = 2.0e-01  E0 = -4.000000  ± 1.63e-06  Grad norm = 6.4e-05  Accept rate = [0.34 ]
  │        │              │      │              │                 │
  │        │              │      │              │                 └─ MC acceptance rate (~0.3-0.5 is healthy)
  │        │              │      │              └─ gradient norm (should decrease as you converge)
@@ -233,12 +266,22 @@ Iter 29  LR = 5.0e-02  E0 = -3.999994  ± 8.96e-05  Grad norm = 1.2e-03  Accept 
  └─ iteration number
 ```
 
-The energy starts around -3.6 and converges to -4.0000 by iteration ~13, with
-error bars shrinking from 0.03 to 0.0001 and gradient norm dropping by 3 orders
-of magnitude. For a 2x2 PBC Heisenberg lattice (8 bonds), the exact
-ground-state energy is -4.0 (i.e. -0.5 per bond, an undergraduate exercise).
-Our result `-4.0000 ± 0.0001` matches the exact value to 4 decimal places,
-demonstrating that a D=2 PEPS exactly represents this small system's ground state.
+The energy approaches the exact total ground-state energy -4.0 (-0.5 per bond
+on eight bonds). An early plateau near -3.8 and temporary gradient increases
+are possible; judge sustained decay and final accuracy, not strict monotonicity.
+The application does not currently expose a fixed MC seed in JSON.
+
+In ten independent 30-step validation runs, the final logged gradient was
+`5.2e-5` to `3.8e-4`, and the last ten logged gradient values decreased strictly
+in each run. The joint criterion `|E_MC + 4| < 1e-4` and `gradient < 0.002` held
+from iteration 22--27 onward (zero-based). Exact summation over the six `Sz=0`
+configurations gave final saved-state energy errors of `3.0e-10` to `2.8e-8`.
+These are observed results, not guarantees for every random stream or backend.
+See the [validation summary](assets/2x2_pbc_robust_validation.csv) for each run.
+
+The final saved state includes the last update; iteration 29 logs the state
+before that update. Saving also rescales the tensors, so its exact gradient
+norm should not be compared directly with the logged gradient norm.
 
 **Key outputs:**
 - `tpsfinal/`: updated PEPS tensors (overwritten at the end of the VMC) and final configurations which can be used as warmed up configuration in the following MC calculations.
@@ -269,8 +312,8 @@ statistical error on the final observables.
 **Run it:**
 
 ```bash
-./build/mc_measure params/quickstart/physics_local_2x2_pbc.json \
-                   params/quickstart/measure_local_2x2_pbc_n1.json
+"$BUILD_DIR/mc_measure" "$REPO_ROOT/params/quickstart/physics_local_2x2_pbc.json" \
+  "$REPO_ROOT/params/quickstart/measure_local_2x2_pbc_n1.json"
 ```
 
 **What you should see:**
@@ -285,7 +328,8 @@ Total samples:                          2000
 [=======>               ] 10 %
 ...
 [========================] 100 %
-Accept rate = [0.33 ]Rank 0: statistic data finished.
+[MC acceptance] chains=1 component=0 ...
+[MC statistics] chains=1 samples_per_chain=2000 ...
 ```
 
 ---
@@ -315,25 +359,24 @@ samples/
 #### Total energy (`stats/energy.csv`)
 
 ```csv
-index,mean,stderr
-0,-4.00089439296227045e+00,0.00000000000000000e+00
+index,mean,stderr,variance,tau_int,stderr_within_chain
+0,-4.00000005761448385e+00,6.81864528182263444e-07,9.49570433567395592e-10,9.79262239761431674e-01,6.81864528182263444e-07
 ```
 
-The total ground-state energy estimate is **E = -4.001**, matching the exact
-value of -4.0 (i.e. -0.5 per bond on 8 bonds) to three decimal places.
+This representative measurement gives **E = -4.00000006 ± 0.00000068** in the
+sampled `Sz=0` sector, consistent with the exact total energy -4.0. The updated
+statistics include variance, autocorrelation information and within-chain MCSE.
 
-> **Note on stderr = 0:** The standard error is computed across MPI ranks as
-> independent bins. With a single-rank run, there is only one bin, so stderr = 0
-> by construction. This does not mean the estimate is exact -- it means the
-> single-rank error estimation has no cross-bin variance to measure. To obtain
-> a nonzero stderr, use at least 2 MPI ranks (see the 4x4 OBC example, which
-> uses 16 ranks and reports stderr = 0.0027).
+> **Single-rank uncertainty:** The current backend uses within-chain reblocking
+> for one MPI rank, so the error need not be zero. An unavailable error estimate
+> is written as `nan`; it does not imply zero uncertainty or invalidate the
+> finite energy and gradient values. The plotter leaves a gap in that error band.
 
 #### Magnetization (`stats/spin_z_mean.csv`)
 
 ```
--0.0175,  0.0260
--0.0035, -0.0050
+-0.0065, -0.0085
+ 0.0100,  0.0050
 ```
 
 This is a 2x2 matrix of `<Sz>` values on each site (rows = y, columns = x).
@@ -347,24 +390,24 @@ fluctuations that decrease with more MC samples.
 Horizontal bonds (2x2 matrix for PBC, including periodic wraps):
 
 ```
--0.5078, -0.5078
--0.5080, -0.5080
+-0.497375, -0.497375
+-0.497375, -0.497375
 ```
 
 Vertical bonds:
 
 ```
--0.4924, -0.4923
--0.4924, -0.4923
+-0.502625, -0.502625
+-0.502625, -0.502625
 ```
 
 Each entry is the expectation value `<S_i . S_j>` on one bond.
 For the Heisenberg AFM, bond energies are negative (antiferromagnetic
-correlations). The exact value for each bond in the ground state is -0.5
-(for the singlet). Our values are all within 0.01 of the exact value.
+correlations). The exact value for each bond in this four-site ground state
+is -0.5. These sampled values are all within 0.01 of the exact value.
 
 The total energy equals the sum of all bond energies:
-`E_total = sum(bond_energy_h) + sum(bond_energy_v) = (-2.032) + (-1.969) = -4.001`,
+`E_total = sum(bond_energy_h) + sum(bond_energy_v) ≈ (-1.9895) + (-2.0105) = -4.0000`,
 which matches `stats/energy.csv`.
 
 #### Energy convergence plot
@@ -374,24 +417,29 @@ optimization:
 
 ![Energy convergence for 2x2 PBC](assets/energy_trajectory_2x2_pbc.png)
 
-The upper panel shows the energy with error bars converging from ~-3.6 toward
-the exact value -4.0 (red dashed line). The lower panel shows the gradient norm
-decreasing, indicating the optimizer is approaching a minimum.
+The upper panel shows the sampled energy approaching the exact `Sz=0` reference
+-4.0 (red dashed line). The lower panel shows the early plateau and temporary
+gradient increase followed by sustained decay. The figure uses the same robust
+run as the numerical examples above; its [full CSV](assets/energy_trajectory_2x2_pbc.csv)
+and [version/parameter metadata](assets/energy_trajectory_2x2_pbc.metadata.json)
+are archived alongside the image.
 
 **To generate this plot yourself:**
 
 ```bash
-python3 plot/workflow/plot_energy_trajectory.py \
+python3 "$REPO_ROOT/plot/workflow/plot_energy_trajectory.py" \
   --csv energy/energy_trajectory.csv \
   --out energy/energy_trajectory.png \
-  --title "Square Heisenberg 2x2 PBC D=2" \
-  --ref-energy -4.0 --ref-label "exact"
+  --title "Square Heisenberg 2x2 PBC D=2: robust SR, fixed Sz=0" \
+  --ref-energy -4.0 --ref-label "exact Sz=0"
 ```
 
 The plotting script reads `energy_trajectory.csv` (columns: `iteration`,
 `energy`, `energy_error`, `gradient_norm`) and produces a two-panel figure.
 Use `--ref-energy` to add a horizontal reference line (e.g. the exact solution).
 Requires `matplotlib`.
+Unavailable (`nan`) `energy_error` values leave gaps in the uncertainty band;
+the corresponding finite energy and gradient points are still plotted.
 
 ---
 
@@ -402,13 +450,16 @@ plotting in one command, and organizes outputs into a timestamped run directory
 under `run/`:
 
 ```bash
+cd "$REPO_ROOT"
 scripts/run_quickstart_workflow.sh --profile local22_pbc --build-dir build
 ```
 
-This creates a directory like `run/20260215_120000_local22_pbc/` containing:
+The `local22_pbc` profile selects
+`vmc_local_2x2_pbc_robust_n1.json` by default; no `--vmc` override is needed.
+This creates a directory like `run/20261015_120000_local22_pbc/` containing:
 
 ```
-run/20260215_120000_local22_pbc/
+run/20261015_120000_local22_pbc/
   01_simple_update.log    # Full log from step 1
   02_vmc.log              # Full log from step 2
   03_measure.log          # Full log from step 3
@@ -431,11 +482,10 @@ To verify a run completed successfully:
 ```bash
 RUN_DIR="$(ls -td run/*local22_pbc* | head -n 1)"
 cat "$RUN_DIR/status.txt"
-# Expected: SUCCESS end_time=2026-02-15 12:00:00
+# Expected: SUCCESS end_time=<completion time>
 
 cat "$RUN_DIR/stats/energy.csv"
-# Expected: index,mean,stderr
-#           0,-4.00...,0.00...
+# The mean should approach -4; inspect stderr and the VMC gradient trajectory.
 ```
 
 **Important:** On some systems, the tiny 2x2 OBC configuration can crash

@@ -25,6 +25,11 @@ Required CSV header columns:
 
 Extra columns are ignored.
 
+`energy_error` may be `nan` when the Monte Carlo standard error (MCSE) is
+unavailable. The energy and gradient curves still render, with a gap in the
+uncertainty band at those points; a missing MCSE does not mean zero uncertainty.
+All other values must be finite, and infinities are rejected in every column.
+
 Canonical source file (after VMC):
 
 - `./energy/energy_trajectory.csv`
